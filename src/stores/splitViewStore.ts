@@ -180,6 +180,8 @@ interface SplitViewState {
   closedTabs: TabItem[];
   /** Reopen the most recently closed tab in the focused pane (Cmd+Shift+T). */
   reopenClosedTab: () => void;
+  /** Activate the previous (-1) or next (1) tab of the focused pane, wrapping (Cmd+Shift+[ / ]). */
+  selectAdjacentTab: (step: 1 | -1) => void;
   closePane: (paneId: PaneId) => void;
   setActiveTab: (paneId: PaneId, tabId: string) => void;
   setFocusedPane: (paneId: PaneId) => void;
@@ -359,6 +361,15 @@ export const useSplitViewStore = create<SplitViewState>()(
     if (!tab) return;
     set((s) => ({ closedTabs: s.closedTabs.slice(0, -1) }));
     get().openInFocusedPane(tab);
+  },
+
+  selectAdjacentTab: (step) => {
+    const { panes, focusedPaneId } = get();
+    const pane = panes[focusedPaneId];
+    if (!pane || pane.tabs.length < 2) return;
+    const current = pane.tabs.findIndex((t) => t.id === pane.activeTabId);
+    const next = pane.tabs[(Math.max(current, 0) + step + pane.tabs.length) % pane.tabs.length]!;
+    get().setActiveTab(pane.id, next.id);
   },
 
   // -------------------------------------------------------------------------

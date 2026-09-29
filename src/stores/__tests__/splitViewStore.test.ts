@@ -273,3 +273,24 @@ describe("splitViewStore — reopen closed tabs (Cmd+Shift+T)", () => {
     expect(useSplitViewStore.getState().panes).toBe(before);
   });
 });
+
+describe("splitViewStore — adjacent tabs (Cmd+Shift+[ / ])", () => {
+  beforeEach(reset);
+
+  it("moves to the next and previous tab and wraps at both ends", () => {
+    const store = useSplitViewStore.getState();
+    for (const id of ["a", "b", "c"]) store.openInFocusedPane(makeTab({ threadId: id, label: id }));
+    const active = () => {
+      const s = useSplitViewStore.getState();
+      const pane = s.panes[s.focusedPaneId]!;
+      return pane.tabs.find((t) => t.id === pane.activeTabId)?.threadId;
+    };
+    expect(active()).toBe("c");
+    useSplitViewStore.getState().selectAdjacentTab(1);
+    expect(active()).toBe("a");
+    useSplitViewStore.getState().selectAdjacentTab(-1);
+    expect(active()).toBe("c");
+    useSplitViewStore.getState().selectAdjacentTab(-1);
+    expect(active()).toBe("b");
+  });
+});
