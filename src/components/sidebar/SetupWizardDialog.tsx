@@ -42,6 +42,7 @@ import { useLocalModelStore } from "../../stores/localModelStore";
 import xanomIcon from "../../assets/xanom-icon.png";
 import { detectAvailableProviders, isLegacyLocalModelVariant, remoteSetEnabled } from "../../lib/commands";
 import type { AvailableProvider, LocalModelVariant } from "../../lib/commands";
+import { tx, useT } from "../../i18n";
 
 // ── Constants ────────────────────────────────────────────────────────────────
 
@@ -237,16 +238,18 @@ function ToggleRow({
 // ── Step Components ──────────────────────────────────────────────────────────
 
 function WelcomeStep({ upgrade }: { upgrade: boolean }) {
+  const t = useT();
+
   return (
     <div className="flex flex-col items-center text-center">
       <img src={xanomIcon} alt="agmux" className="mb-6 h-20 w-20 rounded-2xl" />
       <h2 className="mb-2 text-2xl font-semibold" style={{ color: "var(--text-primary)" }}>
-        {upgrade ? "New setup options" : "Welcome to agmux"}
+        {upgrade ? t("setup.welcome.upgradeTitle") : t("setup.welcome.title")}
       </h2>
       <p className="max-w-sm text-sm leading-relaxed" style={{ color: "var(--text-muted)" }}>
         {upgrade
-          ? "A few new choices — project memory, agent permissions, phone remote, and alerts. Skip anytime."
-          : "Choose an agent, review permissions, and open your first project. You can customize appearance and add local models later in Settings."}
+          ? t("setup.welcome.upgradeDescription")
+          : t("setup.welcome.description")}
       </p>
     </div>
   );
@@ -267,22 +270,23 @@ function ProvidersStep({
   onRefresh: () => void;
   error: string;
 }) {
+  const t = useT();
+
   return (
     <div>
       <h2 className="mb-1 text-xl font-semibold" style={{ color: "var(--text-primary)" }}>
-        Agent Providers
+        {t("setup.providers.title")}
       </h2>
       <p className="mb-6 text-sm" style={{ color: "var(--text-muted)" }}>
-        We checked Claude Code and Codex on your system. Grok, Cursor, Kimi, OpenCode, and local
-        models can be used later from the New menu when their tools are installed.
+        {t("setup.providers.description")}
       </p>
 
       <div className="mb-4 rounded-lg border border-[var(--glass-border)] p-3 text-sm">
-        <p className="font-medium">Installation and sign-in help</p>
-        <p className="mt-1 text-xs">Installed means the tool was found, not that you are signed in. Follow your agent’s setup guide, then launch <code>claude</code> or <code>codex</code> in Terminal and finish sign-in. Your first conversation confirms the connection.</p>
+        <p className="font-medium">{t("setup.providers.helpTitle")}</p>
+        <p className="mt-1 text-xs">{tx("setup.providers.helpDescription", { claude: <code>claude</code>, codex: <code>codex</code> })}</p>
         <div className="mt-2 flex gap-4">
-          <button type="button" onClick={() => void import("@tauri-apps/plugin-opener").then(m => m.openUrl("https://code.claude.com/docs/en/setup"))}>Claude setup guide</button>
-          <button type="button" onClick={() => void import("@tauri-apps/plugin-opener").then(m => m.openUrl("https://developers.openai.com/codex/cli"))}>Codex setup guide</button>
+          <button type="button" onClick={() => void import("@tauri-apps/plugin-opener").then(m => m.openUrl("https://code.claude.com/docs/en/setup"))}>{t("setup.providers.claudeGuide")}</button>
+          <button type="button" onClick={() => void import("@tauri-apps/plugin-opener").then(m => m.openUrl("https://developers.openai.com/codex/cli"))}>{t("setup.providers.codexGuide")}</button>
         </div>
       </div>
       <div className="mb-6 space-y-2">
@@ -296,7 +300,7 @@ function ProvidersStep({
             }}
           >
             <Loader2 size={16} className="animate-spin" />
-            Detecting installed providers...
+            {t("setup.providers.detecting")}
           </div>
         ) : (
           providers.map((p) => (
@@ -320,19 +324,19 @@ function ProvidersStep({
                 className="ml-auto text-xs"
                 style={{ color: p.available ? "rgb(52 211 153 / 0.8)" : "var(--text-muted)" }}
               >
-                {p.available ? "Installed" : "Not found"}
+                {p.available ? t("setup.providers.installed") : t("setup.providers.notFound")}
               </span>
             </div>
           ))
         )}
       </div>
 
-      <button type="button" disabled={providersLoading} onClick={onRefresh} className="mb-4 text-xs">Check again after installation</button>
-      {error && <p role="alert" className="mb-4 text-xs text-red-400">{error}</p>}
+      <button type="button" disabled={providersLoading} onClick={onRefresh} className="mb-4 text-xs">{t("setup.providers.checkAgain")}</button>
+      {error && <p role="alert" className="mb-4 text-xs text-red-400">{t("setup.providers.checkError", { error })}</p>}
 
       {providers.filter((p) => p.available).length > 1 && (
         <div>
-          <SectionLabel>Default Provider</SectionLabel>
+          <SectionLabel>{t("setup.providers.defaultProvider")}</SectionLabel>
           <div className="flex gap-2">
             {(["ClaudeCode", "Codex"] as const).map((prov) => {
               const info = providers.find(
@@ -368,22 +372,24 @@ function AppearanceStep({
   onSetTheme: (t: AppTheme) => void;
   onSetCustomColor: (hex: string) => void;
 }) {
+  const t = useT();
+
   return (
     <div>
       <h2 className="mb-1 text-xl font-semibold" style={{ color: "var(--text-primary)" }}>
-        Appearance
+        {t("setup.appearance.title")}
       </h2>
       <p className="mb-5 text-sm" style={{ color: "var(--text-muted)" }}>
-        Pick a color mode and theme. Glass surfaces reflect your desktop wallpaper.
+        {t("setup.appearance.description")}
       </p>
 
-      <SectionLabel>Color Mode</SectionLabel>
+      <SectionLabel>{t("setup.appearance.colorMode")}</SectionLabel>
       <div className="mb-5 flex gap-2">
         {(
           [
-            { value: "dark" as ColorMode, label: "Dark", icon: <Moon size={14} /> },
-            { value: "light" as ColorMode, label: "Light", icon: <Sun size={14} /> },
-            { value: "system" as ColorMode, label: "System", icon: <Monitor size={14} /> },
+            { value: "dark" as ColorMode, label: t("setup.appearance.dark"), icon: <Moon size={14} /> },
+            { value: "light" as ColorMode, label: t("setup.appearance.light"), icon: <Sun size={14} /> },
+            { value: "system" as ColorMode, label: t("setup.appearance.system"), icon: <Monitor size={14} /> },
           ] as const
         ).map((m) => (
           <ChoiceButton
@@ -398,23 +404,23 @@ function AppearanceStep({
         ))}
       </div>
 
-      <SectionLabel>Theme</SectionLabel>
+      <SectionLabel>{t("setup.appearance.theme")}</SectionLabel>
       <div className="grid grid-cols-3 gap-2.5">
-        {THEMES.map((t) => {
-          const isActive = theme === t.value;
+        {THEMES.map((themeOption) => {
+          const isActive = theme === themeOption.value;
           const dotColor =
-            t.value === "custom" ? customThemeColor || "#6366f1" : t.accent;
+            themeOption.value === "custom" ? customThemeColor || "#6366f1" : themeOption.accent;
           return (
             <button
-              key={t.value}
+              key={themeOption.value}
               type="button"
-              onClick={() => onSetTheme(t.value)}
-              title={t.desc}
+              onClick={() => onSetTheme(themeOption.value)}
+              title={t(`setup.appearance.theme.${themeOption.value}.description`)}
               className="flex flex-col items-stretch gap-1.5 border-0 bg-transparent p-0 text-left cursor-pointer"
             >
               <ThemeMiniPreview
                 accent={dotColor}
-                tint={THEME_TINTS[t.value] ?? [10, 10, 12]}
+                tint={THEME_TINTS[themeOption.value] ?? [10, 10, 12]}
                 selected={isActive}
               />
               <div className="flex items-center justify-between gap-1 px-0.5">
@@ -427,12 +433,12 @@ function AppearanceStep({
                     className="truncate text-[11px]"
                     style={{ color: isActive ? "var(--text-primary)" : "var(--text-secondary)" }}
                   >
-                    {t.label}
+                    {t(`setup.appearance.theme.${themeOption.value}.label`)}
                   </span>
                 </div>
-                {t.value === "midnight-glass" && (
+                {themeOption.value === "midnight-glass" && (
                   <span className="shrink-0 ui-eyebrow">
-                    Default
+                    {t("setup.appearance.defaultTheme")}
                   </span>
                 )}
               </div>
@@ -450,7 +456,7 @@ function AppearanceStep({
             className="h-8 w-8 cursor-pointer rounded-md border border-[var(--glass-border-highlight)] bg-transparent p-0"
           />
           <span className="text-xs" style={{ color: "var(--text-muted)" }}>
-            Custom base color
+            {t("setup.appearance.customColor")}
           </span>
         </div>
       )}
@@ -469,16 +475,18 @@ function TypographyStep({
   onSetUiFont: (f: UIFont) => void;
   onSetMonoFont: (f: MonoFont) => void;
 }) {
+  const t = useT();
+
   return (
     <div>
       <h2 className="mb-1 text-xl font-semibold" style={{ color: "var(--text-primary)" }}>
-        Fonts
+        {t("setup.typography.title")}
       </h2>
       <p className="mb-6 text-sm" style={{ color: "var(--text-muted)" }}>
-        Choose typefaces for the interface and for code. Changes apply immediately.
+        {t("setup.typography.description")}
       </p>
 
-      <SectionLabel>Interface font</SectionLabel>
+      <SectionLabel>{t("setup.typography.interfaceFont")}</SectionLabel>
       <div className="mb-6 flex flex-wrap gap-2">
         {UI_FONTS.map((f) => (
           <ChoiceButton
@@ -491,7 +499,7 @@ function TypographyStep({
         ))}
       </div>
 
-      <SectionLabel>Code & terminal font</SectionLabel>
+      <SectionLabel>{t("setup.typography.codeTerminalFont")}</SectionLabel>
       <div className="mb-4 flex flex-wrap gap-2">
         {MONO_FONTS.map((f) => (
           <ChoiceButton
@@ -509,7 +517,7 @@ function TypographyStep({
         style={{ borderColor: "var(--glass-border)", background: "var(--glass-hover)" }}
       >
         <p className="text-sm" style={{ color: "var(--text-primary)" }}>
-          The quick brown fox jumps over the lazy dog.
+          {t("setup.typography.sampleText")}
         </p>
         <p
           className="mt-1 font-mono text-xs"
@@ -529,13 +537,15 @@ function LayoutStep({
   layout: "vertical" | "horizontal";
   onSetLayout: (v: "vertical" | "horizontal") => void;
 }) {
+  const t = useT();
+
   return (
     <div>
       <h2 className="mb-1 text-xl font-semibold" style={{ color: "var(--text-primary)" }}>
-        Session layout
+        {t("setup.layout.title")}
       </h2>
       <p className="mb-6 text-sm" style={{ color: "var(--text-muted)" }}>
-        How projects and agent sessions are arranged. You can switch anytime in Settings → Appearance.
+        {t("setup.layout.description")}
       </p>
 
       <div className="grid grid-cols-2 gap-3">
@@ -543,14 +553,14 @@ function LayoutStep({
           [
             {
               value: "vertical" as const,
-              label: "Vertical tabs",
-              hint: "Classic left sidebar with project groups",
+              label: t("setup.layout.verticalTabs"),
+              hint: t("setup.layout.verticalDescription"),
               icon: <PanelLeft size={22} />,
             },
             {
               value: "horizontal" as const,
-              label: "Horizontal tabs",
-              hint: "Browser-style top bar, full-width chat",
+              label: t("setup.layout.horizontalTabs"),
+              hint: t("setup.layout.horizontalDescription"),
               icon: <PanelTop size={22} />,
             },
           ] as const
@@ -608,25 +618,26 @@ function DefaultsStep({
   onSetClaudeView: (v: "terminal" | "chat") => void;
   onSetCodexView: (v: "terminal" | "chat") => void;
 }) {
+  const t = useT();
   const viewChoices = (
     [
-      { value: "chat" as const, label: "Chat", icon: <MessageSquare size={14} /> },
-      { value: "terminal" as const, label: "Terminal", icon: <Terminal size={14} /> },
+      { value: "chat" as const, label: t("setup.defaults.chat"), icon: <MessageSquare size={14} /> },
+      { value: "terminal" as const, label: t("setup.defaults.terminal"), icon: <Terminal size={14} /> },
     ] as const
   );
 
   return (
     <div>
       <h2 className="mb-1 text-xl font-semibold" style={{ color: "var(--text-primary)" }}>
-        Defaults
+        {t("setup.defaults.title")}
       </h2>
       <p className="mb-5 text-sm" style={{ color: "var(--text-muted)" }}>
-        What new sessions start as, how they open, and which AI drafts commit messages.
+        {t("setup.defaults.description")}
       </p>
 
-      <SectionLabel>Quick Open</SectionLabel>
+      <SectionLabel>{t("setup.defaults.quickOpen")}</SectionLabel>
       <p className="mb-2 text-xs" style={{ color: "var(--text-muted)" }}>
-        What the compose button and ⌘N create.
+        {t("setup.defaults.quickOpenDescription")}
       </p>
       <div
         className="mb-5 max-h-[120px] overflow-y-auto rounded-xl border p-2"
@@ -639,13 +650,13 @@ function DefaultsStep({
               active={(quickOpenAction ?? "chat") === opt.value}
               onClick={() => onSetQuickOpen(opt.value)}
             >
-              {opt.label}
+              {t(`setup.defaults.quickOpen.${opt.value}`)}
             </ChoiceButton>
           ))}
         </div>
       </div>
 
-      <SectionLabel>Default Claude view</SectionLabel>
+      <SectionLabel>{t("setup.defaults.claudeView")}</SectionLabel>
       <div className="mb-4 flex gap-2">
         {viewChoices.map((v) => (
           <ChoiceButton
@@ -660,7 +671,7 @@ function DefaultsStep({
         ))}
       </div>
 
-      <SectionLabel>Default Codex view</SectionLabel>
+      <SectionLabel>{t("setup.defaults.codexView")}</SectionLabel>
       <div className="mb-5 flex gap-2">
         {viewChoices.map((v) => (
           <ChoiceButton
@@ -675,9 +686,9 @@ function DefaultsStep({
         ))}
       </div>
 
-      <SectionLabel>Commit message model</SectionLabel>
+      <SectionLabel>{t("setup.defaults.commitMessageModel")}</SectionLabel>
       <p className="mb-2 text-xs" style={{ color: "var(--text-muted)" }}>
-        AI used to draft commit subjects. Auto tries Codex Spark, then Grok 4.5, then Claude Haiku.
+        {t("setup.defaults.commitMessageDescription")}
       </p>
       <div className="flex flex-wrap gap-1.5">
         {COMMIT_MESSAGE_MODEL_OPTIONS.map((opt) => (
@@ -686,7 +697,7 @@ function DefaultsStep({
             active={(commitMessageModel ?? "auto") === opt.value}
             onClick={() => onSetCommitModel(opt.value)}
           >
-            {opt.label}
+            {opt.value === "auto" ? t("setup.defaults.auto") : opt.label}
           </ChoiceButton>
         ))}
       </div>
@@ -709,20 +720,22 @@ function AgentsStep({
   onSetSessionInject: (v: boolean) => void;
   onSetBypass: (v: boolean) => void;
 }) {
+  const t = useT();
+
   return (
     <div>
       <h2 className="mb-1 text-xl font-semibold" style={{ color: "var(--text-primary)" }}>
-        Agents &amp; memory
+        {t("setup.agents.title")}
       </h2>
       <p className="mb-5 text-sm" style={{ color: "var(--text-muted)" }}>
-        How agents share context across chats, and whether new sessions run tools without asking.
+        {t("setup.agents.description")}
       </p>
 
       <div className="space-y-2.5">
         <ToggleRow
           icon={<Brain size={16} />}
-          title="Project memory"
-          description="Share facts and decisions across every agent in a project. Agents get memory tools so they remember what you decided. Recommended on."
+          title={t("setup.agents.projectMemory")}
+          description={t("setup.agents.projectMemoryDescription")}
           enabled={projectMemoryEnabled}
           onChange={(v) => {
             onSetMemory(v);
@@ -731,8 +744,8 @@ function AgentsStep({
         />
         <ToggleRow
           icon={<MessageSquare size={16} />}
-          title="Recent session index"
-          description="When memory is on, new chats get a short list of recent titles (previews only — never full logs) so agents know prior work exists."
+          title={t("setup.agents.recentSessionIndex")}
+          description={t("setup.agents.recentSessionIndexDescription")}
           enabled={projectMemoryEnabled && projectMemorySessionInject}
           onChange={(v) => {
             if (v && !projectMemoryEnabled) onSetMemory(true);
@@ -741,8 +754,8 @@ function AgentsStep({
         />
         <ToggleRow
           icon={<Shield size={16} />}
-          title="Default to full permissions"
-          description="Start every new chat with full permissions so shell, edit, and write tools run without asking. Only enable on machines and projects you trust."
+          title={t("setup.agents.fullPermissions")}
+          description={t("setup.agents.fullPermissionsDescription")}
           enabled={defaultBypassPermissions}
           onChange={onSetBypass}
           caution
@@ -775,48 +788,50 @@ function ConnectStep({
   onSetKeepAwake: (v: boolean) => void;
   onSetAutoUpdate: (v: boolean) => void;
 }) {
+  const t = useT();
+
   return (
     <div>
       <h2 className="mb-1 text-xl font-semibold" style={{ color: "var(--text-primary)" }}>
-        Phone, alerts &amp; updates
+        {t("setup.connect.title")}
       </h2>
       <p className="mb-5 text-sm" style={{ color: "var(--text-muted)" }}>
-        Control from your phone, get notified when agents need you, and keep the app current.
+        {t("setup.connect.description")}
       </p>
 
       <div className="space-y-2.5">
         <ToggleRow
           icon={<Smartphone size={16} />}
-          title="Phone remote"
-          description="Let a phone at remote.agmux.dev manage chats on this Mac. Pair in Settings → Remote after setup. Off by default for safety."
+          title={t("setup.connect.phoneRemote")}
+          description={t("setup.connect.phoneRemoteDescription")}
           enabled={remoteControlEnabled}
           onChange={onSetRemote}
         />
         <ToggleRow
           icon={<Bell size={16} />}
-          title="Notify when an agent finishes"
-          description="macOS notification when a chat finishes in the background."
+          title={t("setup.connect.notifyComplete")}
+          description={t("setup.connect.notifyCompleteDescription")}
           enabled={notifyOnComplete}
           onChange={onSetNotifyComplete}
         />
         <ToggleRow
           icon={<Bell size={16} />}
-          title="Notify when approval is needed"
-          description="Alert when an agent is waiting for you to approve a tool or answer a question."
+          title={t("setup.connect.notifyApproval")}
+          description={t("setup.connect.notifyApprovalDescription")}
           enabled={notifyOnApproval}
           onChange={onSetNotifyApproval}
         />
         <ToggleRow
           icon={<Coffee size={16} />}
-          title="Keep Mac awake while agents run"
-          description="Prevent sleep while any agent is working or waiting for approval. Useful for long runs and phone remote."
+          title={t("setup.connect.keepAwake")}
+          description={t("setup.connect.keepAwakeDescription")}
           enabled={keepAwakeWhileRunning}
           onChange={onSetKeepAwake}
         />
         <ToggleRow
           icon={<RefreshCw size={16} />}
-          title="Automatic updates"
-          description="Download and install app updates when you open agmux, without an extra click."
+          title={t("setup.connect.automaticUpdates")}
+          description={t("setup.connect.automaticUpdatesDescription")}
           enabled={autoUpdateEnabled}
           onChange={onSetAutoUpdate}
         />
@@ -826,6 +841,7 @@ function ConnectStep({
 }
 
 function LocalModelStep() {
+  const t = useT();
   const status = useLocalModelStore((s) => s.status);
   const downloading = useLocalModelStore((s) => s.downloading);
   const downloadProgress = useLocalModelStore((s) => s.downloadProgress);
@@ -865,22 +881,20 @@ function LocalModelStep() {
   return (
     <div>
       <h2 className="mb-1 text-xl font-semibold" style={{ color: "var(--text-primary)" }}>
-        Local AI model
+        {t("setup.localModel.title")}
       </h2>
       <p className="mb-5 text-sm" style={{ color: "var(--text-muted)" }}>
-        Required. agmux downloads a small on-device model for offline thread naming and quick
-        tasks — one-time download, no API key after setup.
+        {t("setup.localModel.description")}
       </p>
 
       <div className="mb-3 flex items-start gap-2.5 text-xs" style={{ color: "var(--text-muted)" }}>
         <HardDrive size={14} className="mt-0.5 shrink-0" style={{ color: "var(--accent, #6366f1)" }} />
-        <span>No API key after download. Works offline. ~1–2 GB disk.</span>
+        <span>{t("setup.localModel.offlineNote")}</span>
       </div>
 
       {onLegacy && (
         <p className="mb-3 text-xs leading-relaxed text-amber-500">
-          Your current model ({status?.model_name}) is retired. Pick one below to keep automatic
-          titles and summaries working.
+          {t("setup.localModel.retired", { model: status?.model_name ?? "" })}
         </p>
       )}
 
@@ -891,7 +905,7 @@ function LocalModelStep() {
             v.downloaded && v.size_bytes
               ? formatBytes(v.size_bytes)
               : `~${formatBytes(v.approx_size_bytes)}`;
-          const quality = v.blurb || "On-device model";
+          const quality = v.blurb || t("setup.localModel.onDeviceModel");
 
           return (
             <div
@@ -902,18 +916,18 @@ function LocalModelStep() {
               <div className="min-w-0 flex-1">
                 <p className="truncate text-sm font-medium" style={{ color: "var(--text-primary)" }}>
                   {v.display_name}
-                  {v.recommended ? " · Rec" : ""}
+                  {v.recommended ? t("setup.localModel.recommendedSuffix") : ""}
                 </p>
                 <p className="text-[11px]" style={{ color: "var(--text-muted)" }}>
                   {quality} · {sizeLabel}
-                  {v.downloaded && isActive ? " · Active" : ""}
+                  {v.downloaded && isActive ? t("setup.localModel.activeSuffix") : ""}
                 </p>
               </div>
               {v.downloaded ? (
                 isActive ? (
                   <span className="flex shrink-0 items-center gap-1 text-xs text-[color:var(--accent)]">
                     <CheckCircle2 size={13} />
-                    Active
+                    {t("setup.localModel.active")}
                   </span>
                 ) : (
                   <button
@@ -926,7 +940,7 @@ function LocalModelStep() {
                       background: "var(--glass-active)",
                     }}
                   >
-                    Use this
+                    {t("setup.localModel.useThis")}
                   </button>
                 )
               ) : (
@@ -938,7 +952,7 @@ function LocalModelStep() {
                   style={{ background: "var(--accent, #6366f1)" }}
                 >
                   <Download size={12} />
-                  Download
+                  {t("setup.localModel.download")}
                 </button>
               )}
             </div>
@@ -955,7 +969,7 @@ function LocalModelStep() {
             }}
           >
             <Loader2 size={14} className="animate-spin" />
-            Checking local model status...
+            {t("setup.localModel.checkingStatus")}
           </div>
         )}
       </div>
@@ -964,7 +978,7 @@ function LocalModelStep() {
         <div className="mt-3">
           <div className="mb-1 flex items-center justify-between text-xs" style={{ color: "var(--text-muted)" }}>
             <span>
-              {downloadProgress?.stage === "server" ? "Downloading server..." : "Downloading model..."}
+              {downloadProgress?.stage === "server" ? t("setup.localModel.downloadingServer") : t("setup.localModel.downloadingModel")}
             </span>
             {progressPercent !== null && <span className="tabular-nums">{progressPercent}%</span>}
           </div>
@@ -987,7 +1001,7 @@ function LocalModelStep() {
       {status?.server_running && (
         <p className="mt-3 flex items-center gap-1.5 text-xs text-[color:var(--accent)]">
           <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-[var(--accent)]" />
-          Local server running and ready
+          {t("setup.localModel.serverReady")}
         </p>
       )}
     </div>
@@ -995,6 +1009,8 @@ function LocalModelStep() {
 }
 
 function CompleteStep({ upgrade }: { upgrade: boolean }) {
+  const t = useT();
+
   return (
     <div className="flex flex-col items-center text-center">
       <div
@@ -1004,19 +1020,19 @@ function CompleteStep({ upgrade }: { upgrade: boolean }) {
         <Zap size={28} className="text-[color:var(--accent)]" />
       </div>
       <h2 className="mb-2 text-2xl font-semibold" style={{ color: "var(--text-primary)" }}>
-        {upgrade ? "You're up to date" : "Start your first conversation"}
+        {upgrade ? t("setup.complete.upgradeTitle") : t("setup.complete.title")}
       </h2>
       <p className="max-w-sm text-sm leading-relaxed" style={{ color: "var(--text-muted)" }}>
-        {upgrade
-          ? "New preferences are saved. Tweak anything later in Settings ("
-          : "Open a project folder below, then send a first prompt such as “Explain this project without changing files.” If sign-in is needed, your agent will guide you. Appearance, local models and other options remain in Settings ("}
-        <kbd
-          className="rounded px-1.5 py-0.5 font-mono text-xs"
-          style={{ background: "var(--glass-hover)", color: "var(--text-secondary)" }}
-        >
-          &#8984;,
-        </kbd>
-        ).
+        {tx(upgrade ? "setup.complete.upgradeDescription" : "setup.complete.description", {
+          shortcut: (
+            <kbd
+              className="rounded px-1.5 py-0.5 font-mono text-xs"
+              style={{ background: "var(--glass-hover)", color: "var(--text-secondary)" }}
+            >
+              &#8984;,
+            </kbd>
+          ),
+        })}
       </p>
     </div>
   );
@@ -1031,6 +1047,7 @@ function useDialogOpen() {
 }
 
 export function SetupWizardDialog() {
+  const t = useT();
   const projectDialog = useDialogOpen();
   const settings = useSettingsStore((s) => s.settings);
   const isOpen = useSettingsStore((s) => s.isSetupWizardOpen);
@@ -1052,7 +1069,7 @@ export function SetupWizardDialog() {
       setProviders(provs);
       const available = provs.filter(p => p.available);
       if (available.length === 1) updateSettings({ defaultProvider: available[0].id === "codex" ? "Codex" : "ClaudeCode" });
-    }).catch(e => setProviderError(`Could not check installed agents: ${String(e)}`)).finally(() => setProvidersLoading(false));
+    }).catch(e => setProviderError(String(e))).finally(() => setProvidersLoading(false));
   }, [updateSettings]);
 
   const upgradeMode = isUpgradeOnboarding(settings);
@@ -1116,10 +1133,10 @@ export function SetupWizardDialog() {
     if (openingProject || !projectDialog) return;
     setOpeningProject(true); setSetupError("");
     try {
-      const path = await projectDialog({ directory: true, multiple: false, title: "Open your first project" });
+      const path = await projectDialog({ directory: true, multiple: false, title: t("setup.complete.openProjectDialogTitle") });
       if (typeof path !== "string") return;
       const store = useProjectStore.getState();
-      const project = store.projects.find(p => p.repo_path === path) ?? await store.addProject(path.split("/").pop() || "Project", path);
+      const project = store.projects.find(p => p.repo_path === path) ?? await store.addProject(path.split("/").pop() || t("setup.project.defaultName"), path);
       const ui = useUiStore.getState();
       ui.setAppMode("agent");
       ui.selectProject(project.id);
@@ -1290,8 +1307,8 @@ export function SetupWizardDialog() {
                     />
                   )}
                   {stepId === "local-model" && <LocalModelStep />}
-                  {stepId === "welcome" && !upgradeMode && <label className="mt-5 flex items-center gap-2 text-xs"><input type="checkbox" checked={customize} onChange={e => setCustomize(e.target.checked)} />Customize appearance and advanced options</label>}
-                  {stepId === "complete" && <><CompleteStep upgrade={upgradeMode} />{!upgradeMode && <div className="mt-4 text-center"><button type="button" disabled={openingProject || !projectDialog} onClick={() => void openProject()} className="rounded-lg bg-[var(--accent)] px-4 py-2 text-sm">{openingProject ? "Opening…" : "Open project folder"}</button>{setupError && <p role="alert" className="mt-2 text-red-400 text-xs">{setupError}</p>}</div>}</>}
+                  {stepId === "welcome" && !upgradeMode && <label className="mt-5 flex items-center gap-2 text-xs"><input type="checkbox" checked={customize} onChange={e => setCustomize(e.target.checked)} />{t("setup.welcome.customizeOptions")}</label>}
+                  {stepId === "complete" && <><CompleteStep upgrade={upgradeMode} />{!upgradeMode && <div className="mt-4 text-center"><button type="button" disabled={openingProject || !projectDialog} onClick={() => void openProject()} className="rounded-lg bg-[var(--accent)] px-4 py-2 text-sm">{openingProject ? t("setup.complete.opening") : t("setup.complete.openProjectFolder")}</button>{setupError && <p role="alert" className="mt-2 text-red-400 text-xs">{setupError}</p>}</div>}</>}
                 </motion.div>
               </AnimatePresence>
             </div>
@@ -1309,7 +1326,7 @@ export function SetupWizardDialog() {
                     style={{ color: "var(--text-muted)" }}
                   >
                     <ChevronLeft size={15} />
-                    Back
+                    {t("common.back")}
                   </button>
                 ) : (
                   <button
@@ -1318,7 +1335,7 @@ export function SetupWizardDialog() {
                     className="rounded-lg px-3 py-2 text-sm transition-colors"
                     style={{ color: "var(--text-muted)" }}
                   >
-                    Skip setup
+                    {t("setup.footer.skip")}
                   </button>
                 )}
               </div>
@@ -1330,12 +1347,12 @@ export function SetupWizardDialog() {
                 style={{ background: "var(--accent, #6366f1)" }}
               >
                 {isLastStep
-                  ? "Get Started"
+                  ? t("setup.footer.getStarted")
                   : stepId === "local-model" && !localModelReady
                     ? localModelDownloading
-                      ? "Downloading…"
-                      : "Download required"
-                    : "Continue"}
+                      ? t("setup.footer.downloading")
+                      : t("setup.footer.downloadRequired")
+                    : t("common.continue")}
                 {!isLastStep && canAdvance && <ChevronRight size={15} />}
               </button>
             </div>

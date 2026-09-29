@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { ChevronDown, Zap } from "lucide-react";
 import { DropdownPopover, DropdownHeader } from "./ComposerDropdown";
 import { EffortSlider, type EffortSliderOption } from "./EffortSlider";
+import { useT } from "../../i18n";
 
 export interface EffortSelectorProps {
   options: EffortSliderOption[];
@@ -47,7 +48,7 @@ export function EffortSelector({
   options,
   value,
   onChange,
-  title = "Reasoning effort",
+  title,
   triggerClassName = DEFAULT_TRIGGER,
   kbd,
   minLabel,
@@ -56,8 +57,10 @@ export function EffortSelector({
   disabled = false,
   allowedValues,
 }: EffortSelectorProps) {
+  const t = useT();
   const [open, setOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
+  const popoverTitle = title ?? t("labels.effort.reasoning");
 
   const available = allowedValues == null ? options : options.filter((o) => allowedValues.includes(o.value));
   const selected = options.find((o) => o.value === value);
@@ -88,8 +91,8 @@ export function EffortSelector({
         disabled={disabled}
         onClick={() => setOpen((v) => !v)}
         className={resolvedTrigger}
-        title={`Reasoning effort: ${label}`}
-        aria-label={`Reasoning effort: ${label}`}
+        title={t("labels.effort.reasoningWithValue", { value: label })}
+        aria-label={t("labels.effort.reasoningWithValue", { value: label })}
         aria-expanded={open}
         aria-haspopup="dialog"
       >
@@ -107,12 +110,12 @@ export function EffortSelector({
           className="absolute bottom-full left-0 z-50 mb-2"
           style={{ width: 280 }}
           role="dialog"
-          aria-label={title}
+          aria-label={popoverTitle}
         >
           <DropdownPopover>
-            <DropdownHeader title={title} kbd={kbd} />
+            <DropdownHeader title={popoverTitle} kbd={kbd} />
             {allowedValues != null && !available.some((o) => o.value === value) && (
-              <p className="px-3 py-2 text-xs text-[var(--text-secondary)]">{available.length ? "This choice is blocked by team restrictions. Choose an allowed value." : "No choices are allowed by your team restrictions."}</p>
+              <p className="px-3 py-2 text-xs text-[var(--text-secondary)]">{available.length ? <>{t("labels.effort.choiceBlocked")} {t("labels.effort.chooseAllowed")}</> : t("labels.effort.noAllowedChoices")}</p>
             )}
             {available.length > 0 && <EffortSlider
               options={available}

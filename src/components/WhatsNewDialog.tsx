@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import {
   X,
   Sparkles,
@@ -12,6 +12,8 @@ import { motion, AnimatePresence } from "framer-motion";
 import { getVersion } from "@tauri-apps/api/app";
 import agmuxIcon from "../assets/xanom-icon.png";
 import { useSettingsStore } from "../stores/settingsStore";
+import { localeTag, useT } from "../i18n";
+import { localizedReleaseBody } from "../i18n/releaseNotes";
 
 const STORAGE_KEY = "xanom_last_seen_version";
 const GITHUB_REPO = "neelsatyavolu/agmux";
@@ -36,27 +38,24 @@ interface ReleaseData {
 
 const CAT_STYLES: Record<
   Category,
-  { color: string; bg: string; border: string; label: string; Icon: LucideIcon }
+  { color: string; bg: string; border: string; Icon: LucideIcon }
 > = {
   new: {
     color: "var(--accent)",
     bg: "color-mix(in srgb, var(--accent) 10%, transparent)",
     border: "color-mix(in srgb, var(--accent) 25%, transparent)",
-    label: "New",
     Icon: Sparkles,
   },
   improved: {
     color: "var(--status-blue)",
     bg: "rgba(96,165,250,0.10)",
     border: "rgba(96,165,250,0.22)",
-    label: "Improved",
     Icon: ArrowUpRight,
   },
   fixed: {
     color: "var(--status-purple)",
     bg: "rgba(167,139,250,0.10)",
     border: "rgba(167,139,250,0.22)",
-    label: "Fixed",
     Icon: Wrench,
   },
 };
@@ -144,7 +143,33 @@ function parseReleaseBody(body: string): {
   return { tagline, summary, items };
 }
 
-async function fetchReleaseData(version: string): Promise<ReleaseData | null> {
+/** GitHub release as fetched; turned into display text at render time. */
+interface RawRelease {
+  version: string;
+  prev: string | null;
+  publishedAt: string | null;
+  name: string | null;
+  body: string;
+}
+
+/** Display text in the active language (bundled translation, localized date). */
+function presentRelease(raw: RawRelease): ReleaseData {
+  const parsed = parseReleaseBody(localizedReleaseBody(raw.version, raw.body));
+  let tagline = parsed.tagline;
+  if (!tagline && raw.name && raw.name.toLowerCase() !== `v${raw.version}`.toLowerCase()) {
+    tagline = raw.name;
+  }
+  const date = raw.publishedAt
+    ? new Date(raw.publishedAt).toLocaleDateString(localeTag(), {
+        year: "numeric",
+        month: "long",
+        day: "numeric",
+      })
+    : "";
+  return { version: raw.version, prev: raw.prev, date, tagline, summary: parsed.summary, items: parsed.items };
+}
+
+async function fetchReleaseData(version: string): Promise<RawRelease | null> {
   try {
     const resp = await fetch(
       `https://api.github.com/repos/${GITHUB_REPO}/releases/tags/v${version}`,
@@ -156,12 +181,6 @@ async function fetchReleaseData(version: string): Promise<ReleaseData | null> {
       published_at?: string;
       name?: string;
     };
-
-    const parsed = parseReleaseBody(data.body ?? "");
-    let tagline = parsed.tagline;
-    if (!tagline && data.name && data.name.toLowerCase() !== `v${version}`.toLowerCase()) {
-      tagline = data.name;
-    }
 
     let prev: string | null = null;
     try {
@@ -180,21 +199,12 @@ async function fetchReleaseData(version: string): Promise<ReleaseData | null> {
       /* ignore — prev is optional */
     }
 
-    const date = data.published_at
-      ? new Date(data.published_at).toLocaleDateString("en-US", {
-          year: "numeric",
-          month: "long",
-          day: "numeric",
-        })
-      : "";
-
     return {
       version,
       prev,
-      date,
-      tagline,
-      summary: parsed.summary,
-      items: parsed.items,
+      publishedAt: data.published_at ?? null,
+      name: data.name ?? null,
+      body: data.body ?? "",
     };
   } catch {
     return null;
@@ -248,6 +258,7 @@ function DontShowAgain({
   checked: boolean;
   onChange: (v: boolean) => void;
 }) {
+  const t = useT();
   return (
     <label
       style={{
@@ -278,7 +289,7 @@ function DontShowAgain({
       >
         {checked && <Check size={9} strokeWidth={3} color="#052e1f" />}
       </span>
-      <span>Don't show again for this version</span>
+      <span>{t("whatsNew.dontShowAgain")}</span>
       <input
         type="checkbox"
         checked={checked}
@@ -290,9 +301,12 @@ function DontShowAgain({
 }
 
 export function WhatsNewDialog() {
+  const t = useT();
   const [open, setOpen] = useState(false);
   const [appVersion, setAppVersion] = useState<string | null>(null);
-  const [data, setData] = useState<ReleaseData | null>(null);
+  const [raw, setRaw] = useState<RawRelease | null>(null);
+  // `t` changes identity with the language, so a switch re-renders the body too.
+  const data = useMemo(() => (raw ? presentRelease(raw) : null), [raw, t]);
   const [dontShow, setDontShow] = useState(true);
 
   useEffect(() => {
@@ -317,7 +331,7 @@ export function WhatsNewDialog() {
         settingsState.setWhatsNewPending(false);
         return;
       }
-      setData(release);
+      setRaw(release);
       // Small delay so the app finishes loading first
       setTimeout(() => {
         if (!cancelled) setOpen(true);
@@ -409,7 +423,7 @@ export function WhatsNewDialog() {
               >
                 <button
                   onClick={handleDismiss}
-                  aria-label="Close"
+                  aria-label={t("common.close")}
                   style={{
                     position: "absolute",
                     top: 14,
@@ -450,7 +464,7 @@ export function WhatsNewDialog() {
                   }}
                 >
                   {appVersion ? `agmux v${appVersion}` : "agmux"}
-                  {data?.prev && ` · updated from v${data.prev}`}
+                  {data?.prev && t("whatsNew.updatedFrom", { version: data.prev })}
                 </div>
                 <div
                   style={{
@@ -462,7 +476,7 @@ export function WhatsNewDialog() {
                     lineHeight: 1.25,
                   }}
                 >
-                  {data?.tagline || "What's New"}
+                  {data?.tagline || t("whatsNew.title")}
                 </div>
                 {data?.summary && (
                   <div
@@ -540,7 +554,7 @@ export function WhatsNewDialog() {
                               color: c.color,
                             }}
                           >
-                            {c.label}
+                            {t(`whatsNew.category.${it.cat}`)}
                           </div>
                           <div
                             style={{
@@ -579,7 +593,7 @@ export function WhatsNewDialog() {
                       textAlign: "center",
                     }}
                   >
-                    Bug fixes and improvements.
+                    {t("whatsNew.emptyFallback")}
                   </div>
                 )}
               </div>
@@ -640,7 +654,7 @@ export function WhatsNewDialog() {
                     e.currentTarget.style.color = "var(--text-tertiary)";
                   }}
                 >
-                  View full changelog
+                  {t("whatsNew.viewFullChangelog")}
                   <ExternalLink size={11} />
                 </button>
                 <button
@@ -669,7 +683,7 @@ export function WhatsNewDialog() {
                     e.currentTarget.style.background = "color-mix(in srgb, var(--accent) 90%, transparent)";
                   }}
                 >
-                  Got it
+                  {t("whatsNew.gotIt")}
                 </button>
               </div>
             </div>

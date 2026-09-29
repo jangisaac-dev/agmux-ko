@@ -23,6 +23,7 @@ import { getThreadName } from "./CodexSessionsList";
 import { spawnClaudeNew, listClaudeSessions, listGrokSessions, codexEnsureServer, codexStartThread, codexAccountRead, checkIsGitRepo, findKimiThreadBySessionId, seedKimiSessionId, findGrokThreadBySessionId, seedGrokSessionId, deleteKimiSession, deleteGrokSession, deleteClaudeSession, findPiThreadBySessionId, seedPiSessionId, deletePiSession, spawnThread as spawnThreadRaw } from "../../lib/commands";
 import { useSessionNameStore } from "../../stores/sessionNameStore";
 import { useSettingsStore } from "../../stores/settingsStore";
+import { t as translate, useT } from "../../i18n";
 import { useProjectStore } from "../../stores/projectStore";
 import { stripSystemTags } from "../../lib/messageFilters";
 import { loadCreatedClaudeSessions, addCreatedClaudeSession, removeCreatedClaudeSession } from "../../lib/createdSessions";
@@ -201,19 +202,20 @@ function computeStatus(opts: { pending: boolean; processing: boolean; unread: bo
   return "idle";
 }
 export function StatusDot({ state, title }: { state: StatusDotState; title?: string }) {
+  const t = useT();
   if (state === "idle") return null;
   if (state === "working") {
     return (
       <Loader2
         size={12}
         className="shrink-0 animate-spin text-blue-400"
-        aria-label={title ?? "working"}
+        aria-label={title ?? t("sidebar.status.working")}
       />
     );
   }
   const cls = state === "needs_attention" ? "bg-amber-400" : "bg-green-400";
   const tone = state === "needs_attention" ? "need" : "done";
-  const label = title ?? state.replace("_", " ");
+  const label = title ?? t(state === "needs_attention" ? "sidebar.status.needsAttention" : "sidebar.status.doneUnread");
   return (
     <span className="relative flex h-1.5 w-1.5 shrink-0 items-center justify-center" title={label} aria-label={label}>
       <span className={`sb-status-ping absolute h-2.5 w-2.5 animate-ping rounded-full opacity-60 ${cls}`} />
@@ -299,16 +301,16 @@ function relativeTime(ts: number): string {
   if (!ts) return "";
   const diff = Date.now() - ts;
   const mins = Math.floor(diff / 60000);
-  if (mins < 1) return "now";
-  if (mins < 60) return `${mins}m`;
+  if (mins < 1) return translate("sidebar.time.now");
+  if (mins < 60) return translate("sidebar.time.minutes", { count: mins });
   const hrs = Math.floor(mins / 60);
-  if (hrs < 24) return `${hrs}h`;
+  if (hrs < 24) return translate("sidebar.time.hours", { count: hrs });
   const days = Math.floor(hrs / 24);
-  if (days < 7) return `${days}d`;
+  if (days < 7) return translate("sidebar.time.days", { count: days });
   const weeks = Math.floor(days / 7);
-  if (weeks < 5) return `${weeks}w`;
+  if (weeks < 5) return translate("sidebar.time.weeks", { count: weeks });
   const months = Math.floor(days / 30);
-  return `${months}mo`;
+  return translate("sidebar.time.months", { count: months });
 }
 
 export type SidebarProviderIcon = "claude" | "codex" | "droid" | "kimi" | "pi" | "opencode" | "mlx" | "grok" | "cursor" | "cline" | "gemini" | "hermes";
@@ -350,6 +352,7 @@ export function ProviderIcon({
 }
 
 export function ProjectGroup({ project, codexThreads, claudeSessions, kimiSessions, piSessions, grokSessions, onSessionCreated, onDragHandlePointerDown, collapsed, variant = "list", desktopClaudeCowork = EMPTY_DESKTOP_CLAUDE, desktopCodexWork = EMPTY_DESKTOP_CODEX, focusPortal = null, focusSince = null, focusCutoff = null }: Props) {
+  const t = useT();
   const expanded = useUiStore((s) => s.projectExpandedById[project.id] ?? true);
   const setProjectExpanded = useUiStore((s) => s.setProjectExpanded);
   const setExpanded = (next: boolean) => setProjectExpanded(project.id, next);
@@ -1328,7 +1331,7 @@ export function ProjectGroup({ project, codexThreads, claudeSessions, kimiSessio
       style={{ left: itemContextMenu.x, top: itemContextMenu.y, width: 216 }}
     >
       <DropdownPopover>
-        <DropdownHeader title="Session" />
+        <DropdownHeader title={t("sidebar.session.heading")} />
         <DropdownRow
           onClick={() => handleTogglePin(itemContextMenu.id)}
           icon={
@@ -1338,7 +1341,7 @@ export function ProjectGroup({ project, codexThreads, claudeSessions, kimiSessio
               <Pin size={14} className="text-amber-400" />
             )
           }
-          title={pinnedSessionIdsRef.current.has(itemContextMenu.id) ? "Unpin" : "Pin to top"}
+          title={t(pinnedSessionIdsRef.current.has(itemContextMenu.id) ? "sidebar.session.unpin" : "sidebar.session.pinToTop")}
         />
         <DropdownRow
           onClick={() => {
@@ -1346,11 +1349,11 @@ export function ProjectGroup({ project, codexThreads, claudeSessions, kimiSessio
               const t = threads.find((th) => th.id === itemContextMenu.id);
               handleItemRename(itemContextMenu.id, sessionNames[itemContextMenu.id] || (t?.name ?? ""));
             } else {
-              handleItemRename(itemContextMenu.id, sessionNames[itemContextMenu.id] || "New Thread");
+              handleItemRename(itemContextMenu.id, sessionNames[itemContextMenu.id] || t("sidebar.session.newThread"));
             }
           }}
           icon={<Pencil size={14} className="text-zinc-400" />}
-          title="Rename"
+          title={t("sidebar.action.rename")}
         />
         <DropdownRow
           onClick={() => {
@@ -1358,7 +1361,7 @@ export function ProjectGroup({ project, codexThreads, claudeSessions, kimiSessio
             setItemContextMenu(null);
           }}
           icon={<RefreshCw size={14} className="text-zinc-400" />}
-          title="Resummarize"
+          title={t("sidebar.session.resummarize")}
         />
         {diffRecalculationTarget && <RecalculateDiffAction
           key={JSON.stringify(diffRecalculationTarget)}
@@ -1375,7 +1378,7 @@ export function ProjectGroup({ project, codexThreads, claudeSessions, kimiSessio
               setItemContextMenu(null);
             }}
             icon={<RefreshCw size={14} className="text-zinc-400" />}
-            title="Reconnect Codex"
+            title={t("sidebar.session.reconnectCodex")}
           />
         )}
         {itemContextIsLocalModel && (
@@ -1385,7 +1388,7 @@ export function ProjectGroup({ project, codexThreads, claudeSessions, kimiSessio
               mlxEjectModel().catch((e) => console.error("[mlx] eject failed", e));
             }}
             icon={<Unplug size={14} className="text-zinc-400" />}
-            title="Eject model"
+            title={t("sidebar.model.eject")}
           />
         )}
         {itemContextMenu.kind === "thread" && (
@@ -1396,7 +1399,7 @@ export function ProjectGroup({ project, codexThreads, claudeSessions, kimiSessio
                 setItemContextMenu(null);
               }}
               icon={<Archive size={14} className="text-amber-400" />}
-              title="Archive"
+              title={t("sidebar.archive.action")}
             />
             <DropdownDivider />
             <DropdownRow
@@ -1406,7 +1409,7 @@ export function ProjectGroup({ project, codexThreads, claudeSessions, kimiSessio
                 setItemContextMenu(null);
               }}
               icon={<Trash2 size={14} />}
-              title="Delete"
+              title={t("common.delete")}
             />
           </>
         )}
@@ -1415,7 +1418,7 @@ export function ProjectGroup({ project, codexThreads, claudeSessions, kimiSessio
             <DropdownRow
               onClick={() => handleHideSession(itemContextMenu.id)}
               icon={<Archive size={14} className="text-amber-400" />}
-              title="Archive"
+              title={t("sidebar.archive.action")}
             />
             <DropdownDivider />
             <DropdownRow
@@ -1431,7 +1434,7 @@ export function ProjectGroup({ project, codexThreads, claudeSessions, kimiSessio
                 }
               }}
               icon={<Trash2 size={14} />}
-              title="Delete"
+              title={t("common.delete")}
             />
           </>
         )}
@@ -1449,7 +1452,7 @@ export function ProjectGroup({ project, codexThreads, claudeSessions, kimiSessio
                 }
               }}
               icon={<Trash2 size={14} />}
-              title="Delete"
+              title={t("common.delete")}
             />
           </>
         )}
@@ -1467,7 +1470,7 @@ export function ProjectGroup({ project, codexThreads, claudeSessions, kimiSessio
                 }
               }}
               icon={<Trash2 size={14} />}
-              title="Delete"
+              title={t("common.delete")}
             />
           </>
         )}
@@ -1476,7 +1479,7 @@ export function ProjectGroup({ project, codexThreads, claudeSessions, kimiSessio
             <DropdownRow
               onClick={() => handleHideSession(itemContextMenu.id)}
               icon={<Archive size={14} className="text-amber-400" />}
-              title="Archive"
+              title={t("sidebar.archive.action")}
             />
             <DropdownDivider />
             <DropdownRow
@@ -1487,7 +1490,7 @@ export function ProjectGroup({ project, codexThreads, claudeSessions, kimiSessio
                 deleteGrokSession(id, project.repo_path).catch(console.error);
               }}
               icon={<Trash2 size={14} />}
-              title="Delete"
+              title={t("common.delete")}
             />
           </>
         )}
@@ -1540,11 +1543,11 @@ export function ProjectGroup({ project, codexThreads, claudeSessions, kimiSessio
       try {
         const account = await codexAccountRead(project.repo_path);
         if (!account.authenticated) {
-          setCodexAuthError("Not logged in to Codex. Go to Settings to log in.");
+          setCodexAuthError(t("sidebar.auth.codexNotLoggedIn"));
           return;
         }
       } catch {
-        setCodexAuthError("Could not verify Codex login. Is the Codex CLI installed?");
+        setCodexAuthError(t("sidebar.auth.codexLoginUnverified"));
         return;
       }
 
@@ -1561,9 +1564,9 @@ export function ProjectGroup({ project, codexThreads, claudeSessions, kimiSessio
       }
     } catch (err) {
       console.error("Failed to start new Codex session:", err);
-      setCodexAuthError(`Failed to start Codex session: ${String(err)}`);
+      setCodexAuthError(t("sidebar.auth.codexStartFailed", { error: String(err) }));
     }
-  }, [project.repo_path, selectCodexSession, registerOptimisticCodexSession, onSessionCreated]);
+  }, [project.repo_path, selectCodexSession, registerOptimisticCodexSession, onSessionCreated, t]);
 
   /**
    * Click handler for a DISCOVERED Grok session (scanned from
@@ -1768,8 +1771,8 @@ export function ProjectGroup({ project, codexThreads, claudeSessions, kimiSessio
       setLocalSyncError(message);
       return;
     }
-    await handleNewPiSession({ model: slug, name: "New Local Thread" });
-  }, [handleNewPiSession]);
+    await handleNewPiSession({ model: slug, name: t("sidebar.session.newLocalThread") });
+  }, [handleNewPiSession, t]);
 
   const handleNewKimiSession = useCallback(async () => {
     setNewMenu(false);
@@ -2152,7 +2155,7 @@ export function ProjectGroup({ project, codexThreads, claudeSessions, kimiSessio
       if (item.kind === "desktop-claude") return item.data.title || "Cowork";
       if (item.kind === "claude") {
         const raw = stripSystemTags((item.data as ClaudeSession).preview ?? "");
-        return raw.slice(0, 60) || "New Thread";
+        return raw.slice(0, 60) || t("sidebar.session.newThread");
       }
       if (item.kind === "grok") {
         const raw = (item.data as GrokSession).preview ?? "";
@@ -2206,7 +2209,7 @@ export function ProjectGroup({ project, codexThreads, claudeSessions, kimiSessio
         <button
           onClick={() => setExpanded(!expanded)}
           className="flex items-center justify-center rounded-md p-1 mt-1 mb-0.5 text-zinc-500 hover:bg-white/5 hover:text-zinc-400 transition-colors"
-          title={expanded ? `Collapse ${project.name}` : `Expand ${project.name}`}
+        title={expanded ? t("sidebar.project.collapse", { name: project.name }) : t("sidebar.project.expand", { name: project.name })}
         >
           <ChevronRight
             size={12}
@@ -2281,7 +2284,7 @@ export function ProjectGroup({ project, codexThreads, claudeSessions, kimiSessio
       if (item.kind === "desktop-claude") return item.data.title || "Cowork";
       if (item.kind === "claude") {
         const raw = stripSystemTags((item.data as ClaudeSession).preview ?? "");
-        return raw.slice(0, 60) || "New Thread";
+        return raw.slice(0, 60) || t("sidebar.session.newThread");
       }
       if (item.kind === "grok") {
         const raw = (item.data as GrokSession).preview ?? "";
@@ -2458,7 +2461,7 @@ export function ProjectGroup({ project, codexThreads, claudeSessions, kimiSessio
               e.stopPropagation();
               setNewMenu(!newMenu);
             }}
-            title="New session"
+            title={t("sidebar.session.new")}
             aria-expanded={newMenu}
             className="agent-top-chrome-create-btn primary"
           >
@@ -2470,7 +2473,7 @@ export function ProjectGroup({ project, codexThreads, claudeSessions, kimiSessio
               e.stopPropagation();
               handleQuickOpen();
             }}
-            title="Quick open (configure in Settings)"
+            title={t("sidebar.session.quickOpen")}
             className="agent-top-chrome-create-btn"
           >
             <SquarePen size={13} />
@@ -2479,7 +2482,7 @@ export function ProjectGroup({ project, codexThreads, claudeSessions, kimiSessio
 
         {displayItems.length === 0 ? (
           <span className="px-2 text-xs text-zinc-500">
-            {showOnlyRunning ? "No running threads" : "No threads yet"}
+            {showOnlyRunning ? t("sidebar.threads.noneRunning") : t("sidebar.threads.noneYet")}
           </span>
         ) : (
           <>
@@ -2487,9 +2490,9 @@ export function ProjectGroup({ project, codexThreads, claudeSessions, kimiSessio
               <>
                 <span
                   className="shrink-0 px-1 ui-eyebrow text-[color:var(--accent)]/60"
-                  title="Pinned · needs attention · working · done/unread"
+                  title={t("sidebar.threads.statusLegend")}
                 >
-                  Active
+                  {t("sidebar.threads.active")}
                 </span>
                 {hotVisible.map(renderChip)}
               </>
@@ -2500,7 +2503,7 @@ export function ProjectGroup({ project, codexThreads, claudeSessions, kimiSessio
                   <span className="mx-1 h-[18px] w-px shrink-0 bg-white/[0.06]" />
                 )}
                 <span className="shrink-0 px-1 ui-eyebrow text-zinc-600">
-                  Recent
+                  {t("sidebar.threads.recent")}
                 </span>
                 {restVisible.map(renderChip)}
               </>
@@ -2512,9 +2515,9 @@ export function ProjectGroup({ project, codexThreads, claudeSessions, kimiSessio
                 className="agent-top-chrome-show-more"
               >
                 <ChevronDown size={12} />
-                Show more
+                {t("sidebar.threads.showMore")}
                 <span className="ui-meta text-[10.5px] opacity-70">
-                  ({Math.min(remaining, projectPageSize)} of {remaining})
+                  {t("sidebar.threads.showMoreCounts", { shown: Math.min(remaining, projectPageSize), remaining })}
                 </span>
               </button>
             )}
@@ -2524,7 +2527,7 @@ export function ProjectGroup({ project, codexThreads, claudeSessions, kimiSessio
                 onClick={() => setVisibleCount(projectPageSize)}
                 className="agent-top-chrome-show-more"
               >
-                Show less
+                {t("sidebar.threads.showLess")}
               </button>
             )}
           </>
@@ -2560,7 +2563,7 @@ export function ProjectGroup({ project, codexThreads, claudeSessions, kimiSessio
                     <div
                       className="ui-eyebrow text-zinc-600"
                     >
-                      New in
+                      {t("sidebar.project.newIn")}
                     </div>
                     <div className="truncate text-[12.5px] text-zinc-200">{project.name}</div>
                   </div>
@@ -2568,16 +2571,16 @@ export function ProjectGroup({ project, codexThreads, claudeSessions, kimiSessio
                 <div className="px-1 pt-1.5 pb-1">
                   <MenuActionRow
                     icon={<MessageSquarePlus size={14} className="text-blue-400" />}
-                    title="Chat"
-                    hint="Conversational agent thread"
+                    title={t("sidebar.mode.chat")}
+                    hint={t("sidebar.mode.chatHint")}
                     shortcut="⌘N"
                     onClick={handleNewChat}
                   />
                   {appMode !== "cowork" && isGitRepo && taskViewAllowed && (
                     <MenuActionRow
                       icon={<GitBranch size={14} className="text-amber-400" />}
-                      title="Worktree"
-                      hint="Isolated branch for parallel work"
+                      title={t("sidebar.mode.worktree")}
+                      hint={t("sidebar.mode.worktreeHint")}
                       onClick={handleNewWorktreeThread}
                     />
                   )}
@@ -2588,7 +2591,7 @@ export function ProjectGroup({ project, codexThreads, claudeSessions, kimiSessio
                   <div
                     className="px-3 pt-1 pb-1 ui-eyebrow text-zinc-600"
                   >
-                    Terminal
+                    {t("sidebar.mode.terminal")}
                   </div>
                   <MenuActionRow
                     icon={
@@ -2596,8 +2599,8 @@ export function ProjectGroup({ project, codexThreads, claudeSessions, kimiSessio
                         &gt;_
                       </span>
                     }
-                    title="Terminal"
-                    hint="Terminal agent in this project"
+                    title={t("sidebar.mode.terminal")}
+                    hint={t("sidebar.mode.terminalHint")}
                     shortcut="⌘T"
                     onClick={() => launchTerminalAgent(defaultTerminalAgent)}
                   />
@@ -2627,20 +2630,20 @@ export function ProjectGroup({ project, codexThreads, claudeSessions, kimiSessio
     const isRenamingRow = (id: string) => renamingItemId === id && renameInFocus === inFocus;
     const focusMetaPrefix = inFocus ? `${project.name} · ` : null;
     if (item.kind === "thread") {
-      const t = item.data;
-      const isSelected = t.provider === "ClaudeCode"
-        ? t.id === selectedClaudeSessionId
-        : t.id === selectedThreadId;
+      const thread = item.data;
+      const isSelected = thread.provider === "ClaudeCode"
+        ? thread.id === selectedClaudeSessionId
+        : thread.id === selectedThreadId;
 
       return (
         <SidebarRow
-          key={`thread-${t.id}`}
-          renaming={isRenamingRow(t.id)}
-          data-session-nav={t.id}
+          key={`thread-${thread.id}`}
+          renaming={isRenamingRow(thread.id)}
+          data-session-nav={thread.id}
           data-session-kind="thread"
           onClick={() => {
-            if (t.provider === "ClaudeCode") {
-              selectClaudeSession(t.id, t.work_dir, false, t.name);
+            if (thread.provider === "ClaudeCode") {
+              selectClaudeSession(thread.id, thread.work_dir, false, thread.name);
             } else {
               // Kimi/OpenCode/Grok PTY: pre-flip status to Running
               // BEFORE mount (prevents the 1ms loading flash) AND
@@ -2648,7 +2651,7 @@ export function ProjectGroup({ project, codexThreads, claudeSessions, kimiSessio
               // `spawnThreadRaw` (the Tauri invoke) instead of
               // threadStore.startThread because the latter calls
               // `recordPromptSent` which bumps
-              // `lastPromptAt[t.id] = Date.now()` and reorders the
+              // `lastPromptAt[thread.id] = Date.now()` and reorders the
               // sidebar as if the user had just sent a prompt —
               // wrong for a mere "open existing thread" action. The
               // pre-flip means ThreadView's auto-spawn useEffect
@@ -2656,26 +2659,26 @@ export function ProjectGroup({ project, codexThreads, claudeSessions, kimiSessio
               // trigger the PTY spawn manually here. Backend
               // `spawn_thread` dedups against already-alive sessions.
               // Grok SDK mode has its own lifecycle — skip PTY spawn.
-              const isTerminalPty = isPtyTerminalProvider(t.provider, t.interaction_mode);
-              if (isTerminalPty && t.status !== "Running") {
-                updateThreadStatus(t.id, "Running");
-                spawnThreadRaw(t.id, { ...currentSpawnPreferences(), enableAutoMode: false }).catch((err) => {
-                  console.error(`Failed to resume ${t.provider} thread:`, err);
-                  updateThreadStatus(t.id, "Error");
+              const isTerminalPty = isPtyTerminalProvider(thread.provider, thread.interaction_mode);
+              if (isTerminalPty && thread.status !== "Running") {
+                updateThreadStatus(thread.id, "Running");
+                spawnThreadRaw(thread.id, { ...currentSpawnPreferences(), enableAutoMode: false }).catch((err) => {
+                  console.error(`Failed to resume ${thread.provider} thread:`, err);
+                  updateThreadStatus(thread.id, "Error");
                 });
               }
-              selectThread(t.id, t.name);
+              selectThread(thread.id, thread.name);
             }
           }}
           onDoubleClick={() => {
-            if (t.status === "Idle" && (t.interaction_mode == null || t.interaction_mode === "pty")) {
-              startThread(t.id, claudeAutoMode).catch(console.error);
+            if (thread.status === "Idle" && (thread.interaction_mode == null || thread.interaction_mode === "pty")) {
+              startThread(thread.id, claudeAutoMode).catch(console.error);
             }
           }}
           onContextMenu={(e) => {
             e.preventDefault();
             e.stopPropagation();
-            setItemContextMenu({ x: e.clientX, y: e.clientY, kind: "thread", id: t.id });
+            setItemContextMenu({ x: e.clientX, y: e.clientY, kind: "thread", id: thread.id });
           }}
           data-active={isSelected ? "true" : "false"}
           className={`sb-row group/item ${isSelected ? "on" : ""}`}
@@ -2683,105 +2686,105 @@ export function ProjectGroup({ project, codexThreads, claudeSessions, kimiSessio
           <div className="av">
             <ProviderIcon
               provider={
-                t.provider === "Codex"
+                thread.provider === "Codex"
                   ? "codex"
-                  : t.provider === "Droid"
+                  : thread.provider === "Droid"
                     ? "droid"
-                  : t.provider === "Cline"
+                  : thread.provider === "Cline"
                     ? "cline"
-                  : t.provider === "Gemini"
+                  : thread.provider === "Gemini"
                     ? "gemini"
-                  : t.provider === "Hermes"
+                  : thread.provider === "Hermes"
                     ? "hermes"
-                  : t.provider === "Kimi"
+                  : thread.provider === "Kimi"
                     ? "kimi"
-                    : t.provider === "Pi"
+                    : thread.provider === "Pi"
                       ? "pi"
-                    : t.provider === "OpenCode"
+                    : thread.provider === "OpenCode"
                       ? "opencode"
-                      : t.provider === "MLX"
+                      : thread.provider === "MLX"
                         ? "mlx"
-                        : t.provider === "Grok"
+                        : thread.provider === "Grok"
                           ? "grok"
-                          : t.provider === "Cursor"
+                          : thread.provider === "Cursor"
                             ? "cursor"
                           : "claude"
               }
               size={14}
             />
           </div>
-          {isRenamingRow(t.id) ? (
+          {isRenamingRow(thread.id) ? (
             <SidebarRenameInput
               inputRef={renameInputRef}
               value={renameValue}
               onChange={setRenameValue}
-              onSubmit={() => handleRenameSubmit(t.id)}
+              onSubmit={() => handleRenameSubmit(thread.id)}
               onCancel={handleRenameCancel}
             />
           ) : (
             <div className="min-w-0 flex-1">
               <div className="flex items-center gap-1.5">
-                {pinnedSessionIdsRef.current.has(t.id) && (
+                {pinnedSessionIdsRef.current.has(thread.id) && (
                   <Pin size={10} className="shrink-0 text-amber-400/70 -rotate-45" />
                 )}
                 <span className="sb-ttl">
-                  {sessionNames[t.id] || t.name}
+                  {sessionNames[thread.id] || thread.name}
                 </span>
               </div>
               <div className="sb-mt">{focusMetaPrefix}
                 {[
-                  t.agent_profile === "cowork"
+                  thread.agent_profile === "cowork"
                     ? "Cowork"
-                    : (t.interaction_mode === "sdk" || t.interaction_mode === "opencode-sdk" || t.interaction_mode === "mlx" || t.interaction_mode === "grok-sdk" || t.interaction_mode === "cursor-sdk" || t.interaction_mode === "gemini-sdk")
-                      ? "Chat"
-                      : "Terminal",
-                  t.provider === "MLX" || isLocalModelSlug(t.model)
-                    ? shortMlxModel(t.model)
-                    : t.provider === "OpenCode"
-                      ? prettifyOpenCodeSlug(t.model) || null
-                      : t.provider === "Grok"
-                        ? prettifyGrokModel(t.model)
-                        : t.provider === "Droid"
-                          ? t.model
-                        : t.provider === "Cline"
-                          ? prettifyClineModel(t.model)
-                        : t.provider === "Gemini"
-                          ? prettifyGeminiModel(t.model, { includeEffort: false })
-                        : t.provider === "Hermes"
-                          ? prettifyPiModel(t.model)
-                        : t.provider === "Kimi"
-                          ? prettifyKimiModel(t.model)
-                          : t.provider === "Pi"
-                            ? prettifyPiModel(t.model)
-                          : t.provider === "Codex"
-                            ? prettifyCodexModelName(codexThreadModelById[t.id] ?? t.model ?? "") || null
-                            : t.provider === "Cursor"
-                              ? prettifyCursorModel(t.model)
-                              : shortClaudeModel(t.model),
+                    : (thread.interaction_mode === "sdk" || thread.interaction_mode === "opencode-sdk" || thread.interaction_mode === "mlx" || thread.interaction_mode === "grok-sdk" || thread.interaction_mode === "cursor-sdk" || thread.interaction_mode === "gemini-sdk")
+                      ? t("sidebar.mode.chat")
+                      : t("sidebar.mode.terminal"),
+                  thread.provider === "MLX" || isLocalModelSlug(thread.model)
+                    ? shortMlxModel(thread.model)
+                    : thread.provider === "OpenCode"
+                      ? prettifyOpenCodeSlug(thread.model) || null
+                      : thread.provider === "Grok"
+                        ? prettifyGrokModel(thread.model)
+                        : thread.provider === "Droid"
+                          ? thread.model
+                        : thread.provider === "Cline"
+                          ? prettifyClineModel(thread.model)
+                        : thread.provider === "Gemini"
+                          ? prettifyGeminiModel(thread.model, { includeEffort: false })
+                        : thread.provider === "Hermes"
+                          ? prettifyPiModel(thread.model)
+                        : thread.provider === "Kimi"
+                          ? prettifyKimiModel(thread.model)
+                          : thread.provider === "Pi"
+                            ? prettifyPiModel(thread.model)
+                          : thread.provider === "Codex"
+                            ? prettifyCodexModelName(codexThreadModelById[thread.id] ?? thread.model ?? "") || null
+                            : thread.provider === "Cursor"
+                              ? prettifyCursorModel(thread.model)
+                              : shortClaudeModel(thread.model),
                   relativeTime(item.timestamp),
                 ].filter(Boolean).join(" · ")}
               </div>
             </div>
           )}
-          <ShellDiffBadge id={t.id} sessionId={t.sdk_session_id} linesAdded={t.lines_added} linesRemoved={t.lines_removed} filesChanged={t.files_changed} />
+          <ShellDiffBadge id={thread.id} sessionId={thread.sdk_session_id} linesAdded={thread.lines_added} linesRemoved={thread.lines_removed} filesChanged={thread.files_changed} />
           {/* Spinner / attention / unread for every DB thread. Chat providers
               (Claude SDK, OpenCode, Grok, Cursor, MLX, …) share
               claudeProcessingById; do not gate on provider or Cursor
               never shows a working spinner. */}
           <StatusDot
             state={computeStatus({
-              pending: !!pendingApprovalsBySession[t.id],
-              processing: !!claudeProcessingById[t.id],
-              unread: !!unreadSessionIds[t.id] && !isSelected,
+              pending: !!pendingApprovalsBySession[thread.id],
+              processing: !!claudeProcessingById[thread.id],
+              unread: !!unreadSessionIds[thread.id] && !isSelected,
             })}
-            title={claudeProcessingById[t.id] ? (claudeToolStatusById[t.id] ?? "working") : undefined}
+            title={claudeProcessingById[thread.id] ? (claudeToolStatusById[thread.id] ?? t("sidebar.status.working")) : undefined}
           />
           <span
             role="button"
             tabIndex={0}
-            aria-label="More options"
-            onClick={(e) => openMenuForItem(e, "thread", t.id)}
-            onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") openMenuForItem(e as unknown as React.MouseEvent, "thread", t.id); }}
+            aria-label={t("sidebar.session.moreOptions")}
+            onClick={(e) => openMenuForItem(e, "thread", thread.id)}
+            onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") openMenuForItem(e as unknown as React.MouseEvent, "thread", thread.id); }}
             className="hidden group-hover/item:flex shrink-0 items-center rounded p-0.5 transition-colors hover:bg-white/10"
           >
             <MoreHorizontal size={14} className="text-zinc-400" />
@@ -2828,11 +2831,11 @@ export function ProjectGroup({ project, codexThreads, claudeSessions, kimiSessio
                   <Pin size={10} className="shrink-0 text-amber-400/70 -rotate-45" />
                 )}
                 <span className="sb-ttl">
-                  {sessionNames[c.id] || (!c.preview ? "New Thread" : threadName)}
+                {sessionNames[c.id] || (!c.preview ? t("sidebar.session.newThread") : threadName)}
                 </span>
               </div>
               <div className="sb-mt">{focusMetaPrefix}
-                {[(getCodexSessionMode(c.id) ?? (codexDefaultView === "terminal" ? "terminal" : "chat")) === "chat" ? (isCodexWorkSession(c.id) ? "Work" : "Chat") : "Terminal", prettifyCodexModelName(codexThreadModelById[c.id] ?? c.model ?? ""), relativeTime(item.timestamp)].filter(Boolean).join(" · ")}
+                {[(getCodexSessionMode(c.id) ?? (codexDefaultView === "terminal" ? "terminal" : "chat")) === "chat" ? (isCodexWorkSession(c.id) ? "Work" : t("sidebar.mode.chat")) : t("sidebar.mode.terminal"), prettifyCodexModelName(codexThreadModelById[c.id] ?? c.model ?? ""), relativeTime(item.timestamp)].filter(Boolean).join(" · ")}
               </div>
             </div>
           )}
@@ -2847,7 +2850,7 @@ export function ProjectGroup({ project, codexThreads, claudeSessions, kimiSessio
           <span
             role="button"
             tabIndex={0}
-            aria-label="More options"
+            aria-label={t("sidebar.session.moreOptions")}
             onClick={(e) => openMenuForItem(e, "codex", c.id)}
             onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") openMenuForItem(e as unknown as React.MouseEvent, "codex", c.id); }}
             className="hidden group-hover/item:flex shrink-0 items-center rounded p-0.5 transition-colors hover:bg-white/10"
@@ -2904,7 +2907,7 @@ export function ProjectGroup({ project, codexThreads, claudeSessions, kimiSessio
           <span
             role="button"
             tabIndex={0}
-            aria-label="More options"
+            aria-label={t("sidebar.session.moreOptions")}
             onClick={(e) => openMenuForItem(e, "pi", d.id)}
             onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") openMenuForItem(e as unknown as React.MouseEvent, "pi", d.id); }}
             className="hidden group-hover/item:flex shrink-0 items-center rounded p-0.5 transition-colors hover:bg-white/10"
@@ -2956,7 +2959,7 @@ export function ProjectGroup({ project, codexThreads, claudeSessions, kimiSessio
                 <span className="flex-1 truncate text-zinc-200 leading-tight tracking-[-0.015em]">{displayName}</span>
               </div>
               <div className="sb-mt">{focusMetaPrefix}
-                {["Terminal", prettifyKimiModel(d.model), relativeTime(item.timestamp)]
+                {[t("sidebar.mode.terminal"), prettifyKimiModel(d.model), relativeTime(item.timestamp)]
                   .filter(Boolean)
                   .join(" · ")}
               </div>
@@ -2966,7 +2969,7 @@ export function ProjectGroup({ project, codexThreads, claudeSessions, kimiSessio
           <span
             role="button"
             tabIndex={0}
-            aria-label="More options"
+            aria-label={t("sidebar.session.moreOptions")}
             onClick={(e) => openMenuForItem(e, "kimi", d.id)}
             onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") openMenuForItem(e as unknown as React.MouseEvent, "kimi", d.id); }}
             className="hidden group-hover/item:flex shrink-0 items-center rounded p-0.5 transition-colors hover:bg-white/10"
@@ -3021,7 +3024,7 @@ export function ProjectGroup({ project, codexThreads, claudeSessions, kimiSessio
               </div>
               <div className="sb-mt">{focusMetaPrefix}
                 {[
-                  "Terminal",
+                  t("sidebar.mode.terminal"),
                   isLocalModelSlug(g.model)
                     ? shortMlxModel(g.model)
                     : prettifyGrokModel(g.model),
@@ -3034,7 +3037,7 @@ export function ProjectGroup({ project, codexThreads, claudeSessions, kimiSessio
           <span
             role="button"
             tabIndex={0}
-            aria-label="More options"
+            aria-label={t("sidebar.session.moreOptions")}
             onClick={(e) => openMenuForItem(e, "grok", g.id)}
             onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") openMenuForItem(e as unknown as React.MouseEvent, "grok", g.id); }}
             className="hidden group-hover/item:flex shrink-0 items-center rounded p-0.5 transition-colors hover:bg-white/10"
@@ -3081,7 +3084,7 @@ export function ProjectGroup({ project, codexThreads, claudeSessions, kimiSessio
                 <span className="sb-ttl">{sessionNames[s.id] || s.title || "Cowork"}</span>
               </div>
               <div className="sb-mt">{focusMetaPrefix}
-                {["Desktop", shortClaudeModel(s.model), relativeTime(item.timestamp)]
+                {[t("sidebar.mode.desktop"), shortClaudeModel(s.model), relativeTime(item.timestamp)]
                   .filter(Boolean)
                   .join(" · ")}
               </div>
@@ -3129,11 +3132,11 @@ export function ProjectGroup({ project, codexThreads, claudeSessions, kimiSessio
                 <Pin size={10} className="shrink-0 text-amber-400/70 -rotate-45" />
               )}
               <span className="sb-ttl">
-                {sessionNames[s.id] || (DEFAULT_SESSION_RE.test(s.preview ?? "") ? "New Thread" : stripSystemTags(s.preview ?? "")) || "New Thread"}
+                {sessionNames[s.id] || (DEFAULT_SESSION_RE.test(s.preview ?? "") ? t("sidebar.session.newThread") : stripSystemTags(s.preview ?? "")) || t("sidebar.session.newThread")}
               </span>
             </div>
             <div className="sb-mt">{focusMetaPrefix}
-              {["Terminal", shortClaudeModel(claudeSessionModelById[s.id] ?? s.model), relativeTime(item.timestamp)].filter(Boolean).join(" · ")}
+              {[t("sidebar.mode.terminal"), shortClaudeModel(claudeSessionModelById[s.id] ?? s.model), relativeTime(item.timestamp)].filter(Boolean).join(" · ")}
             </div>
           </div>
         )}
@@ -3157,12 +3160,12 @@ export function ProjectGroup({ project, codexThreads, claudeSessions, kimiSessio
             processing: !!claudeProcessingById[s.id],
             unread: !!unreadSessionIds[s.id] && !isSelected,
           })}
-          title={claudeProcessingById[s.id] ? (claudeToolStatusById[s.id] ?? "working") : undefined}
+          title={claudeProcessingById[s.id] ? (claudeToolStatusById[s.id] ?? t("sidebar.status.working")) : undefined}
         />
         <span
           role="button"
           tabIndex={0}
-          aria-label="More options"
+          aria-label={t("sidebar.session.moreOptions")}
           onClick={(e) => openMenuForItem(e, "claude", s.id)}
           onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") openMenuForItem(e as unknown as React.MouseEvent, "claude", s.id); }}
           className="hidden group-hover/item:flex shrink-0 items-center rounded p-0.5 transition-colors hover:bg-white/10"
@@ -3213,7 +3216,7 @@ export function ProjectGroup({ project, codexThreads, claudeSessions, kimiSessio
                 e.stopPropagation();
                 handleProjectRenameStart();
               }}
-              title="Double-click to rename"
+              title={t("sidebar.project.doubleClickToRename")}
             >
               {project.name}
             </span>
@@ -3226,7 +3229,7 @@ export function ProjectGroup({ project, codexThreads, claudeSessions, kimiSessio
               e.stopPropagation();
               setVisibleCount(projectPageSize);
             }}
-            title="Collapse to recent"
+            title={t("sidebar.project.collapseToRecent")}
             className="padd !opacity-100"
           >
             <ChevronDown size={13} />
@@ -3240,7 +3243,7 @@ export function ProjectGroup({ project, codexThreads, claudeSessions, kimiSessio
               setNewMenu(!newMenu);
             }}
             className="padd"
-            title="New session"
+            title={t("sidebar.session.new")}
           >
             <Plus size={13} />
           </button>
@@ -3276,7 +3279,7 @@ export function ProjectGroup({ project, codexThreads, claudeSessions, kimiSessio
                     <div
                       className="ui-eyebrow text-zinc-500"
                     >
-                      New in
+                      {t("sidebar.project.newIn")}
                     </div>
                     <div className="truncate text-[12.5px] text-zinc-200">{project.name}</div>
                   </div>
@@ -3286,16 +3289,16 @@ export function ProjectGroup({ project, codexThreads, claudeSessions, kimiSessio
                 <div className="px-1 pt-1.5 pb-1">
                   <MenuActionRow
                     icon={<MessageSquarePlus size={14} className="text-blue-400" />}
-                    title="Chat"
-                    hint="Conversational agent thread"
+                    title={t("sidebar.mode.chat")}
+                    hint={t("sidebar.mode.chatHint")}
                     shortcut="⌘N"
                     onClick={handleNewChat}
                   />
                   {appMode !== "cowork" && isGitRepo && taskViewAllowed && (
                     <MenuActionRow
                       icon={<GitBranch size={14} className="text-amber-400" />}
-                      title="Worktree"
-                      hint="Isolated branch for parallel work"
+                      title={t("sidebar.mode.worktree")}
+                      hint={t("sidebar.mode.worktreeHint")}
                       onClick={handleNewWorktreeThread}
                     />
                   )}
@@ -3308,7 +3311,7 @@ export function ProjectGroup({ project, codexThreads, claudeSessions, kimiSessio
                   <div
                     className="px-3 pt-1 pb-1 ui-eyebrow text-zinc-600"
                   >
-                    Terminal
+                    {t("sidebar.mode.terminal")}
                   </div>
                   <MenuActionRow
                     icon={
@@ -3319,8 +3322,8 @@ export function ProjectGroup({ project, codexThreads, claudeSessions, kimiSessio
                         &gt;_
                       </span>
                     }
-                    title="Terminal"
-                    hint="Terminal agent in this project"
+                    title={t("sidebar.mode.terminal")}
+                    hint={t("sidebar.mode.terminalHint")}
                     shortcut="⌘T"
                     onClick={() => launchTerminalAgent(defaultTerminalAgent, true)}
                   />
@@ -3338,7 +3341,7 @@ export function ProjectGroup({ project, codexThreads, claudeSessions, kimiSessio
             e.stopPropagation();
             handleQuickOpen();
           }}
-          title="Quick open (configure in Settings)"
+            title={t("sidebar.session.quickOpen")}
           className="padd"
         >
           <SquarePen size={13} />
@@ -3423,15 +3426,15 @@ export function ProjectGroup({ project, codexThreads, claudeSessions, kimiSessio
               className="flex w-full items-center gap-1.5 rounded px-3 py-1 text-left text-xs text-zinc-400 hover:bg-zinc-800 hover:text-zinc-300"
             >
               <ChevronDown size={12} />
-              <span>Show more ({Math.min(remaining, projectPageSize)} of {remaining})</span>
+              <span>{t("sidebar.threads.showMoreCount", { shown: Math.min(remaining, projectPageSize), remaining })}</span>
             </button>
           )}
 
           {unified.length === 0 && (
-            <p className="px-3 py-1 text-xs text-zinc-400">No threads yet</p>
+            <p className="px-3 py-1 text-xs text-zinc-400">{t("sidebar.threads.noneYet")}</p>
           )}
           {unified.length > 0 && displayItems.length === 0 && (
-            <p className="px-3 py-1 text-xs text-zinc-400">No running threads</p>
+            <p className="px-3 py-1 text-xs text-zinc-400">{t("sidebar.threads.noneRunning")}</p>
           )}
         </div>
         </motion.div>
@@ -3446,11 +3449,11 @@ export function ProjectGroup({ project, codexThreads, claudeSessions, kimiSessio
           style={{ left: contextMenu.x, top: contextMenu.y, width: 240 }}
         >
         <DropdownPopover>
-          <DropdownHeader title="Project" />
+          <DropdownHeader title={t("sidebar.project.heading")} />
           <DropdownRow
             onClick={handleProjectRenameStart}
             icon={<Pencil size={14} className="text-zinc-400" />}
-            title="Rename"
+            title={t("sidebar.action.rename")}
           />
           <DropdownRow
             onClick={() => {
@@ -3460,13 +3463,13 @@ export function ProjectGroup({ project, codexThreads, claudeSessions, kimiSessio
               setContextMenu(null);
             }}
             icon={<Activity size={14} className={showOnlyRunning ? "text-[color:var(--accent)]" : "text-zinc-400"} />}
-            title="Show only running threads"
+            title={t("sidebar.threads.showOnlyRunning")}
             right={showOnlyRunning ? <Check size={14} className="text-[color:var(--accent)]" /> : undefined}
           />
           <div className="flex items-center justify-between gap-2 px-3 py-1.5 text-[13px] text-zinc-200">
             <span className="flex items-center gap-2.5">
               <ChevronDown size={13} className="shrink-0 text-zinc-400" />
-              Threads visible
+              {t("sidebar.threads.visible")}
             </span>
             <div className="flex items-center gap-1">
               <button
@@ -3479,7 +3482,7 @@ export function ProjectGroup({ project, codexThreads, claudeSessions, kimiSessio
                   });
                 }}
                 className="flex h-5 w-5 items-center justify-center rounded border border-white/10 text-xs text-zinc-300 hover:bg-white/10"
-                aria-label="Decrease visible threads"
+                aria-label={t("sidebar.threads.decreaseVisible")}
               >
                 −
               </button>
@@ -3496,7 +3499,7 @@ export function ProjectGroup({ project, codexThreads, claudeSessions, kimiSessio
                   });
                 }}
                 className="flex h-5 w-5 items-center justify-center rounded border border-white/10 text-xs text-zinc-300 hover:bg-white/10"
-                aria-label="Increase visible threads"
+                aria-label={t("sidebar.threads.increaseVisible")}
               >
                 +
               </button>
@@ -3512,7 +3515,7 @@ export function ProjectGroup({ project, codexThreads, claudeSessions, kimiSessio
               }}
               className="flex w-full items-center gap-2.5 px-3 py-1.5 text-left text-[12px] text-zinc-400 hover:bg-white/5 hover:text-zinc-200 transition-colors"
             >
-              <span className="ml-[22px]">Reset to default ({defaultThreadsVisible})</span>
+              <span className="ml-[22px]">{t("sidebar.threads.resetToDefault", { count: defaultThreadsVisible })}</span>
             </button>
           )}
           <DropdownDivider />
@@ -3527,18 +3530,16 @@ export function ProjectGroup({ project, codexThreads, claudeSessions, kimiSessio
                     directory: true,
                     multiple: false,
                     defaultPath: project.repo_path,
-                    title: "Choose new project folder",
+                    title: t("sidebar.project.chooseNewFolder"),
                   });
                   if (!selected || typeof selected !== "string") return;
                   if (selected === project.repo_path) return;
                   const newName = selected.split("/").filter(Boolean).pop() ?? selected;
-                  const ok = window.confirm(
-                    `Update “${project.name}” to:\n${selected}\n\n` +
-                      `Sidebar name will become “${newName}”. ` +
-                      `agmux chats still on the old path are retargeted, and ` +
-                      `Claude / Grok / Kimi on-disk session history moves so discovered ` +
-                      `sessions reappear under the new folder.`,
-                  );
+                  const ok = window.confirm(t("sidebar.project.updatePathConfirm", {
+                    projectName: project.name,
+                    path: selected,
+                    newName,
+                  }));
                   if (!ok) return;
                   setPathBusy(true);
                   const result = await updateProjectPath(project.id, selected, true);
@@ -3548,7 +3549,7 @@ export function ProjectGroup({ project, codexThreads, claudeSessions, kimiSessio
                 } catch (err) {
                   console.error("Failed to update project path:", err);
                   window.alert(
-                    `Could not update project path:\n${err instanceof Error ? err.message : String(err)}`,
+                    t("sidebar.project.updatePathFailed", { error: err instanceof Error ? err.message : String(err) }),
                   );
                 } finally {
                   setPathBusy(false);
@@ -3556,7 +3557,7 @@ export function ProjectGroup({ project, codexThreads, claudeSessions, kimiSessio
               })();
             }}
             icon={<FolderInput size={14} className="text-zinc-400" />}
-            title="Update project path…"
+            title={t("sidebar.project.updatePath")}
           />
           <DropdownRow
             onClick={() => {
@@ -3566,7 +3567,7 @@ export function ProjectGroup({ project, codexThreads, claudeSessions, kimiSessio
               setContextMenu(null);
             }}
             icon={<ArrowRightLeft size={14} className="text-zinc-400" />}
-            title="Move all threads…"
+            title={t("sidebar.project.moveAllThreads")}
           />
           <DropdownDivider />
           <DropdownRow
@@ -3582,7 +3583,7 @@ export function ProjectGroup({ project, codexThreads, claudeSessions, kimiSessio
               setContextMenu(null);
             }}
             icon={<Trash2 size={14} />}
-            title={appMode === "cowork" ? "Remove folder" : "Delete project"}
+            title={t(appMode === "cowork" ? "sidebar.project.removeFolder" : "sidebar.project.deleteProject")}
           />
         </DropdownPopover>
         </div>,
@@ -3597,10 +3598,10 @@ export function ProjectGroup({ project, codexThreads, claudeSessions, kimiSessio
           style={{ left: moveMenu.x, top: moveMenu.y, width: 260 }}
         >
           <DropdownPopover>
-            <DropdownHeader title="Move all threads to" />
+            <DropdownHeader title={t("sidebar.project.moveAllThreadsTo")} />
             {allProjects.filter((p) => p.id !== project.id).length === 0 ? (
               <div className="px-3 py-2 text-[12px] text-zinc-500">
-                No other projects. Add a project at the new path first, or use Update project path.
+                {t("sidebar.project.noOtherProjects")}
               </div>
             ) : (
               allProjects
@@ -3614,11 +3615,11 @@ export function ProjectGroup({ project, codexThreads, claudeSessions, kimiSessio
                         const threadCount =
                           (useThreadStore.getState().threads[project.id] ?? []).length +
                           (useThreadStore.getState().archivedThreads[project.id] ?? []).length;
-                        const ok = window.confirm(
-                          `Move all threads from “${project.name}” to “${dest.name}”?\n\n` +
-                            `agmux chats${threadCount ? ` (~${threadCount} loaded)` : ""} will be reparented. ` +
-                            `When folder paths differ, Claude / Grok / Kimi session history is moved so discovered sessions follow.`,
-                        );
+                        const ok = window.confirm(t("sidebar.project.moveAllThreadsConfirm", {
+                          source: project.name,
+                          destination: dest.name,
+                          threadCountNote: threadCount ? t("sidebar.project.threadsLoaded", { count: threadCount }) : "",
+                        }));
                         if (!ok) return;
                         try {
                           setPathBusy(true);
@@ -3629,7 +3630,7 @@ export function ProjectGroup({ project, codexThreads, claudeSessions, kimiSessio
                         } catch (err) {
                           console.error("Failed to move threads:", err);
                           window.alert(
-                            `Could not move threads:\n${err instanceof Error ? err.message : String(err)}`,
+                            t("sidebar.project.moveAllThreadsFailed", { error: err instanceof Error ? err.message : String(err) }),
                           );
                         } finally {
                           setPathBusy(false);

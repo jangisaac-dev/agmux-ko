@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState, useCallback, memo } from "react";
+import { useT } from "../../i18n";
 import {
   FileEdit,
   FilePlus,
@@ -170,12 +171,15 @@ function pickString(...candidates: unknown[]): string {
   return "";
 }
 
-function summarizePathList(paths: unknown, workDir?: string | null): string | null {
+function summarizePathList(paths: unknown, workDir: string | null | undefined, t: ReturnType<typeof useT>): string | null {
   if (!Array.isArray(paths)) return null;
   const stringPaths = paths.filter((path): path is string => typeof path === "string" && path.length > 0);
   if (stringPaths.length === 0) return null;
   if (stringPaths.length === 1) return shortenPath(stringPaths[0], workDir);
-  return `${shortenPath(stringPaths[0], workDir)} +${stringPaths.length - 1} more`;
+  return t("tools.toolUse.morePaths", {
+    path: shortenPath(stringPaths[0], workDir),
+    count: stringPaths.length - 1,
+  });
 }
 
 function countRangeLines(startLine: unknown, endLine: unknown): number {
@@ -227,6 +231,7 @@ function countResultLines(result: string | undefined): number {
 }
 
 export const ToolUseBlock = memo(function ToolUseBlock({ name, toolId, input, result, pending, childTools, timestamp, backgroundTask, expandReadResults = false }: Props) {
+  const t = useT();
   const workDir = useWorkDir();
   const subagentInspector = useSubagentInspector();
   const hasChildTools = (childTools?.length ?? 0) > 0;
@@ -330,11 +335,14 @@ export const ToolUseBlock = memo(function ToolUseBlock({ name, toolId, input, re
         patchSummary && patchSummary.filePaths.length > 0
           ? patchSummary.filePaths.length === 1
             ? shortenPath(patchSummary.filePaths[0], workDir)
-            : `${shortenPath(patchSummary.filePaths[0], workDir)} +${patchSummary.filePaths.length - 1} more`
+            : t("tools.toolUse.morePaths", {
+                path: shortenPath(patchSummary.filePaths[0], workDir),
+                count: patchSummary.filePaths.length - 1,
+              })
           : null;
       return {
         icon: <FileEdit size={13} className={pending ? "text-amber-400" : "text-blue-400"} />,
-        label: "Edit",
+        label: t("tools.toolUse.label.edit"),
         labelColor: "text-blue-400",
         detail: patchPath ?? shortenPath(filePath, workDir),
         detailMono: true,
@@ -349,7 +357,7 @@ export const ToolUseBlock = memo(function ToolUseBlock({ name, toolId, input, re
       const to = typeof input.to === "string" ? input.to : "";
       return {
         icon: <FileEdit size={13} className={pending ? "text-amber-400" : "text-[color:var(--accent)]"} />,
-        label: "Rename",
+        label: t("tools.toolUse.label.rename"),
         labelColor: "text-[color:var(--accent)]",
         detail: truncate(`${shortenPath(from, workDir)} -> ${shortenPath(to, workDir)}`, 80),
         detailMono: true,
@@ -361,7 +369,7 @@ export const ToolUseBlock = memo(function ToolUseBlock({ name, toolId, input, re
       const path = typeof input.path === "string" ? input.path : "";
       return {
         icon: <FilePlus size={13} className={pending ? "text-amber-400" : "text-[color:var(--accent)]"} />,
-        label: "Create Dir",
+        label: t("tools.toolUse.label.createDir"),
         labelColor: "text-[color:var(--accent)]",
         detail: shortenPath(path, workDir),
         detailMono: true,
@@ -375,7 +383,7 @@ export const ToolUseBlock = memo(function ToolUseBlock({ name, toolId, input, re
       const removed = fileStats?.removed ?? 0;
       return {
         icon: <FileX size={13} className={pending ? "text-amber-400" : "text-red-400"} />,
-        label: "Delete",
+        label: t("tools.toolUse.label.delete"),
         labelColor: "text-red-400",
         detail: shortenPath(filePath, workDir),
         detailMono: true,
@@ -395,7 +403,7 @@ export const ToolUseBlock = memo(function ToolUseBlock({ name, toolId, input, re
       const added = fileStats?.added ?? (content ? content.split("\n").length : 0);
       return {
         icon: <FilePlus size={13} className={pending ? "text-amber-400" : "text-[color:var(--accent)]"} />,
-        label: "Write",
+        label: t("tools.toolUse.label.write"),
         labelColor: "text-[color:var(--accent)]",
         detail: shortenPath(filePath, workDir),
         detailMono: true,
@@ -406,11 +414,11 @@ export const ToolUseBlock = memo(function ToolUseBlock({ name, toolId, input, re
     }
 
     if (name === "read_files") {
-      const detail = summarizePathList(input.paths, workDir);
+      const detail = summarizePathList(input.paths, workDir, t);
       const count = Array.isArray(input.paths) ? input.paths.length : 0;
       return {
         icon: <FileText size={13} className={pending ? "text-amber-400" : "text-zinc-400"} />,
-        label: "Read Files",
+        label: t("tools.toolUse.label.readFiles"),
         labelColor: "text-zinc-400",
         detail,
         detailMono: true,
@@ -426,7 +434,7 @@ export const ToolUseBlock = memo(function ToolUseBlock({ name, toolId, input, re
       const limit = input.limit != null ? Number(input.limit) : null;
       return {
         icon: <FileText size={13} className={pending ? "text-amber-400" : "text-zinc-400"} />,
-        label: "Read",
+        label: t("tools.toolUse.label.read"),
         labelColor: "text-zinc-400",
         detail: shortenPath(filePath, workDir),
         detailMono: true,
@@ -447,7 +455,7 @@ export const ToolUseBlock = memo(function ToolUseBlock({ name, toolId, input, re
           : ".";
       return {
         icon: <Search size={13} className={pending ? "text-amber-400" : "text-violet-400"} />,
-        label: "List Dir",
+        label: t("tools.toolUse.label.listDir"),
         labelColor: "text-violet-400",
         detail: shortenPath(path, workDir),
         detailMono: true,
@@ -461,13 +469,13 @@ export const ToolUseBlock = memo(function ToolUseBlock({ name, toolId, input, re
       const includeHidden = input.include_hidden === true;
       return {
         icon: <Search size={13} className={pending ? "text-amber-400" : "text-violet-400"} />,
-        label: "List Files",
+        label: t("tools.toolUse.label.listFiles"),
         labelColor: "text-violet-400",
         detail: shortenPath(path, workDir),
         detailMono: true,
         filePath: path === "." ? null : path,
         badges: includeHidden ? (
-          <span className="shrink-0 text-[11px] ui-meta text-zinc-500">hidden</span>
+          <span className="shrink-0 text-[11px] ui-meta text-zinc-500">{t("tools.toolUse.hidden")}</span>
         ) : null,
       };
     }
@@ -476,7 +484,7 @@ export const ToolUseBlock = memo(function ToolUseBlock({ name, toolId, input, re
       const pattern = typeof input.pattern === "string" ? input.pattern : "";
       return {
         icon: <Search size={13} className={pending ? "text-amber-400" : "text-violet-400"} />,
-        label: "Find Path",
+        label: t("tools.toolUse.label.findPath"),
         labelColor: "text-violet-400",
         detail: truncate(pattern, 60),
         detailMono: true,
@@ -488,7 +496,7 @@ export const ToolUseBlock = memo(function ToolUseBlock({ name, toolId, input, re
       const path = typeof input.path === "string" ? input.path : ".";
       return {
         icon: <Search size={13} className={pending ? "text-amber-400" : "text-violet-400"} />,
-        label: "Git Status",
+        label: t("tools.toolUse.label.gitStatus"),
         labelColor: "text-violet-400",
         detail: shortenPath(path, workDir),
         detailMono: true,
@@ -501,12 +509,12 @@ export const ToolUseBlock = memo(function ToolUseBlock({ name, toolId, input, re
       const staged = input.staged === true;
       return {
         icon: <Search size={13} className={pending ? "text-amber-400" : "text-violet-400"} />,
-        label: "Git Diff",
+        label: t("tools.toolUse.label.gitDiff"),
         labelColor: "text-violet-400",
         detail: shortenPath(path, workDir),
         detailMono: true,
         badges: staged ? (
-          <span className="shrink-0 text-[11px] ui-meta text-zinc-500">staged</span>
+          <span className="shrink-0 text-[11px] ui-meta text-zinc-500">{t("tools.toolUse.staged")}</span>
         ) : null,
       };
     }
@@ -515,7 +523,7 @@ export const ToolUseBlock = memo(function ToolUseBlock({ name, toolId, input, re
       const url = typeof input.url === "string" ? input.url : "";
       return {
         icon: <Search size={13} className={pending ? "text-amber-400" : "text-violet-400"} />,
-        label: "Web Fetch",
+        label: t("tools.toolUse.label.webFetch"),
         labelColor: "text-violet-400",
         detail: truncate(url, 80),
         detailMono: true,
@@ -527,7 +535,7 @@ export const ToolUseBlock = memo(function ToolUseBlock({ name, toolId, input, re
       const query = typeof input.query === "string" ? input.query : "";
       return {
         icon: <Search size={13} className={pending ? "text-amber-400" : "text-violet-400"} />,
-        label: "Web Search",
+        label: t("tools.toolUse.label.webSearch"),
         labelColor: "text-violet-400",
         detail: truncate(query, 80),
         detailMono: false,
@@ -548,7 +556,7 @@ export const ToolUseBlock = memo(function ToolUseBlock({ name, toolId, input, re
         detail =
           inProgress && typeof inProgress.content === "string"
             ? inProgress.content
-            : "Updated todo list";
+            : t("tools.toolUse.updatedTodoList");
         badges = (
           <span className="shrink-0 text-[11px] ui-meta text-zinc-500">
             {done}/{todos.length}
@@ -556,11 +564,11 @@ export const ToolUseBlock = memo(function ToolUseBlock({ name, toolId, input, re
         );
       } else {
         const list = typeof input.list === "string" ? input.list : "";
-        detail = list.split("\n").find((line) => line.trim().length > 0) ?? "Updated todo list";
+        detail = list.split("\n").find((line) => line.trim().length > 0) ?? t("tools.toolUse.updatedTodoList");
       }
       return {
         icon: <Wrench size={13} className={pending ? "text-amber-400" : "text-violet-400"} />,
-        label: "Todo",
+        label: t("tools.toolUse.label.todo"),
         labelColor: "text-violet-400",
         detail: truncate(detail, 80),
         detailMono: false,
@@ -604,12 +612,12 @@ export const ToolUseBlock = memo(function ToolUseBlock({ name, toolId, input, re
         ? input.description
         : typeof input.prompt === "string"
         ? input.prompt
-        : "Agent task";
+        : t("tools.toolUse.agentTask");
       const label = name === "plan"
-        ? "Dispatched Plan"
+        ? t("tools.toolUse.dispatchedPlan")
         : agentType
-        ? `Dispatched ${agentType} Agent`
-        : "Dispatched Agent";
+        ? t("tools.toolUse.dispatchedAgent", { agentType })
+        : t("tools.toolUse.dispatchedAgentGeneric");
 
       // Background task badges: show status + progress info
       const bgStatus = backgroundTask?.status;
@@ -620,21 +628,21 @@ export const ToolUseBlock = memo(function ToolUseBlock({ name, toolId, input, re
               <Loader2 size={9} className="animate-spin" />
               {backgroundTask?.lastToolName
                 ? truncate(backgroundTask.lastToolName, 20)
-                : "background"}
+                : t("tools.toolUse.background")}
             </span>
           )}
           {bgStatus === "completed" && (
-            <span className="status-pill status-pill-done">done</span>
+            <span className="status-pill status-pill-done">{t("tools.status.done.lowercase")}</span>
           )}
           {bgStatus === "failed" && (
-            <span className="status-pill status-pill-error">failed</span>
+            <span className="status-pill status-pill-error">{t("tools.status.failed.lowercase")}</span>
           )}
           {bgStatus === "stopped" && (
-            <span className="status-pill status-pill-stopped">stopped</span>
+            <span className="status-pill status-pill-stopped">{t("tools.status.stopped.lowercase")}</span>
           )}
           {backgroundTask && backgroundTask.toolUses > 0 && (
             <span className="text-[10px] tabular-nums text-zinc-500">
-              {backgroundTask.toolUses} tools
+              {t("tools.toolUse.toolCount", { count: backgroundTask.toolUses })}
             </span>
           )}
         </span>
@@ -673,7 +681,7 @@ export const ToolUseBlock = memo(function ToolUseBlock({ name, toolId, input, re
       const isKill = name === "kill_command_or_subagent";
       return {
         icon: <Terminal size={13} className={pending ? "text-amber-400" : "text-violet-400"} />,
-        label: isKill ? "Kill Task" : "Task Output",
+        label: t(isKill ? "tools.toolUse.label.killTask" : "tools.toolUse.label.taskOutput"),
         labelColor: "text-violet-400",
         detail: taskId ? truncate(taskId, 60) : null,
         detailMono: true,
@@ -690,7 +698,7 @@ export const ToolUseBlock = memo(function ToolUseBlock({ name, toolId, input, re
       const q = first && typeof first.question === "string" ? first.question : null;
       return {
         icon: <Info size={13} className={pending ? "text-amber-400" : "text-blue-400"} />,
-        label: "Question",
+        label: t("tools.toolUse.label.question"),
         labelColor: "text-blue-400",
         detail: q ? truncate(q, 80) : null,
         detailMono: false,
@@ -703,7 +711,7 @@ export const ToolUseBlock = memo(function ToolUseBlock({ name, toolId, input, re
       const query = typeof input.query === "string" ? input.query : "";
       return {
         icon: <Search size={13} className={pending ? "text-amber-400" : "text-violet-400"} />,
-        label: "Search Tools",
+        label: t("tools.toolUse.label.searchTools"),
         labelColor: "text-violet-400",
         detail: truncate(query, 80),
         detailMono: false,
@@ -737,7 +745,7 @@ export const ToolUseBlock = memo(function ToolUseBlock({ name, toolId, input, re
       detailMono: false,
       badges: null,
     };
-  }, [name, input, result, pending, patchSummary, fileStats, workDir, backgroundTask]);
+  }, [name, input, result, pending, patchSummary, fileStats, workDir, backgroundTask, t]);
   useEffect(() => {
     if (isAgentTool(name) && hasChildTools) {
       setExpanded(true);
@@ -774,11 +782,11 @@ export const ToolUseBlock = memo(function ToolUseBlock({ name, toolId, input, re
   // Status text for accessibility / tests (Codex rows use spinner + icon color,
   // but we still expose a concise status for screen readers).
   const statusLabel = effectiveIsError
-    ? (resultKind === "denied" ? "Denied" : resultKind === "limit" ? "Limit" : "Error")
+    ? (resultKind === "denied" ? t("tools.status.denied") : resultKind === "limit" ? t("tools.status.limit") : t("tools.status.error.title"))
     : pending
-      ? (AUTO_APPROVED_TOOLS.has(name) ? "auto" : "running")
+      ? (AUTO_APPROVED_TOOLS.has(name) ? t("tools.status.auto") : t("tools.status.running.lowercase"))
       : effectiveResult && !inlineOnly && !isBgRunning
-        ? "Done"
+        ? t("tools.status.done.title")
         : undefined;
 
   const subjectClassName = effectiveIsError
@@ -790,8 +798,8 @@ export const ToolUseBlock = memo(function ToolUseBlock({ name, toolId, input, re
   // Flatten React badge nodes into a short detail string when possible.
   const extraDetail = (() => {
     if (headerContent.diff) return undefined; // shown via +N −M on the row
-    if (name === "git_diff" && input.staged === true) return "staged";
-    if (name === "list_files" && input.include_hidden === true) return "hidden";
+    if (name === "git_diff" && input.staged === true) return t("tools.toolUse.staged");
+    if (name === "list_files" && input.include_hidden === true) return t("tools.toolUse.hidden");
     if (isWriteTool(name) && !headerContent.diff) {
       const body = typeof input.content === "string" ? input.content
         : typeof input.fileText === "string" ? input.fileText : "";
@@ -811,16 +819,16 @@ export const ToolUseBlock = memo(function ToolUseBlock({ name, toolId, input, re
       name !== "list_files"
     ) {
       const n = countResultLines(result.content);
-      if (n > 0) return `${n} match${n === 1 ? "" : "es"}`;
+      if (n > 0) return t("tools.toolUse.matchCount", { count: n });
     }
     return undefined;
   })();
 
-  const toggleClosedLabel = isBashTool(name)
-    ? "output"
+  const toggleClosedLabel = t(isBashTool(name)
+    ? "tools.toolUse.output"
     : isEditTool(name) || isApplyPatchTool(name) || isWriteTool(name) || isDeleteTool(name)
-      ? "diff"
-      : "result";
+      ? "tools.toolUse.diff"
+      : "tools.toolUse.result");
 
   const onToggle = useCallback(() => setExpanded((e) => !e), []);
 
@@ -859,7 +867,7 @@ export const ToolUseBlock = memo(function ToolUseBlock({ name, toolId, input, re
           hasExpandableContent
             ? {
                 open: expanded,
-                openLabel: "hide",
+                openLabel: t("tools.toolUse.hide"),
                 closedLabel: toggleClosedLabel,
                 onToggle,
               }
@@ -884,7 +892,7 @@ export const ToolUseBlock = memo(function ToolUseBlock({ name, toolId, input, re
               type="button"
               onClick={onOpenDetail}
               className="rounded p-0.5 text-[var(--text-tertiary)] hover:bg-white/[0.06] hover:text-[var(--text-secondary)]"
-              title="View full details"
+              title={t("tools.toolUse.viewFullDetails")}
             >
               <Info size={11} />
             </button>

@@ -74,6 +74,20 @@ describe("ApprovalBanner — approval type (banner variant)", () => {
     expect(onReject).toHaveBeenCalledOnce();
   });
 
+  it("⌘⌫ denies from the page but not while typing in a text field", () => {
+    const onReject = vi.fn();
+    render(
+      <>
+        <textarea data-testid="composer" />
+        <ApprovalBanner type="approval" onApprove={noop} onReject={onReject} onAnswer={noop} />
+      </>
+    );
+    fireEvent.keyDown(screen.getByTestId("composer"), { key: "Backspace", metaKey: true });
+    expect(onReject).not.toHaveBeenCalled();
+    fireEvent.keyDown(document.body, { key: "Backspace", metaKey: true });
+    expect(onReject).toHaveBeenCalledOnce();
+  });
+
   it("shows 'Allow for Project' button when onAllowForSession provided", () => {
     render(
       <ApprovalBanner

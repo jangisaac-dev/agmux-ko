@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Check, Download, Loader2, Trash2, Blocks, Globe } from "lucide-react";
 import type { Skill } from "../../stores/skillsStore";
+import { useT } from "../../i18n";
 
 interface SkillGridCardProps {
   skill: Skill;
@@ -15,15 +16,21 @@ const CATEGORY_ICONS: Record<string, typeof Blocks> = {
 };
 
 const SOURCE_LABELS: Record<string, string> = {
-  official: "Official",
-  community: "Community",
+  official: "thread.skill.source.official",
+  community: "thread.skill.source.community",
 };
 
 export function SkillGridCard({ skill, installing, onInstall, onUninstall }: SkillGridCardProps) {
+  const t = useT();
   const [hovered, setHovered] = useState(false);
 
   const CategoryIcon = CATEGORY_ICONS[skill.category ?? ""] ?? Blocks;
-  const sourceLabel = SOURCE_LABELS[skill.source] ?? skill.source;
+  const sourceLabel = SOURCE_LABELS[skill.source] ? t(SOURCE_LABELS[skill.source]) : skill.source;
+  const categoryLabel = skill.category === "Official Plugins"
+    ? t("thread.skill.category.officialPlugins")
+    : skill.category === "Community Plugins"
+      ? t("thread.skill.category.communityPlugins")
+      : skill.category;
 
   // Generate a deterministic accent color from name
   const nameHash = skill.name.split("").reduce((acc, c) => acc + c.charCodeAt(0), 0);
@@ -57,7 +64,7 @@ export function SkillGridCard({ skill, installing, onInstall, onUninstall }: Ski
           </span>
           {skill.installed && (
             <span className="rounded-full bg-[var(--accent-dim)] px-2 py-0.5 text-[10px] font-medium text-[color:var(--accent)]">
-              Installed
+              {t("thread.skill.installed")}
             </span>
           )}
         </div>
@@ -69,7 +76,7 @@ export function SkillGridCard({ skill, installing, onInstall, onUninstall }: Ski
       </h3>
       {skill.author && (
         <p className="mb-1 text-[11px] text-zinc-400">
-          by {skill.author}
+          {t("thread.skill.byAuthor", { author: skill.author })}
         </p>
       )}
       <p className="mb-4 line-clamp-2 flex-1 text-xs leading-relaxed text-zinc-400">
@@ -80,7 +87,7 @@ export function SkillGridCard({ skill, installing, onInstall, onUninstall }: Ski
       {skill.category && (
         <div className="mb-3">
           <span className="rounded-md bg-zinc-800/80 px-2 py-0.5 text-[10px] text-zinc-400">
-            {skill.category}
+            {categoryLabel}
           </span>
         </div>
       )}
@@ -90,7 +97,7 @@ export function SkillGridCard({ skill, installing, onInstall, onUninstall }: Ski
         {installing ? (
           <div className="flex h-8 items-center justify-center rounded-lg bg-zinc-800 text-xs text-zinc-400">
             <Loader2 size={14} className="mr-1.5 animate-spin" />
-            Installing...
+            {t("thread.skill.installing")}
           </div>
         ) : skill.installed ? (
           hovered ? (
@@ -99,12 +106,12 @@ export function SkillGridCard({ skill, installing, onInstall, onUninstall }: Ski
               className="flex h-8 w-full items-center justify-center gap-1.5 rounded-lg bg-red-500/10 text-xs font-medium text-red-400 transition-colors hover:bg-red-500/20"
             >
               <Trash2 size={13} />
-              Uninstall
+              {t("thread.skill.uninstall")}
             </button>
           ) : (
             <div className="flex h-8 items-center justify-center gap-1.5 rounded-lg bg-[color-mix(in_srgb,var(--accent)_6%,transparent)] text-xs font-medium text-[color:var(--accent)]/70">
               <Check size={13} />
-              Up to date
+              {t("thread.skill.upToDate")}
             </div>
           )
         ) : (
@@ -113,7 +120,7 @@ export function SkillGridCard({ skill, installing, onInstall, onUninstall }: Ski
             className="flex h-8 w-full items-center justify-center gap-1.5 rounded-lg bg-blue-600/20 text-xs font-medium text-blue-400 transition-colors hover:bg-blue-600/30"
           >
             <Download size={13} />
-            Install
+            {t("thread.skill.install")}
           </button>
         )}
       </div>

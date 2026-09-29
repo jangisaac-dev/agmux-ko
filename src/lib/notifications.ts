@@ -5,6 +5,7 @@ import {
 } from "@tauri-apps/plugin-notification";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { useSettingsStore } from "../stores/settingsStore";
+import { t } from "../i18n";
 import { useThreadStore } from "../stores/threadStore";
 import { useUiStore } from "../stores/uiStore";
 import { useNotificationHistoryStore } from "../stores/notificationHistoryStore";
@@ -18,10 +19,16 @@ const CUSTOM_SOUNDS = new Set(["xanom-notify.wav"]);
 const PENDING_NAV_TTL_MS = 15 * 60 * 1000;
 
 /** Notification sounds available for notifications. */
+const SOUND_LABEL_KEYS = {
+  agmuxDefault: "notify.sound.agmuxDefault",
+  systemDefault: "notify.sound.systemDefault",
+  silent: "notify.sound.silent",
+} as const;
+
 export const NOTIFICATION_SOUNDS = [
-  { value: "xanom-notify.wav", label: "agmux (default)" },
-  { value: "default", label: "System default" },
-  { value: "none", label: "None (silent)" },
+  { value: "xanom-notify.wav", get label() { return t(SOUND_LABEL_KEYS.agmuxDefault); } },
+  { value: "default", get label() { return t(SOUND_LABEL_KEYS.systemDefault); } },
+  { value: "none", get label() { return t(SOUND_LABEL_KEYS.silent); } },
   { value: "Basso", label: "Basso" },
   { value: "Blow", label: "Blow" },
   { value: "Bottle", label: "Bottle" },

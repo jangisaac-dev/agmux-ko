@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { X, Plus, Trash2, GripVertical } from "lucide-react";
 import { updateProjectConventions } from "../../lib/commands";
 import type { Project } from "../../lib/types";
+import { useT } from "../../i18n";
 
 interface Props {
   open: boolean;
@@ -10,6 +11,7 @@ interface Props {
 }
 
 export function ConventionsDialog({ open, project, onClose }: Props) {
+  const t = useT();
   const [conventions, setConventions] = useState<string[]>([]);
   const [newItem, setNewItem] = useState("");
   const [saving, setSaving] = useState(false);
@@ -71,7 +73,7 @@ export function ConventionsDialog({ open, project, onClose }: Props) {
         {/* Header */}
         <div className="flex items-center justify-between border-b border-zinc-800 px-4 py-3">
           <h3 className="text-sm font-medium text-zinc-100">
-            Conventions: {project.name}
+            {t("setup.conventions.title", { name: project.name })}
           </h3>
           <button
             onClick={onClose}
@@ -85,7 +87,7 @@ export function ConventionsDialog({ open, project, onClose }: Props) {
         <div className="max-h-[60vh] overflow-y-auto px-4 py-4">
           {conventions.length === 0 ? (
             <p className="py-4 text-center text-xs text-zinc-400">
-              No conventions yet. Add project-specific rules below.
+              {t("setup.conventions.empty")}
             </p>
           ) : (
             <ul className="space-y-1.5">
@@ -102,7 +104,7 @@ export function ConventionsDialog({ open, project, onClose }: Props) {
                   <button
                     onClick={() => handleRemove(i)}
                     className="shrink-0 rounded p-0.5 text-zinc-400 hover:text-red-400"
-                    title="Remove"
+                    title={t("setup.conventions.remove")}
                   >
                     <Trash2 size={12} />
                   </button>
@@ -118,14 +120,14 @@ export function ConventionsDialog({ open, project, onClose }: Props) {
               value={newItem}
               onChange={(e) => setNewItem(e.target.value)}
               onKeyDown={handleKeyDown}
-              placeholder="Add a convention..."
+              placeholder={t("setup.conventions.addPlaceholder")}
               className="flex-1 rounded border border-zinc-700 bg-zinc-800 px-3 py-1.5 text-sm text-zinc-100 outline-none focus:border-blue-500"
             />
             <button
               onClick={handleAdd}
               disabled={!newItem.trim()}
               className="rounded bg-zinc-700 p-1.5 text-zinc-300 hover:bg-zinc-600 disabled:opacity-50"
-              title="Add"
+              title={t("setup.conventions.add")}
             >
               <Plus size={14} />
             </button>
@@ -138,14 +140,14 @@ export function ConventionsDialog({ open, project, onClose }: Props) {
             onClick={onClose}
             className="rounded border border-zinc-700 px-3 py-1.5 text-xs font-medium text-zinc-300 hover:bg-zinc-800"
           >
-            Cancel
+            {t("common.cancel")}
           </button>
           <button
             onClick={handleSave}
             disabled={saving}
             className="rounded bg-blue-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-blue-500 disabled:opacity-50"
           >
-            {saving ? "Saving..." : "Save"}
+            {saving ? t("setup.conventions.saving") : t("common.save")}
           </button>
         </div>
       </div>

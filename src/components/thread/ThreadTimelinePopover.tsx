@@ -12,38 +12,41 @@ import {
 import { DropdownPopover } from "../ui/ComposerDropdown";
 import { useResolvedColorMode } from "../ThemeProvider";
 import { useSettingsStore } from "../../stores/settingsStore";
+import { useT } from "../../i18n";
 
-function relativeTime(iso: string): string {
-  const t = Date.parse(iso);
-  if (!Number.isFinite(t)) return "";
-  const sec = Math.max(0, Math.floor((Date.now() - t) / 1000));
-  if (sec < 45) return "now";
-  if (sec < 3600) return `${Math.floor(sec / 60)}m`;
-  if (sec < 86400) return `${Math.floor(sec / 3600)}h`;
-  return `${Math.floor(sec / 86400)}d`;
+type Translator = ReturnType<typeof useT>;
+
+function relativeTime(iso: string, t: Translator): string {
+  const timestamp = Date.parse(iso);
+  if (!Number.isFinite(timestamp)) return "";
+  const sec = Math.max(0, Math.floor((Date.now() - timestamp) / 1000));
+  if (sec < 45) return t("chat.timeline.relative.now");
+  if (sec < 3600) return t("chat.timeline.relative.minute", { count: Math.floor(sec / 60) });
+  if (sec < 86400) return t("chat.timeline.relative.hour", { count: Math.floor(sec / 3600) });
+  return t("chat.timeline.relative.day", { count: Math.floor(sec / 86400) });
 }
 
-function statusChip(status: string): { label: string; className: string } {
+function statusChip(status: string, t: Translator): { label: string; className: string } {
   switch (status) {
     case "running":
       return {
-        label: "running",
+        label: t("chat.timeline.status.running"),
         className:
           "bg-[var(--accent-dim)] text-[color:var(--accent)] border-[color:var(--accent-border)]",
       };
     case "failed":
       return {
-        label: "failed",
+        label: t("chat.timeline.status.failed"),
         className: "bg-red-400/12 text-red-400 border-red-400/25",
       };
     case "cancelled":
       return {
-        label: "cancelled",
+        label: t("chat.timeline.status.cancelled"),
         className: "ui-chip sm fx-chip-q bg-white/[0.06] text-zinc-500 border-white/[0.08]",
       };
     default:
       return {
-        label: "done",
+        label: t("chat.timeline.status.done"),
         className: "ui-chip sm fx-chip-q bg-white/[0.06] text-zinc-400 border-white/[0.08]",
       };
   }
@@ -65,6 +68,7 @@ export function ThreadTimelinePopover({
   onClose,
   onJumpFail,
 }: Props) {
+  const t = useT();
   const [turns, setTurns] = useState<ThreadTurn[]>([]);
   const [loading, setLoading] = useState(false);
   const panelRef = useRef<HTMLDivElement>(null);
@@ -173,25 +177,25 @@ export function ThreadTimelinePopover({
       <DropdownPopover className="!p-0">
         <div className="flex items-center justify-between px-3 pt-2.5 pb-2 border-b border-white/[0.06]">
           <span className="ui-eyebrow text-zinc-500">
-            Session timeline
+            {t("chat.timeline.title")}
           </span>
           <span className="text-[11px] text-zinc-600 tabular-nums">
-            {turns.length} turn{turns.length === 1 ? "" : "s"}
+            {t("chat.timeline.turn", { count: turns.length })}
           </span>
         </div>
         <div className="max-h-[280px] overflow-y-auto py-1">
           {loading && turns.length === 0 && (
             <div className="px-3 py-6 text-center text-[12px] text-zinc-500">
-              Loading…
+              {t("chat.timeline.loading")}
             </div>
           )}
           {!loading && turns.length === 0 && (
             <div className="px-3 py-6 text-center text-[12px] text-zinc-500">
-              Turns will appear as you chat
+              {t("chat.timeline.empty")}
             </div>
           )}
           {turns.map((turn) => {
-            const chip = statusChip(turn.status);
+            const chip = statusChip(turn.status, t);
             return (
               <button
                 key={turn.id}
@@ -219,10 +223,10 @@ export function ThreadTimelinePopover({
                       >
                         {(turn.promptSummary?.trim()
                           || cleanTimelinePrompt(turn.promptText)
-                          || "(prompt)")}
+                          || t("chat.timeline.promptPlaceholder"))}
                       </span>
                       <span className="text-[10px] text-zinc-600 shrink-0 tabular-nums">
-                        {relativeTime(turn.startedAt)}
+                        {relativeTime(turn.startedAt, t)}
                       </span>
                     </div>
                     {turn.summary && (
@@ -261,6 +265,7 @@ export function TimelineTriggerButton({
   open: boolean;
   onClick: () => void;
 }) {
+  const t = useT();
   const isLight = useResolvedColorMode();
   const flat = (useSettingsStore((s) => s.settings.surfaceStyle) ?? "flat") === "flat";
   // Flat matches the top bar icon buttons: graphite, hover fill, neutral pressed fill.
@@ -270,8 +275,9 @@ export function TimelineTriggerButton({
   const hoverBg = flat ? "var(--ui-hover)" : isLight ? "rgba(0,0,0,0.05)" : "rgba(255,255,255,0.05)";
   const openBg = flat ? "var(--ui-press)" : hoverBg;
   const hoverBorder = flat ? "transparent" : isLight ? "rgba(0,0,0,0.08)" : "rgba(255,255,255,0.06)";
-  const title =
-    count > 0 ? `Session timeline (${count} turns)` : "Session timeline";
+  const title = count > 0
+    ? t("chat.timeline.triggerCount", { count })
+    : t("chat.timeline.title");
 
   return (
     <button

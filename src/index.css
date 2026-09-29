@@ -5294,3 +5294,6 @@ html[data-mode="light"] .composer-selector-violet {
   border-color: #c4b5e5 !important;
 }
 html[data-mode="light"] .composer-selector-violet:hover { background: #ede9fe !important; }
+
+/* Korean: break lines between words, not inside them (src/i18n sets <html lang>). */
+html:lang(ko) { word-break: keep-all; overflow-wrap: break-word; }

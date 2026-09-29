@@ -64,6 +64,7 @@ import kimiIcon from "../../assets/kimi-icon.svg";
 import clineIcon from "../../assets/cline-icon.svg";
 import hermesIcon from "../../assets/hermes-icon.png";
 import droidIcon from "../../assets/droid-icon.svg";
+import { tx, useT } from "../../i18n";
 
 interface NewTaskDialogProps {
   projectId: string | null;
@@ -158,11 +159,11 @@ const AGENTS: AgentEntry[] = [
       label: m.name,
       hint:
         m.slug === "sonnet" || m.slug === "sonnet[1m]"
-          ? "balanced · default"
+          ? "task.model.hint.balancedDefault"
           : m.slug.startsWith("opus")
-          ? "most capable"
+          ? "task.model.hint.mostCapable"
           : m.slug === "haiku"
-          ? "fast · cheap"
+          ? "task.model.hint.fastCheap"
           : undefined,
     })),
   },
@@ -178,7 +179,7 @@ const AGENTS: AgentEntry[] = [
     models: CODEX_MODELS.map((m, i) => ({
       slug: m.slug,
       label: m.name,
-      hint: i === 0 ? "balanced · default" : undefined,
+      hint: i === 0 ? "task.model.hint.balancedDefault" : undefined,
     })),
   },
   {
@@ -191,9 +192,9 @@ const AGENTS: AgentEntry[] = [
     iconBg: "#334155",
     fullBleedIcon: true,
     models: [
-      { slug: "anthropic/claude-sonnet-4-5", label: "Claude Sonnet 4.5", hint: "balanced · default" },
-      { slug: "anthropic/claude-opus-4-5", label: "Claude Opus 4.5", hint: "most capable" },
-      { slug: "anthropic/claude-haiku-4-5", label: "Claude Haiku 4.5", hint: "fast · cheap" },
+      { slug: "anthropic/claude-sonnet-4-5", label: "Claude Sonnet 4.5", hint: "task.model.hint.balancedDefault" },
+      { slug: "anthropic/claude-opus-4-5", label: "Claude Opus 4.5", hint: "task.model.hint.mostCapable" },
+      { slug: "anthropic/claude-haiku-4-5", label: "Claude Haiku 4.5", hint: "task.model.hint.fastCheap" },
       { slug: "openai/gpt-6-sol", label: "GPT 6 Sol" },
       { slug: "openai/gpt-6-luna", label: "GPT 6 Luna" },
       { slug: "openai/gpt-5.6-sol", label: "GPT 5.6 Sol" },
@@ -350,6 +351,7 @@ function AgentAvatar({ entry, size = 18 }: { entry: AgentEntry; size?: number })
 }
 
 function ModeBadge({ mode }: { mode: AgentMode }) {
+  const t = useT();
   const isChat = mode === "chat";
   return (
     <span
@@ -360,7 +362,7 @@ function ModeBadge({ mode }: { mode: AgentMode }) {
         color: isChat ? "#60a5fa" : "#a1a1aa",
       }}
     >
-      {isChat ? "chat" : ">_"}
+      {isChat ? t("task.agent.mode.chatBadge") : ">_"}
     </span>
   );
 }
@@ -405,6 +407,7 @@ function AgentPicker({
   codexModels,
   claudeModels,
 }: AgentPickerProps) {
+  const t = useT();
   const [open, setOpen] = useState(false);
   const [hoverKey, setHoverKey] = useState<string | null>(null);
   const [hoverRowRect, setHoverRowRect] = useState<DOMRect | null>(null);
@@ -413,6 +416,7 @@ function AgentPicker({
   const triggerRef = useRef<HTMLButtonElement>(null);
   const popoverRef = useRef<HTMLDivElement>(null);
   const submenuRef = useRef<HTMLDivElement>(null);
+  const agentLabel = (entry: AgentEntry) => entry.key === "local-chat" ? t("task.agent.option.local") : entry.label;
 
   const updateAnchor = useCallback(() => {
     if (triggerRef.current) setAnchorRect(triggerRef.current.getBoundingClientRect());
@@ -477,7 +481,7 @@ function AgentPicker({
       ? opencodeEntry.models.map((m) => ({
           slug: m.slug,
           label: m.label,
-          meta: m.hint ?? m.slug,
+          meta: m.hint ? t(m.hint) : m.slug,
           disconnected: false,
         }))
       : [];
@@ -486,7 +490,7 @@ function AgentPicker({
         ? opencodeModels.map((m) => ({
             slug: m.slug,
             label: m.name,
-            meta: m.connected === false ? `${m.slug} · needs auth` : m.slug,
+            meta: m.connected === false ? t("task.model.needsAuth", { model: m.slug }) : m.slug,
             disconnected: m.connected === false,
           }))
         : fallback;
@@ -525,7 +529,7 @@ function AgentPicker({
       return prettifyOpenCodeSlug(chosenModel) || chosenModel;
     }
     if (agent.key === "codex-chat") {
-      if (!chosenModel) return "Default";
+      if (!chosenModel) return t("task.agent.model.default");
       const dyn = codexRows.find((r) => r.slug === chosenModel);
       if (dyn) return dyn.name;
       const m = agent.models.find((x) => x.slug === chosenModel);
@@ -542,7 +546,7 @@ function AgentPicker({
     const models = chatAgents.find((a) => a.key === agent.key)?.models ?? agent.models;
     const m = models.find((x) => x.slug === chosenModel || (agent.provider === "Gemini" && chosenModel.startsWith(`${x.slug}-`)))
       ?? agent.models.find((x) => x.slug === chosenModel);
-    return m?.label ?? (chosenModel || "Choose model");
+    return m?.label ?? (chosenModel || t("task.model.choose"));
   })();
 
   // Portalled popover: rendered at document.body level with fixed positioning
@@ -635,7 +639,7 @@ function AgentPicker({
         }
       >
         <AgentAvatar entry={agent} size={16} />
-        <span>{agent.label}</span>
+        <span>{agentLabel(agent)}</span>
         <span className="font-mono text-[10px] text-zinc-500 pl-[2px] pr-1">· {triggerModel}</span>
         <ModeBadge mode={agent.mode} />
         <ChevronDown size={10} className="text-zinc-500" />
@@ -657,7 +661,7 @@ function AgentPicker({
             }}
           >
             <DropdownPopover>
-              <DropdownSectionHeader>Chat</DropdownSectionHeader>
+              <DropdownSectionHeader>{t("task.agent.mode.chat")}</DropdownSectionHeader>
               {chatAgents.map((a) => {
                 const active = a.key === agent.key;
                 const subModelSlug = active ? chosenModel : defaultAgentModel(a) || (a.key === "local-chat" ? a.models[0]?.slug ?? "" : "");
@@ -688,7 +692,7 @@ function AgentPicker({
                       onClick={() => onPick(a, subModelSlug)}
                       selected={active}
                       icon={<AgentAvatar entry={a} size={20} />}
-                      title={a.label}
+                      title={agentLabel(a)}
                       meta={subModelLabel}
                       right={<ChevronRight size={12} className="text-zinc-500" />}
                     />
@@ -696,7 +700,7 @@ function AgentPicker({
                 );
               })}
 
-              <DropdownSectionHeader>Terminal</DropdownSectionHeader>
+              <DropdownSectionHeader>{t("task.agent.mode.terminal")}</DropdownSectionHeader>
               {terminalAgents.map((a) => {
                 const active = a.key === agent.key;
                 return (
@@ -709,7 +713,7 @@ function AgentPicker({
                     }}
                     selected={active}
                     icon={<AgentAvatar entry={a} size={20} />}
-                    title={a.label}
+                    title={agentLabel(a)}
                     meta={a.model}
                     right={active ? <Check size={12} className="text-[color:var(--accent)]" /> : null}
                   />
@@ -730,9 +734,9 @@ function AgentPicker({
             }}
           >
             <DropdownPopover>
-              <DropdownSectionHeader>{hoveredAgent.label} models</DropdownSectionHeader>
+              <DropdownSectionHeader>{t("task.model.providerModels", { provider: agentLabel(hoveredAgent) })}</DropdownSectionHeader>
               {hoveredAgent.key === "local-chat" && hoveredAgent.models.length === 0 && (
-                <DropdownRow title="Set up Local Models" onClick={() => useSettingsStore.getState().openSettings("localModels")} />
+                <DropdownRow title={t("task.localModel.setup")} onClick={() => useSettingsStore.getState().openSettings("localModels")} />
               )}
               {hoveredAgent.key === "opencode-chat"
                 ? (() => {
@@ -763,7 +767,7 @@ function AgentPicker({
                                 value={opencodeQuery}
                                 onChange={(e) => setOpencodeQuery(e.target.value)}
                                 onClick={(e) => e.stopPropagation()}
-                                placeholder="Search models…"
+                                placeholder={t("task.model.searchPlaceholder")}
                                 className="flex-1 min-w-0 bg-transparent text-[12.5px] tracking-[-0.01em] text-zinc-200 placeholder-zinc-600 outline-none"
                               />
                               {opencodeQuery && (
@@ -771,7 +775,7 @@ function AgentPicker({
                                   type="button"
                                   onClick={() => setOpencodeQuery("")}
                                   className="font-mono text-[10px] text-zinc-500 hover:text-zinc-300 transition-colors"
-                                  title="Clear search"
+                                  title={t("task.model.clearSearch")}
                                 >
                                   esc
                                 </button>
@@ -781,7 +785,7 @@ function AgentPicker({
                         )}
                         {rows.length === 0 && q && (
                           <div className="px-3 py-4 text-center text-[11.5px] text-zinc-500">
-                            No models match "{q}"
+                            {t("task.model.noMatches", { query: q })}
                           </div>
                         )}
                         {rows.map((m) => {
@@ -809,7 +813,7 @@ function AgentPicker({
                         })}
                         {overflow && (
                           <div className="px-3 py-2 text-center text-[10.5px] font-mono text-zinc-500">
-                            {filtered.length - OPENCODE_RENDER_CAP} more · type to filter
+                            {t("task.model.moreToFilter", { count: filtered.length - OPENCODE_RENDER_CAP })}
                           </div>
                         )}
                       </>
@@ -839,12 +843,12 @@ function AgentPicker({
                       );
                     })
                 : hoveredAgent.key === "codex-chat"
-                  ? [{ slug: "", name: "Default (Codex config)" }, ...codexRows].map((m, i) => {
+                  ? [{ slug: "", name: t("task.agent.model.defaultCodexConfig") }, ...codexRows].map((m, i) => {
                       const isActiveAgent = hoveredAgent.key === agent.key;
                       const mActive = isActiveAgent && m.slug === chosenModel;
                       // Keep "balanced · default" hint on the first entry,
                       // matching the static catalogue's existing UX.
-                      const hint = i === 0 ? "balanced · default" : undefined;
+                      const hint = i === 0 ? "task.model.hint.balancedDefault" : undefined;
                       return (
                         <DropdownRow
                           key={m.slug}
@@ -857,7 +861,7 @@ function AgentPicker({
                           selected={mActive}
                           icon={<AgentAvatar entry={hoveredAgent} size={18} />}
                           title={m.name}
-                          meta={hint ?? m.slug}
+                          meta={hint ? t(hint) : m.slug}
                           right={
                             mActive ? <Check size={12} className="text-[color:var(--accent)]" /> : null
                           }
@@ -879,7 +883,7 @@ function AgentPicker({
                           selected={mActive}
                           icon={<AgentAvatar entry={hoveredAgent} size={18} />}
                           title={m.label}
-                          meta={m.hint ?? m.slug}
+                          meta={m.hint ? t(m.hint) : m.slug}
                           right={
                             mActive ? <Check size={12} className="text-[color:var(--accent)]" /> : null
                           }
@@ -897,6 +901,7 @@ function AgentPicker({
 // ─── Dialog ─────────────────────────────────────────────────────────────────
 
 export function NewTaskDialog({ projectId: initialProjectId, onClose }: NewTaskDialogProps) {
+  const t = useT();
   const projects = useProjectStore((s) => s.projects);
 
   const [selectedProjectId, setSelectedProjectId] = useState<string>(() => {
@@ -1155,12 +1160,14 @@ export function NewTaskDialog({ projectId: initialProjectId, onClose }: NewTaskD
           // Claude Chat SDK agent created here shows as "Claude Chat #1",
           // not "Claude #1" — otherwise the two code paths produce
           // differently-labeled tabs for the same underlying agent type.
-          const tabLabel =
-            agent.mode === "chat"
-              ? `${agent.label} Chat`
-              : agent.provider === "ClaudeCode"
-                ? "Claude Code"
-                : agent.label;
+          const agentLabel = agent.key.startsWith("local-") ? t("task.agent.option.local") : agent.label;
+          const tabLabel = agent.mode === "chat"
+            ? agent.key === "local-chat"
+              ? t("task.agent.option.localChat")
+              : t("task.agent.option.providerChat", { provider: agentLabel })
+            : agent.provider === "ClaudeCode"
+              ? t("task.agent.option.claudeCode")
+              : agentLabel;
           const threadName = `${tabLabel} #1`;
           // Codex requires a real app-server thread id: `create_task_agent`
           // stores whatever id we pass as the thread row's primary key, and
@@ -1197,7 +1204,7 @@ export function NewTaskDialog({ projectId: initialProjectId, onClose }: NewTaskD
               )) as { thread?: { id?: string } };
               const codexThreadId = result?.thread?.id;
               if (!codexThreadId) {
-                throw new Error("Codex app-server did not return a thread id");
+                throw new Error(t("task.agent.error.codexThreadIdMissing"));
               }
               preassignedThreadId = codexThreadId;
               const { setCodexSessionMode } = await import(
@@ -1243,11 +1250,9 @@ export function NewTaskDialog({ projectId: initialProjectId, onClose }: NewTaskD
           // User can dismiss and open the task from the sidebar, or retry
           // agent spawn from the task's agent tab bar.
           console.error("Failed to create task agent:", agentErr);
-          setError(
-            `Task created, but couldn't start agent: ${
-              agentErr instanceof Error ? agentErr.message : String(agentErr)
-            }`,
-          );
+          setError(t("task.agent.error.taskCreatedButCouldNotStart", {
+            message: agentErr instanceof Error ? agentErr.message : String(agentErr),
+          }));
           setIsCreating(false);
           return;
         }
@@ -1275,6 +1280,7 @@ export function NewTaskDialog({ projectId: initialProjectId, onClose }: NewTaskD
     chosenModel,
     fetchThreads,
     multiRepo,
+    t,
   ]);
 
   const canCreate =
@@ -1334,7 +1340,7 @@ export function NewTaskDialog({ projectId: initialProjectId, onClose }: NewTaskD
             <GitBranchPlus size={11} />
           </div>
           <span className="ui-eyebrow text-[color:var(--accent)]">
-            New task
+            {t("task.newTask.title")}
           </span>
           <div className="flex-1" />
           <span className="ui-kbd text-zinc-500 border border-white/[0.06] bg-white/[0.04]">
@@ -1347,7 +1353,7 @@ export function NewTaskDialog({ projectId: initialProjectId, onClose }: NewTaskD
             type="button"
             onClick={onClose}
             className="ml-1 flex h-[22px] w-[22px] items-center justify-center rounded-md text-zinc-500 transition-colors hover:bg-white/[0.05] hover:text-zinc-200"
-            aria-label="Close"
+            aria-label={t("task.common.close")}
           >
             <X size={13} />
           </button>
@@ -1357,7 +1363,7 @@ export function NewTaskDialog({ projectId: initialProjectId, onClose }: NewTaskD
         <div className="focusable mx-4 mt-3.5 flex items-stretch overflow-hidden rounded-[10px] bg-black/25 border border-white/[0.06] fx-input">
           <div className="flex flex-1 flex-col gap-0.5 px-3.5 py-2.5">
             <span className="text-[12px] text-zinc-600">
-              Title
+              {t("task.newTask.taskTitle")}
             </span>
             <input
               type="text"
@@ -1366,7 +1372,7 @@ export function NewTaskDialog({ projectId: initialProjectId, onClose }: NewTaskD
                 setTaskName(e.target.value.slice(0, TASK_NAME_MAX_LENGTH))
               }
               maxLength={TASK_NAME_MAX_LENGTH}
-              placeholder="Short, descriptive"
+              placeholder={t("task.newTask.titlePlaceholder")}
               className="bg-transparent text-[14px] font-medium text-white placeholder:text-zinc-600 outline-none"
               style={{ letterSpacing: "-0.015em" }}
             />
@@ -1375,10 +1381,10 @@ export function NewTaskDialog({ projectId: initialProjectId, onClose }: NewTaskD
           <div className="flex w-[220px] flex-col gap-0.5 px-3.5 py-2.5">
             <div className="flex items-center gap-1.5 text-[12px] text-zinc-600">
               <GitBranch size={9} />
-              <span>Branch</span>
+              <span>{t("task.newTask.branch")}</span>
               {!branchEdited && taskName && (
                 <span className="ml-auto text-[9.5px] normal-case tracking-normal text-[color:var(--accent)]">
-                  ↳ auto
+                  ↳ {t("task.common.auto")}
                 </span>
               )}
             </div>
@@ -1410,7 +1416,7 @@ export function NewTaskDialog({ projectId: initialProjectId, onClose }: NewTaskD
                 <AlertTriangle size={9} />
                 {isDuplicateBranch ? (
                   <>
-                    <span>In use.</span>
+                    <span>{t("task.newTask.branchInUse")}</span>
                     {suggestedBranch && (
                       <button
                         type="button"
@@ -1421,7 +1427,7 @@ export function NewTaskDialog({ projectId: initialProjectId, onClose }: NewTaskD
                         className="underline-offset-2 hover:underline"
                         style={{ color: "#fbbf24" }}
                       >
-                        Use "{suggestedBranch}"
+                        {t("task.newTask.useSuggestedBranch", { branch: suggestedBranch })}
                       </button>
                     )}
                   </>
@@ -1436,13 +1442,13 @@ export function NewTaskDialog({ projectId: initialProjectId, onClose }: NewTaskD
         {/* Prompt */}
         <div className="focusable mx-4 mt-2.5 rounded-[10px] px-3.5 pt-2.5 pb-2.5 bg-black/25 border border-white/[0.06] fx-input">
           <span className="text-[12px] text-zinc-600">
-            Prompt
+            {t("task.newTask.prompt")}
           </span>
           <textarea
             ref={promptRef}
             value={prompt}
             onChange={(e) => setPrompt(e.target.value)}
-            placeholder="What do you want to do? Leave empty to create the task without auto-starting an agent."
+            placeholder={t("task.newTask.promptPlaceholder")}
             rows={4}
             className="mt-1.5 block w-full resize-none bg-transparent text-[13.5px] text-zinc-200 placeholder:text-zinc-600 outline-none"
             style={{ lineHeight: 1.55, letterSpacing: "-0.01em" }}
@@ -1452,17 +1458,17 @@ export function NewTaskDialog({ projectId: initialProjectId, onClose }: NewTaskD
             <span className="flex-1 truncate font-mono text-[10.5px] text-zinc-600">
               {worktreePath
                 ? multiRepo
-                  ? (worktreePath.replace(/\/[^/]+\/?$/, "") || worktreePath) + "  ·  multi-repo"
+                  ? (worktreePath.replace(/\/[^/]+\/?$/, "") || worktreePath) + "  ·  " + t("task.newTask.multiRepo")
                   : worktreePath
-                : "A separate folder for this task is created when you click Create"}
+                : t("task.newTask.worktreeWillBeCreated")}
             </span>
             <button
               type="button"
               onClick={() => setMultiRepo((v) => !v)}
               title={
                 multiRepo
-                  ? "Multi-repo: agent runs at the worktree's parent dir so it can see sibling repos"
-                  : "Single-repo: agent runs inside the project's worktree"
+                  ? t("task.newTask.multiRepoTooltip")
+                  : t("task.newTask.singleRepoTooltip")
               }
               className={`shrink-0 rounded-md border px-1.5 py-[2px] font-mono text-[9.5px] transition-colors ${
                 multiRepo
@@ -1470,7 +1476,7 @@ export function NewTaskDialog({ projectId: initialProjectId, onClose }: NewTaskD
                   : "border-white/[0.08] bg-white/[0.03] text-zinc-500 hover:text-zinc-300"
               }`}
             >
-              multi-repo
+              {t("task.newTask.multiRepo")}
             </button>
             <AgentPicker
               cursorModels={cursorModels}
@@ -1520,7 +1526,7 @@ export function NewTaskDialog({ projectId: initialProjectId, onClose }: NewTaskD
             )}
           </div>
 
-          <span className="text-[11px] text-zinc-600">from</span>
+          <span className="text-[11px] text-zinc-600">{t("task.newTask.fromBranch")}</span>
 
           <div className="inline-flex items-center gap-1.5 rounded-md border border-white/[0.06] bg-white/[0.04] px-2 py-[3px] fx-input">
             <GitBranch size={10} className="text-zinc-600" />
@@ -1536,13 +1542,9 @@ export function NewTaskDialog({ projectId: initialProjectId, onClose }: NewTaskD
           <div className="flex-1" />
 
           <span className="flex items-center gap-1 text-[11px] text-zinc-600">
-            <span className="ui-kbd text-zinc-500 border border-white/[0.06] bg-white/[0.04]">
-              ⌘
-            </span>
-            <span className="ui-kbd text-zinc-500 border border-white/[0.06] bg-white/[0.04]">
-              ↵
-            </span>
-            <span>to create</span>
+            {tx("task.newTask.shortcutHelp", {
+              shortcut: <><span className="ui-kbd text-zinc-500 border border-white/[0.06] bg-white/[0.04]">⌘</span><span className="ui-kbd text-zinc-500 border border-white/[0.06] bg-white/[0.04]">↵</span></>,
+            })}
           </span>
 
           <button
@@ -1565,11 +1567,11 @@ export function NewTaskDialog({ projectId: initialProjectId, onClose }: NewTaskD
             {isCreating ? (
               <>
                 <Loader2 size={12} className="animate-spin" />
-                Creating…
+                {t("task.newTask.creating")}
               </>
             ) : (
               <>
-                {prompt.trim() ? "Create & start" : "Create task"}
+                {prompt.trim() ? t("task.newTask.createAndStart") : t("task.newTask.createTask")}
                 <ArrowRight size={12} />
               </>
             )}

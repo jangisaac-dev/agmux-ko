@@ -1,9 +1,11 @@
 import { lazy, Suspense, useEffect, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { SupportSection } from "./settings/SupportSection";
+import { useT } from "../i18n";
 const App = lazy(() => import("../App"));
 interface Status { error: string | null; dataPath: string; backups: string[] }
 export function StartupGate() {
+  const t = useT();
   const [status, setStatus] = useState<Status | null>(null);
   const [support, setSupport] = useState(false);
   const [error, setError] = useState("");
@@ -38,16 +40,16 @@ export function StartupGate() {
     catch (e) { setError(String(e)); }
     finally { setBusy(false); }
   }
-  if (status && !status.error) return <Suspense fallback={<div className="p-8">Opening agmux…</div>}><App /></Suspense>;
+  if (status && !status.error) return <Suspense fallback={<div className="p-8">{t("startup.opening")}</div>}><App /></Suspense>;
   return <div className="h-screen overflow-auto bg-[var(--bg-app)] p-8 text-[var(--text-primary)]"><div className="mx-auto max-w-xl space-y-4">
-    {support ? <><button onClick={() => setSupport(false)} className="fx-quiet">Back</button><SupportSection initialDetails={`Startup failed: ${status?.error ?? error}`} /></> : <>
-      <h1 className="text-xl font-semibold">{status?.error || error ? "agmux could not open your data" : "Opening agmux…"}</h1>
-      {(status?.error || error) && <><p>Your data has not been reset. You can restart, restore a saved database, or contact Support.</p><pre className="whitespace-pre-wrap break-words text-sm fx-red">{status?.error}</pre><p className="text-xs break-all">Data folder: {status?.dataPath}</p>
-      <div className="flex gap-4"><button disabled={busy} onClick={() => void restart()} className="fx-accent">Restart app</button><button disabled={busy} onClick={() => setSupport(true)} className="fx-quiet">Contact Support</button></div>
-      {status && <button onClick={() => void import("@tauri-apps/plugin-opener").then(m => m.openPath(status.dataPath)).catch(e => setError(String(e)))} className="fx-quiet">Open data folder</button>}
-      {!!status?.backups.length && !restored && <fieldset disabled={busy} className="space-y-3 rounded border border-[var(--glass-border)] p-4"><label className="block">Saved database<select className="block w-full bg-[var(--bg-app)] text-sm" value={selected} onChange={e => { setSelected(e.target.value); setConfirm(false); }}>{status.backups.map(name => <option key={name}>{name}</option>)}</select></label><p className="text-sm">Restoring rolls app records back to this snapshot. The current database is copied into the backups folder first. Provider conversation files are separate.</p><label className="flex gap-2 text-sm"><input type="checkbox" checked={confirm} onChange={e => setConfirm(e.target.checked)} />I want to restore this saved database.</label><button disabled={!confirm || busy} onClick={() => void restore()} className="fx-accent">{busy ? "Restoring…" : "Restore database"}</button></fieldset>}
-      {restored && <p role="status">Database restored. Restart the app to try opening it.</p>}
-      {status && !status.backups.length && <p>No automatic database backup is available. Contact Support before changing your data files.</p>}</>}
+    {support ? <><button onClick={() => setSupport(false)} className="fx-quiet">{t("startup.back")}</button><SupportSection initialDetails={t("startup.support.startupFailed", { error: status?.error ?? error })} /></> : <>
+      <h1 className="text-xl font-semibold">{status?.error || error ? t("startup.title.failed") : t("startup.opening")}</h1>
+      {(status?.error || error) && <><p>{t("startup.dataNotReset")}</p><pre className="whitespace-pre-wrap break-words text-sm fx-red">{status?.error}</pre><p className="text-xs break-all">{t("startup.dataFolder")}: {status?.dataPath}</p>
+      <div className="flex gap-4"><button disabled={busy} onClick={() => void restart()} className="fx-accent">{t("startup.restartApp")}</button><button disabled={busy} onClick={() => setSupport(true)} className="fx-quiet">{t("startup.contactSupport")}</button></div>
+      {status && <button onClick={() => void import("@tauri-apps/plugin-opener").then(m => m.openPath(status.dataPath)).catch(e => setError(String(e)))} className="fx-quiet">{t("startup.openDataFolder")}</button>}
+      {!!status?.backups.length && !restored && <fieldset disabled={busy} className="space-y-3 rounded border border-[var(--glass-border)] p-4"><label className="block">{t("startup.savedDatabase")}<select className="block w-full bg-[var(--bg-app)] text-sm" value={selected} onChange={e => { setSelected(e.target.value); setConfirm(false); }}>{status.backups.map(name => <option key={name}>{name}</option>)}</select></label><p className="text-sm">{t("startup.restore.description.snapshot")} {t("startup.restore.description.backup")} {t("startup.restore.description.providerFiles")}</p><label className="flex gap-2 text-sm"><input type="checkbox" checked={confirm} onChange={e => setConfirm(e.target.checked)} />{t("startup.restore.confirm")}</label><button disabled={!confirm || busy} onClick={() => void restore()} className="fx-accent">{busy ? t("startup.restore.restoring") : t("startup.restore.restoreDatabase")}</button></fieldset>}
+      {restored && <p role="status">{t("startup.restore.restored")}</p>}
+      {status && !status.backups.length && <p>{t("startup.noBackup")}</p>}</>}
     </>}
     {error && <p role="alert" className="text-red-400">{error}</p>}
   </div></div>;

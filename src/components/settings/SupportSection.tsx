@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { useNativeFileDrop } from "../../hooks/useNativeFileDrop";
+import { useT } from "../../i18n";
 
 function useDialogOpen() {
   const [open, setOpen] = useState<typeof import("@tauri-apps/plugin-dialog").open | null>(null);
@@ -9,8 +10,9 @@ function useDialogOpen() {
 }
 
 export function SupportSection({ initialDetails = "" }: { initialDetails?: string }) {
+  const t = useT();
   const [kind, setKind] = useState(initialDetails ? "crash" : "bug");
-  const [title, setTitle] = useState(initialDetails ? "App error" : "");
+  const [title, setTitle] = useState(initialDetails ? t("settings.support.appErrorTitle") : "");
   const [description, setDescription] = useState(initialDetails);
   const [email, setEmail] = useState("");
   const [paths, setPaths] = useState<string[]>([]);
@@ -25,7 +27,7 @@ export function SupportSection({ initialDetails = "" }: { initialDetails?: strin
     if (pending.current) return;
     setPaths(current => {
       const next = [...new Set([...current, ...files])];
-      if (next.length + Number(includeDiagnostics) > 5) { setError("Attach up to five files, including diagnostics."); return current; }
+      if (next.length + Number(includeDiagnostics) > 5) { setError(t("settings.support.attachmentLimit")); return current; }
       return next;
     });
   }
@@ -33,7 +35,7 @@ export function SupportSection({ initialDetails = "" }: { initialDetails?: strin
   async function attach(crashes = false) {
     if (!open) return;
     try {
-      const selected = await open({ multiple: true, directory: false, title: crashes ? "Choose an agmux crash report (.ips)" : "Attach screenshots, logs or other files", ...(crashes ? { defaultPath: `${await (await import("@tauri-apps/api/path")).homeDir()}Library/Logs/DiagnosticReports/`, filters: [{ name: "Crash reports", extensions: ["ips", "crash"] }] } : {}) });
+      const selected = await open({ multiple: true, directory: false, title: crashes ? t("settings.support.chooseCrashReportTitle") : t("settings.support.attachFilesDialogTitle"), ...(crashes ? { defaultPath: `${await (await import("@tauri-apps/api/path")).homeDir()}Library/Logs/DiagnosticReports/`, filters: [{ name: t("settings.support.crashReports"), extensions: ["ips", "crash"] }] } : {}) });
       if (selected) addFiles(Array.isArray(selected) ? selected : [selected]);
     } catch (e) { setError(String(e)); }
   }
@@ -48,22 +50,22 @@ export function SupportSection({ initialDetails = "" }: { initialDetails?: strin
     finally { pending.current = false; setBusy(false); }
   }
   const input = "block w-full rounded-lg border border-[var(--glass-border)] bg-[var(--bg-app)] px-3 py-2 text-sm text-[var(--text-primary)]";
-  if (receipt) return <div className="space-y-4"><h3 className="text-lg font-medium">Report sent</h3><p>Your report was delivered directly to the agmux developer. {email ? "You can be contacted at the email you provided." : "No reply email was provided."}</p><p className="text-xs text-[var(--text-secondary)] break-all">Reference: {receipt}</p><button className={input} onClick={() => { setReceipt(""); setTitle(""); setDescription(""); setPaths([]); setIncludeDiagnostics(false); }}>Send another report</button></div>;
+  if (receipt) return <div className="space-y-4"><h3 className="text-lg font-medium">{t("settings.support.reportSent")}</h3><p>{t("settings.support.reportDelivered")} {t(email ? "settings.support.replyEmailProvided" : "settings.support.noReplyEmail")}</p><p className="text-xs text-[var(--text-secondary)] break-all">{t("settings.support.reference", { reference: receipt })}</p><button className={input} onClick={() => { setReceipt(""); setTitle(""); setDescription(""); setPaths([]); setIncludeDiagnostics(false); }}>{t("settings.support.sendAnother")}</button></div>;
   return <form onSubmit={e => void submit(e)} className="space-y-4">
-    <div><h3 className="text-lg font-medium">Support</h3><p className="mt-1 text-sm text-[var(--text-secondary)]">Send a bug, crash, question or suggestion directly to the agmux developer.</p></div>
+    <div><h3 className="text-lg font-medium">{t("settings.nav.support")}</h3><p className="mt-1 text-sm text-[var(--text-secondary)]">{t("settings.support.description")}</p></div>
     <fieldset disabled={busy} className="space-y-4 disabled:opacity-60">
-      <label className="block text-sm">Report type<select aria-label="Report type" className={input} value={kind} onChange={e => setKind(e.target.value)}><option value="bug">Bug</option><option value="crash">Crash</option><option value="question">Question</option><option value="feedback">Feedback</option></select></label>
-      <label className="block text-sm">Title<input className={input} required maxLength={160} value={title} onChange={e => setTitle(e.target.value)} /></label>
-      <label className="block text-sm">What happened?<textarea className={input} required maxLength={20000} rows={7} placeholder="What were you doing? What did you expect, and what happened instead?" value={description} onChange={e => setDescription(e.target.value)} /></label>
-      <label className="block text-sm">Email for a reply (optional)<input className={input} type="email" maxLength={254} value={email} onChange={e => setEmail(e.target.value)} /></label>
+      <label className="block text-sm">{t("settings.support.reportType")}<select aria-label={t("settings.support.reportType")} className={input} value={kind} onChange={e => setKind(e.target.value)}><option value="bug">{t("settings.support.type.bug")}</option><option value="crash">{t("settings.support.type.crash")}</option><option value="question">{t("settings.support.type.question")}</option><option value="feedback">{t("settings.support.type.feedback")}</option></select></label>
+      <label className="block text-sm">{t("settings.support.titleLabel")}<input className={input} required maxLength={160} value={title} onChange={e => setTitle(e.target.value)} /></label>
+      <label className="block text-sm">{t("settings.support.whatHappened")}<textarea className={input} required maxLength={20000} rows={7} placeholder={`${t("settings.support.whatWereYouDoing.first")} ${t("settings.support.whatWereYouDoing.second")}`} value={description} onChange={e => setDescription(e.target.value)} /></label>
+      <label className="block text-sm">{t("settings.support.replyEmailLabel")}<input className={input} type="email" maxLength={254} value={email} onChange={e => setEmail(e.target.value)} /></label>
       <div ref={dropRef} className="rounded-lg border border-dashed border-[var(--glass-border)] p-3 space-y-2">
-        <p className="text-xs text-[var(--text-secondary)]">Drop files here, or attach them below. Up to 5 files, 5 MB each, 10 MB total.</p>
-        {paths.map(path => <div key={path} className="flex items-center gap-2 text-xs"><span className="truncate flex-1" title={path}>{path.split("/").pop()}</span><button type="button" aria-label={`Remove ${path.split("/").pop()}`} onClick={() => setPaths(paths.filter(p => p !== path))}>Remove</button></div>)}
-        <div className="flex gap-3 text-sm"><button type="button" disabled={!open} onClick={() => void attach()}>Attach files</button><button type="button" disabled={!open} onClick={() => void attach(true)}>Choose crash report</button></div>
+        <p className="text-xs text-[var(--text-secondary)]">{t("settings.support.dropFiles.first")} {t("settings.support.dropFiles.second")}</p>
+        {paths.map(path => <div key={path} className="flex items-center gap-2 text-xs"><span className="truncate flex-1" title={path}>{path.split("/").pop()}</span><button type="button" aria-label={t("settings.support.removeAttachment", { name: path.split("/").pop() ?? "" })} onClick={() => setPaths(paths.filter(p => p !== path))}>{t("settings.support.removeFile")}</button></div>)}
+        <div className="flex gap-3 text-sm"><button type="button" disabled={!open} onClick={() => void attach()}>{t("settings.support.attachFiles")}</button><button type="button" disabled={!open} onClick={() => void attach(true)}>{t("settings.support.chooseCrashReport")}</button></div>
       </div>
-      <label className="flex gap-2 text-sm"><input type="checkbox" checked={includeDiagnostics} disabled={!includeDiagnostics && paths.length >= 5} onChange={e => setIncludeDiagnostics(e.target.checked)} />Include saved Debug Mode performance capture</label>
-      <p className="text-xs text-[var(--text-secondary)]">If selected, the saved capture must exist in Settings → Debug Mode. App version, operating system and processor type are included. Only your message and selected files are sent to owner.agmux.dev. Review attachments for private information before sending.</p>
-      <button type="submit" className="rounded-lg bg-[var(--accent)] px-4 py-2 text-sm text-[var(--accent-foreground)] disabled:opacity-50" disabled={!title.trim() || !description.trim()}>{busy ? "Sending…" : "Send report"}</button>
+      <label className="flex gap-2 text-sm"><input type="checkbox" checked={includeDiagnostics} disabled={!includeDiagnostics && paths.length >= 5} onChange={e => setIncludeDiagnostics(e.target.checked)} />{t("settings.support.includeDebugCapture", { mode: t("settings.nav.debug") })}</label>
+      <p className="text-xs text-[var(--text-secondary)]">{t("settings.support.captureMustExist", { section: t("settings.nav.debug") })} {t("settings.support.diagnosticsMetadata")} {t("settings.support.reportDestination")} {t("settings.support.reviewAttachments")}</p>
+      <button type="submit" className="rounded-lg bg-[var(--accent)] px-4 py-2 text-sm text-[var(--accent-foreground)] disabled:opacity-50" disabled={!title.trim() || !description.trim()}>{busy ? t("settings.support.sending") : t("settings.support.sendReport")}</button>
     </fieldset>
     {error && <p role="alert" className="text-sm text-red-400">{error}</p>}
   </form>;

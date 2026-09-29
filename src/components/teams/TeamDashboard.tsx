@@ -16,14 +16,10 @@ import {
   TrendingUp,
 } from "lucide-react";
 import {
-  agoLabel,
   fmtMoney,
   fmtPct,
-  fmtSessions,
   fmtTokens,
-  sessionsCard,
   teamsOverview,
-  TEAM_RANGE_LABELS,
   TEAM_RANGES,
   type MemberRow,
   type ProjectRow,
@@ -31,18 +27,22 @@ import {
   type TeamOverview,
   type TeamRange,
 } from "../../lib/teams";
+import { localeTag, useT, tx } from "../../i18n";
 import { GlassButton } from "../ui/GlassButton";
 import { DailyTrends, HourHeatmap, MixBars, PeakSessions, Sparkline } from "./charts";
 import {
   Avatar,
   Banner,
   EmptyState,
+  fmtTeamSessions,
   Panel,
   RangeSeg,
   RoleBadge,
   Skeleton,
   StatCard,
   SyncPill,
+  teamAgoLabel,
+  teamRangeLabel,
 } from "./primitives";
 
 export function TeamDashboard({
@@ -54,6 +54,7 @@ export function TeamDashboard({
   onOpenMember?: (userId: string) => void;
   onOpenWeb?: () => void;
 }) {
+  const t = useT();
   const [range, setRange] = useState<TeamRange>("30d");
   const [data, setData] = useState<TeamOverview | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -88,17 +89,22 @@ export function TeamDashboard({
         <div className="mt-1.5 text-[11.5px] text-[var(--text-muted)]">
           {data
             ? data.scope === "partial"
-              ? `${data.memberCount} people${data.teamMemberCount && data.teamMemberCount !== data.memberCount ? ` of ${data.teamMemberCount}` : ""}${data.scopeLabel ? ` · ${data.scopeLabel}` : ""}`
-              : `${data.memberCount} members`
+              ? t("teams.dashboard.partialMembers", {
+                  count: data.memberCount,
+                  countDisplay: data.memberCount,
+                  total: data.teamMemberCount && data.teamMemberCount !== data.memberCount ? t("teams.dashboard.memberCountOf", { countDisplay: data.teamMemberCount }) : "",
+                  scope: data.scopeLabel ? ` · ${data.scopeLabel}` : "",
+                })
+              : t("teams.dashboard.memberCount", { count: data.memberCount, countDisplay: data.memberCount })
             : "—"}
-          {data?.lastUploadAt ? ` · as of ${agoLabel(data.lastUploadAt)}` : ""}
+          {data?.lastUploadAt ? t("teams.dashboard.asOf", { time: String(teamAgoLabel(data.lastUploadAt, t)) }) : ""}
         </div>
       </div>
       <div className="flex-1" />
-      <RangeSeg value={range} onChange={setRange} options={TEAM_RANGES} labels={TEAM_RANGE_LABELS} />
+      <RangeSeg value={range} onChange={setRange} options={TEAM_RANGES} />
       {onOpenWeb ? (
         <GlassButton icon={ExternalLink} size="sm" variant="ghost" onClick={onOpenWeb}>
-          Open on web
+          {t("teams.dashboard.openOnWeb")}
         </GlassButton>
       ) : null}
     </div>
@@ -117,7 +123,7 @@ export function TeamDashboard({
             </div>
           ))}
         </div>
-        <Panel title="Daily trends">
+        <Panel title={t("teams.panels.dailyTrends")}>
           <Skeleton height={160} />
         </Panel>
       </div>
@@ -131,11 +137,11 @@ export function TeamDashboard({
         <Panel padded={false}>
           <EmptyState
             icon={AlertTriangle}
-            title="Couldn't load this team"
+            title={t("teams.dashboard.loadErrorTitle")}
             body={error}
             actions={
               <GlassButton size="sm" onClick={() => void load()}>
-                Try again
+                {t("teams.actions.tryAgain")}
               </GlassButton>
             }
           />
@@ -152,15 +158,15 @@ export function TeamDashboard({
       <div className="flex flex-col gap-2.5">
         {header}
         <Banner tone="plain" icon={Activity}>
-          Your role on this team shows your own stats only.
+          {t("teams.dashboard.selfScopeOnly")}
         </Banner>
       </div>
     );
   }
 
-  const t = data.totals;
+  const totals = data.totals;
   const neverSynced = data.members.filter((m) => m.neverSynced).length;
-  const hasAnyData = t.daysWithData > 0 || data.members.some((m) => !m.neverSynced);
+  const hasAnyData = totals.daysWithData > 0 || data.members.some((m) => !m.neverSynced);
 
   if (!hasAnyData) {
     return (
@@ -169,16 +175,16 @@ export function TeamDashboard({
         <Panel padded={false}>
           <EmptyState
             icon={Activity}
-            title="Waiting for first sync"
-            body="No metrics have arrived yet. Members appear here once they accept the disclosure and their desktop app uploads."
+            title={t("teams.dashboard.waitingForFirstSyncTitle")}
+            body={t("teams.dashboard.waitingForFirstSyncBody")}
           />
         </Panel>
       </div>
     );
   }
 
-  const tokens = fmtTokens(t.tokens);
-  const cost = fmtMoney(t.costUsd);
+  const tokens = fmtTokens(totals.tokens);
+  const cost = fmtMoney(totals.costUsd);
   const concurrency = data.daily.map((d) => d.peakConcurrent);
 
   return (
@@ -187,51 +193,50 @@ export function TeamDashboard({
 
       {neverSynced > 0 ? (
         <Banner tone="warn" icon={AlertTriangle}>
-          <b className="font-medium">
-            {neverSynced} {neverSynced === 1 ? "member has" : "members have"} never synced.
-          </b>{" "}
-          Totals below exclude them.
+          <b className="font-medium">{t("teams.dashboard.neverSynced", { count: neverSynced, countDisplay: neverSynced })}</b>{" "}
+          {t("teams.dashboard.totalsExcludeNeverSynced")}
         </Banner>
       ) : null}
 
       <div className="grid grid-cols-5 gap-2">
-        <StatCard icon={Coins} label="Reported tokens" help="Measured usage from verified agmux-created sessions. Unverified history and unavailable provider reports are excluded." value={tokens.value} unit={tokens.unit} delta={data.deltas.tokens} />
-        <StatCard icon={Receipt} label={t.costIncomplete === false ? "Est. cost" : "Partial est. cost"} help="Missing prices or usage details are excluded; not an invoice." value={cost.value} unit={cost.unit} delta={data.deltas.costUsd} />
+        <StatCard icon={Coins} label={t("teams.stats.reportedTokens")} help={t("teams.stats.reportedTokensHelp")} value={tokens.value} unit={tokens.unit} delta={data.deltas.tokens} />
+        <StatCard icon={Receipt} label={totals.costIncomplete === false ? t("teams.stats.estimatedCost") : t("teams.stats.partialEstimatedCost")} help={t("teams.stats.costHelp")} value={cost.value} unit={cost.unit} delta={data.deltas.costUsd} />
         <StatCard
           icon={Timer}
-          label="Active"
-          value={t.activeHours.toFixed(1)}
+          label={t("teams.stats.active")}
+          value={totals.activeHours.toFixed(1)}
           unit="h"
-          note="agent working time, idle excluded"
+          note={t("teams.stats.agentWorkingTime")}
         />
         <StatCard
           icon={MessageSquare}
-          {...sessionsCard(t)}
-          value={fmtSessions(t)}
-          note={`${t.turns.toLocaleString()} turns · ${t.toolCalls.toLocaleString()} tool calls`}
+          label={totals.sessionsStartedIncomplete ? t("teams.stats.partialSessions") : t("teams.stats.sessions")}
+          help={totals.sessionsStartedIncomplete ? t("teams.stats.partialSessionsHelp") : t("teams.stats.sessionsHelp")}
+          value={fmtTeamSessions(totals)}
+          note={`${t("teams.stats.turnCount", { count: totals.turns, countDisplay: totals.turns.toLocaleString(localeTag()) })} · ${t("teams.stats.toolCallCount", { count: totals.toolCalls, countDisplay: totals.toolCalls.toLocaleString(localeTag()) })}`}
         />
         <StatCard
           icon={Layers}
-          label="Peak conc."
-          value={String(t.peakConcurrent)}
-          note="highest simultaneous sessions"
+          label={t("teams.stats.peakConcurrency")}
+          value={String(totals.peakConcurrent)}
+          note={t("teams.stats.highestSimultaneousSessions")}
         />
       </div>
 
       {/* Wide chart takes the full width. Pairing it with the taller mix list
           in a 2-column grid left a hole under the chart. */}
       <Panel
-        title="Daily trends"
-        sub="tokens · active hours"
+        title={t("teams.panels.dailyTrends")}
+        sub={t("teams.panels.tokensAndActiveHours")}
         right={
           <div className="flex gap-3.5 text-[11px] text-[var(--text-muted)]">
             <span className="inline-flex items-center gap-1.5">
               <i className="block h-2 w-2 rounded-sm" style={{ background: "#60a5fa", opacity: 0.55 }} />
-              Tokens
+              {t("teams.charts.tokens")}
             </span>
             <span className="inline-flex items-center gap-1.5">
               <i className="block h-2 w-2 rounded-sm" style={{ background: "#fbbf24" }} />
-              Active
+              {t("teams.stats.active")}
             </span>
           </div>
         }
@@ -240,7 +245,7 @@ export function TeamDashboard({
       </Panel>
 
       {data.budget ? (
-        <Panel title="Monthly budget" sub="calendar month · all providers">
+        <Panel title={t("teams.panels.monthlyBudget")} sub={t("teams.panels.calendarMonthAllProviders")}>
           <BudgetPanel budget={data.budget} />
         </Panel>
       ) : null}
@@ -251,85 +256,86 @@ export function TeamDashboard({
           height with no fixed rows to leave dead space. The heatmap below needs
           its full width and stays in a real grid. */}
       <div className="columns-3 gap-2.5 [&>*]:mb-2.5 [&>*]:inline-block [&>*]:w-full [&>*]:break-inside-avoid">
-        <Panel title="Provider & model mix" right={<span className="text-[11.5px] text-[var(--text-muted)]">tokens · time</span>}>
+        <Panel title={t("teams.panels.providerAndModelMix")} right={<span className="text-[11.5px] text-[var(--text-muted)]">{t("teams.panels.tokensAndTime")}</span>}>
           <div className="flex flex-col gap-2.5">
             <MixBars slices={data.providerMix} />
             {data.modelMix.length ? (
               <>
                 <hr className="my-1 border-0 border-t border-white/[0.06]" />
-                <div className="ui-eyebrow text-[var(--text-muted)]">Top models</div>
+                <div className="ui-eyebrow text-[var(--text-muted)]">{t("teams.panels.topModels")}</div>
                 <MixBars slices={data.modelMix.slice(0, 6)} mono />
               </>
             ) : null}
           </div>
         </Panel>
         <Panel
-          title="What the agents did"
+          title={t("teams.panels.whatAgentsDid")}
           right={
             <span className="tabular-nums text-[11.5px] text-[var(--text-muted)]">
-              {t.toolCalls.toLocaleString()} tool calls
+              {t("teams.stats.toolCallCount", { count: totals.toolCalls, countDisplay: totals.toolCalls.toLocaleString(localeTag()) })}
             </span>
           }
         >
-          <ToolMix totals={t} />
+          <ToolMix totals={totals} />
         </Panel>
-        <Panel title="Output & reliability" sub="code written, calls failed">
-          <OutputPanel totals={t} />
+        <Panel title={t("teams.panels.outputAndReliability")} sub={t("teams.panels.codeWrittenCallsFailed")}>
+          <OutputPanel totals={totals} />
         </Panel>
-        <Panel title="Token composition" right={<span className="tabular-nums text-[11.5px] text-[var(--text-muted)]">{fmtTokens(t.tokens).value}{fmtTokens(t.tokens).unit} total</span>}>
-          <TokenBreakdown totals={t} />
+        <Panel title={t("teams.panels.tokenComposition")} right={<span className="tabular-nums text-[11.5px] text-[var(--text-muted)]">{fmtTokens(totals.tokens).value}{fmtTokens(totals.tokens).unit} {t("teams.panels.total")}</span>}>
+          <TokenBreakdown totals={totals} />
         </Panel>
-        <Panel title="Work rates" sub="derived from this range">
-          <EfficiencyGrid totals={t} />
+        <Panel title={t("teams.panels.workRates")} sub={t("teams.panels.derivedFromThisRange")}>
+          <EfficiencyGrid totals={totals} />
         </Panel>
-        <Panel title="Flags" sub={TEAM_RANGE_LABELS[range]}>
+        <Panel title={t("teams.panels.flags")} sub={teamRangeLabel(range, t)}>
           <Flags flags={data.flags} range={range} />
         </Panel>
         <Panel
-          title="Peak simultaneous sessions"
-          right={<span className="tabular-nums text-[11.5px] text-[var(--text-muted)]">max {Math.max(0, ...concurrency)}</span>}
+          title={t("teams.panels.peakSimultaneousSessions")}
+          right={<span className="tabular-nums text-[11.5px] text-[var(--text-muted)]">{t("teams.panels.maximum", { count: Math.max(0, ...concurrency) })}</span>}
         >
           <PeakSessions
             values={concurrency}
-            labels={[`${data.daily.length}d ago`, "mid", "today"]}
-            dayLabels={data.daily.map((d) => d.full)}
+            labels={[t("teams.charts.daysAgo", { count: data.daily.length }), t("teams.charts.midpoint"), t("teams.charts.today")]}
+            dayDates={data.daily.map((d) => d.date)}
           />
           <div className="mt-2">
             <Sparkline values={concurrency} color="#fbbf24" />
           </div>
         </Panel>
-        <Panel title="Projects" sub="basename or hash only" padded={false}>
+        <Panel title={t("teams.panels.projects")} sub={t("teams.panels.basenameOrHashOnly")} padded={false}>
           <ProjectsTable rows={data.projects ?? []} />
         </Panel>
       </div>
 
-      <Panel title="Members" sub="tap a row for detail" padded={false}>
+      <Panel title={t("teams.panels.members")} sub={t("teams.panels.tapRowForDetail")} padded={false}>
         <MemberTable members={data.members} onOpenMember={onOpenMember} />
       </Panel>
 
       {/* Full width: the heatmap has 24 columns and was previously squeezed
           into 2/3 while the taller projects list left a hole beside it. */}
-      <Panel title="Hour of day" sub="team active hours, local time">
+      <Panel title={t("teams.panels.hourOfDay")} sub={t("teams.panels.teamActiveHoursLocalTime")}>
         <HourHeatmap matrix={data.heatmap} />
       </Panel>
     </div>
   );
 }
 
-function TokenBreakdown({ totals: t }: { totals: TeamOverview["totals"] }) {
+function TokenBreakdown({ totals }: { totals: TeamOverview["totals"] }) {
+  const t = useT();
   // Reasoning is a reported subset of output, so it is split out of Output
   // rather than added again — the bar must sum to the token total.
-  const reasoning = Math.min(t.tokensReasoning, t.tokensOut);
+  const reasoning = Math.min(totals.tokensReasoning, totals.tokensOut);
   const parts = [
-    { key: "Input", n: t.tokensIn, color: "#60a5fa" },
-    { key: "Output", n: t.tokensOut - reasoning, color: "#f2a516" },
-    { key: "Cache read", n: t.tokensCacheRead, color: "#a78bfa" },
-    { key: "Cache write", n: t.tokensCacheWrite, color: "#22d3ee" },
-    { key: "Reasoning", n: reasoning, color: "#fbbf24" },
+    { key: "Input", label: t("teams.tokens.input"), n: totals.tokensIn, color: "#60a5fa" },
+    { key: "Output", label: t("teams.tokens.output"), n: totals.tokensOut - reasoning, color: "#f2a516" },
+    { key: "Cache read", label: t("teams.tokens.cacheRead"), n: totals.tokensCacheRead, color: "#a78bfa" },
+    { key: "Cache write", label: t("teams.tokens.cacheWrite"), n: totals.tokensCacheWrite, color: "#22d3ee" },
+    { key: "Reasoning", label: t("teams.tokens.reasoning"), n: reasoning, color: "#fbbf24" },
   ].filter((p) => p.n > 0);
   const total = parts.reduce((a, p) => a + p.n, 0);
   if (!total) {
-    return <p className="m-0 text-[11.5px] text-[var(--text-muted)]">No token breakdown in this range.</p>;
+    return <p className="m-0 text-[11.5px] text-[var(--text-muted)]">{t("teams.tokens.noBreakdown")}</p>;
   }
   return (
     <div className="flex flex-col gap-3">
@@ -339,7 +345,7 @@ function TokenBreakdown({ totals: t }: { totals: TeamOverview["totals"] }) {
             key={p.key}
             className="block h-full min-w-[2px]"
             style={{ width: `${((p.n / total) * 100).toFixed(2)}%`, background: p.color }}
-            title={`${p.key}: ${fmtTokens(p.n).value}${fmtTokens(p.n).unit}`}
+            title={t("teams.tokens.itemTitle", { label: p.label, value: `${fmtTokens(p.n).value}${fmtTokens(p.n).unit}` })}
           />
         ))}
       </div>
@@ -350,7 +356,7 @@ function TokenBreakdown({ totals: t }: { totals: TeamOverview["totals"] }) {
             <div key={p.key} className="grid grid-cols-[1fr_auto_auto] items-center gap-2.5 text-[12px]">
               <span className="flex items-center gap-2 text-[var(--text-tertiary)]">
                 <i className="block h-2 w-2 rounded-sm" style={{ background: p.color }} />
-                {p.key}
+                {p.label}
               </span>
               <span className="tabular-nums text-[11.5px] text-[var(--text-secondary)]">
                 {tok.value}
@@ -362,8 +368,8 @@ function TokenBreakdown({ totals: t }: { totals: TeamOverview["totals"] }) {
         })}
       </div>
       <div className="flex items-center justify-between border-t border-white/[0.06] pt-2 text-[12px] text-[var(--text-muted)]">
-        <span>Cache hit rate</span>
-        <b className="tabular-nums font-medium text-[var(--text-secondary)]">{fmtPct(t.cacheHitRate)}</b>
+        <span>{t("teams.tokens.cacheHitRate")}</span>
+        <b className="tabular-nums font-medium text-[var(--text-secondary)]">{fmtPct(totals.cacheHitRate)}</b>
       </div>
     </div>
   );
@@ -374,14 +380,14 @@ const MARKER_INK = "var(--text-secondary)";
 
 /** Fixed order and colour per tool kind, matching the server's `TOOL_KINDS`. */
 const TOOL_KINDS = [
-  { key: "bash", label: "Terminal", color: "#fbbf24" },
-  { key: "edit", label: "Edits", color: "#f2a516" },
-  { key: "read", label: "Reads", color: "#60a5fa" },
-  { key: "search", label: "Search", color: "#a78bfa" },
-  { key: "web", label: "Web", color: "#22d3ee" },
-  { key: "agent", label: "Subagents", color: "#fb7185" },
-  { key: "mcp", label: "MCP", color: "#2dd4bf" },
-  { key: "other", label: "Other", color: "#71717a" },
+  { key: "bash", labelKey: "teams.toolKinds.terminal", color: "#fbbf24" },
+  { key: "edit", labelKey: "teams.toolKinds.edits", color: "#f2a516" },
+  { key: "read", labelKey: "teams.toolKinds.reads", color: "#60a5fa" },
+  { key: "search", labelKey: "teams.toolKinds.search", color: "#a78bfa" },
+  { key: "web", labelKey: "teams.toolKinds.web", color: "#22d3ee" },
+  { key: "agent", labelKey: "teams.toolKinds.subagents", color: "#fb7185" },
+  { key: "mcp", labelKey: "teams.toolKinds.mcp", color: "#2dd4bf" },
+  { key: "other", labelKey: "teams.toolKinds.other", color: "#71717a" },
 ] as const;
 
 /**
@@ -403,16 +409,17 @@ export function isPreBreakdown(t: TeamOverview["totals"]): boolean {
   return TOOL_KINDS.every((k) => !((mix[k.key] ?? 0) > 0));
 }
 
-export function ToolMix({ totals: t }: { totals: TeamOverview["totals"] }) {
-  const mix = t.toolMix ?? {};
-  const parts = TOOL_KINDS.map((k) => ({ ...k, n: mix[k.key] ?? 0 })).filter((p) => p.n > 0);
+export function ToolMix({ totals }: { totals: TeamOverview["totals"] }) {
+  const t = useT();
+  const mix = totals.toolMix ?? {};
+  const parts = TOOL_KINDS.map((k) => ({ ...k, label: t(k.labelKey), n: mix[k.key] ?? 0 })).filter((p) => p.n > 0);
   const total = parts.reduce((a, p) => a + p.n, 0);
   if (!total) {
     return (
       <p className="m-0 text-[11.5px] leading-relaxed text-[var(--text-muted)]">
-        {isPreBreakdown(t)
-          ? `These ${t.toolCalls.toLocaleString()} tool calls were recorded before the breakdown existed, so their kinds aren't known. New activity will fill this in.`
-          : "No tool activity in this range."}
+        {isPreBreakdown(totals)
+          ? t("teams.toolMix.preBreakdown", { count: totals.toolCalls, countDisplay: totals.toolCalls.toLocaleString(localeTag()) })
+          : t("teams.toolMix.noActivity")}
       </p>
     );
   }
@@ -424,7 +431,7 @@ export function ToolMix({ totals: t }: { totals: TeamOverview["totals"] }) {
             key={p.key}
             className="block h-full min-w-[2px]"
             style={{ width: `${((p.n / total) * 100).toFixed(2)}%`, background: p.color }}
-            title={`${p.label}: ${p.n.toLocaleString()}`}
+            title={t("teams.toolMix.itemTitle", { label: p.label, count: p.n.toLocaleString(localeTag()) })}
           />
         ))}
       </div>
@@ -435,7 +442,7 @@ export function ToolMix({ totals: t }: { totals: TeamOverview["totals"] }) {
               <i className="block h-2 w-2 rounded-sm" style={{ background: p.color }} />
               {p.label}
             </span>
-            <span className="tabular-nums text-[11.5px] text-[var(--text-secondary)]">{p.n.toLocaleString()}</span>
+            <span className="tabular-nums text-[11.5px] text-[var(--text-secondary)]">{p.n.toLocaleString(localeTag())}</span>
             <span className="min-w-9 text-right text-[11.5px] text-[var(--text-muted)]">{fmtPct(p.n / total)}</span>
           </div>
         ))}
@@ -451,42 +458,41 @@ export function ToolMix({ totals: t }: { totals: TeamOverview["totals"] }) {
  * most tool calls, so counting them as successes would invent a reassuring
  * number; when nothing was measurable this says so instead of showing 0%.
  */
-export function OutputPanel({ totals: t }: { totals: TeamOverview["totals"] }) {
-  const rate = t.toolErrorRate;
-  const measured = t.toolsMeasured ?? 0;
+export function OutputPanel({ totals }: { totals: TeamOverview["totals"] }) {
+  const t = useT();
+  const rate = totals.toolErrorRate;
+  const measured = totals.toolsMeasured ?? 0;
 
   // A grid of zeros would assert "nothing was edited" when the truth is "this
   // data predates the counters" — the honest-state rule again.
-  if (isPreBreakdown(t)) {
+  if (isPreBreakdown(totals)) {
     return (
       <p className="m-0 text-[11.5px] leading-relaxed text-[var(--text-muted)]">
-        Not recorded for this range. These buckets were uploaded before output
-        and failure counters existed; they&apos;ll appear as new activity syncs.
+        {t("teams.output.notRecordedForRange")}
       </p>
     );
   }
   const rows = [
-    { k: "Files changed", v: (t.filesChanged ?? 0).toLocaleString() },
-    { k: "Lines added", v: `+${(t.linesAdded ?? 0).toLocaleString()}` },
-    { k: "Lines removed", v: `−${(t.linesRemoved ?? 0).toLocaleString()}` },
-    { k: "Net lines", v: ((t.linesAdded ?? 0) - (t.linesRemoved ?? 0)).toLocaleString() },
-    { k: "Failed tool calls", v: (t.toolErrors ?? 0).toLocaleString() },
-    { k: "Failure rate", v: rate == null ? "not reported" : `${fmtPct(rate)} of ${measured.toLocaleString()}` },
+    { id: "filesChanged", label: t("teams.output.filesChanged"), v: (totals.filesChanged ?? 0).toLocaleString(localeTag()) },
+    { id: "linesAdded", label: t("teams.output.linesAdded"), v: `+${(totals.linesAdded ?? 0).toLocaleString(localeTag())}` },
+    { id: "linesRemoved", label: t("teams.output.linesRemoved"), v: `−${(totals.linesRemoved ?? 0).toLocaleString(localeTag())}` },
+    { id: "netLines", label: t("teams.output.netLines"), v: ((totals.linesAdded ?? 0) - (totals.linesRemoved ?? 0)).toLocaleString(localeTag()) },
+    { id: "failedToolCalls", label: t("teams.output.failedToolCalls"), v: (totals.toolErrors ?? 0).toLocaleString(localeTag()) },
+    { id: "failureRate", label: t("teams.output.failureRate"), v: rate == null ? t("teams.output.notReported") : t("teams.output.failuresOutOfMeasuredCalls", { rate: fmtPct(rate), count: measured.toLocaleString(localeTag()) }) },
   ];
   return (
     <div className="flex flex-col gap-2">
       <div className="grid grid-cols-2 gap-2">
         {rows.map((r) => (
-          <div key={r.k} className="rounded-lg border border-white/[0.06] bg-white/[0.02] px-2.5 py-2">
-            <div className="mb-1 text-[10.5px] leading-snug text-[var(--text-muted)]">{r.k}</div>
+          <div key={r.id} className="rounded-lg border border-white/[0.06] bg-white/[0.02] px-2.5 py-2">
+            <div className="mb-1 text-[10.5px] leading-snug text-[var(--text-muted)]">{r.label}</div>
             <div className="tabular-nums text-[15px] font-semibold tracking-tight text-[var(--text-primary)]">{r.v}</div>
           </div>
         ))}
       </div>
       {rate == null ? (
         <p className="m-0 text-[11px] leading-relaxed text-[var(--text-muted)]">
-          Only Claude and Grok report per-call outcomes. Codex activity is counted, but its success
-          or failure isn't in the logs.
+          {t("teams.output.outcomesByProviders")}
         </p>
       ) : null}
     </div>
@@ -500,6 +506,7 @@ export function OutputPanel({ totals: t }: { totals: TeamOverview["totals"] }) {
  * instantly over.
  */
 export function BudgetPanel({ budget }: { budget: NonNullable<TeamOverview["budget"]> }) {
+  const t = useT();
   const pct = Math.min(100, Math.round(budget.usedShare * 100));
   const over = budget.usedShare >= 1;
   const partial = budget.costIncomplete !== false;
@@ -513,14 +520,13 @@ export function BudgetPanel({ budget }: { budget: NonNullable<TeamOverview["budg
     <div className="flex flex-col gap-2.5">
       <div className="flex items-end justify-between gap-3">
         <div>
-          <div className="text-[11px] text-[var(--text-muted)]">{partial ? "Partial estimate" : "Estimated cost"}</div>
+          <div className="text-[11px] text-[var(--text-muted)]">{partial ? t("teams.budget.partialEstimate") : t("teams.budget.estimatedCost")}</div>
           <div className="tabular-nums text-[22px] font-semibold tracking-tight text-[var(--text-primary)]">
             {spend.value}
             <span className="text-[14px] font-normal text-[var(--text-tertiary)]">{spend.unit}</span>
           </div>
           <div className="text-[11.5px] text-[var(--text-muted)]">
-            of {monthly.value}
-            {monthly.unit} this month
+            {t("teams.budget.ofMonthlyAmount", { amount: `${monthly.value}${monthly.unit}` })}
           </div>
         </div>
         <div className="tabular-nums text-[18px] font-semibold" style={{ color }}>
@@ -536,60 +542,64 @@ export function BudgetPanel({ budget }: { budget: NonNullable<TeamOverview["budg
           <b
             className="absolute -top-[3px] h-4 w-[2px] rounded-[1px] opacity-75"
             style={{ left: `${projPct}%`, background: MARKER_INK }}
-            title="Projected month end"
+            title={t("teams.budget.projectedMonthEnd")}
           />
         ) : null}
       </div>
       <div className="flex justify-between gap-3 text-[11px] text-[var(--text-muted)]">
         <span>
-          Day {budget.daysElapsed} of {budget.daysInMonth}
+          {t("teams.budget.dayProgress", { day: budget.daysElapsed, days: budget.daysInMonth })}
         </span>
         <span className="tabular-nums">
-          Projected {partial ? "(partial estimate) " : ""}{projected.value}
-          {projected.unit}
+          {t("teams.budget.projectedAmount", { qualifier: partial ? `(${t("teams.budget.partialQualifier")}) ` : "", amount: `${projected.value}${projected.unit}` })}
         </span>
       </div>
-      <div className="text-[11px] text-[var(--text-muted)]">Missing prices or usage details are excluded; not an invoice.</div>
+      <div className="text-[11px] text-[var(--text-muted)]">{t("teams.budget.disclaimer")}</div>
       {budget.onTrackToExceed ? (
         <Banner tone="warn" icon={TrendingUp}>
-          Based on recorded estimates, this team is projected to finish the month at{" "}
-          <b>
-            {projected.value}
-            {projected.unit}
-          </b>{" "}
-          — over the {monthly.value}
-          {monthly.unit} budget.
+          {tx("teams.budget.overBudgetMessage", {
+            projected: (
+              <b>
+                {projected.value}
+                {projected.unit}
+              </b>
+            ),
+            amount: `${monthly.value}${monthly.unit}`,
+          })}
         </Banner>
       ) : null}
     </div>
   );
 }
 
-function EfficiencyGrid({ totals: t }: { totals: TeamOverview["totals"] }) {
-  if (!t.sessions && !t.turns) {
-    return <p className="m-0 text-[11.5px] text-[var(--text-muted)]">Not enough activity to derive rates yet.</p>;
+function EfficiencyGrid({ totals }: { totals: TeamOverview["totals"] }) {
+  const t = useT();
+  if (!totals.sessions && !totals.turns) {
+    return <p className="m-0 text-[11.5px] text-[var(--text-muted)]">{t("teams.efficiency.notEnoughActivity")}</p>;
   }
-  const tokPerSession = t.sessions > 0 ? fmtTokens(t.tokens / t.sessions) : null;
-  const costPerHour = t.activeHours > 0 ? fmtMoney(t.costUsd / t.activeHours) : null;
+  const tokPerSession = totals.sessions > 0 ? fmtTokens(totals.tokens / totals.sessions) : null;
+  const costPerHour = totals.activeHours > 0 ? fmtMoney(totals.costUsd / totals.activeHours) : null;
   const rows = [
-    { k: "Turns / active session-hour", v: t.sessions > 0 ? (t.turns / t.sessions).toFixed(1) : "—" },
-    { k: "Tool calls / turn", v: t.turns > 0 ? (t.toolCalls / t.turns).toFixed(1) : "—" },
+    { k: "turnsPerSessionHour", label: t("teams.efficiency.turnsPerActiveSessionHour"), v: totals.sessions > 0 ? (totals.turns / totals.sessions).toFixed(1) : "—" },
+    { k: "toolCallsPerTurn", label: t("teams.efficiency.toolCallsPerTurn"), v: totals.turns > 0 ? (totals.toolCalls / totals.turns).toFixed(1) : "—" },
     {
-      k: "Tokens / active session-hour",
+      k: "tokensPerSessionHour",
+      label: t("teams.efficiency.tokensPerActiveSessionHour"),
       v: tokPerSession ? `${tokPerSession.value}${tokPerSession.unit}` : "—",
     },
     {
-      k: "Est. $ / active hour",
+      k: "estimatedCostPerHour",
+      label: t("teams.efficiency.estimatedCostPerActiveHour"),
       v: costPerHour ? `${costPerHour.value}${costPerHour.unit}` : "—",
     },
-    { k: "After-hours share", v: fmtPct(t.afterHoursShare) },
-    { k: "Weekend share", v: fmtPct(t.weekendShare) },
+    { k: "afterHoursShare", label: t("teams.efficiency.afterHoursShare"), v: fmtPct(totals.afterHoursShare) },
+    { k: "weekendShare", label: t("teams.efficiency.weekendShare"), v: fmtPct(totals.weekendShare) },
   ];
   return (
     <div className="grid grid-cols-2 gap-2">
       {rows.map((r) => (
         <div key={r.k} className="rounded-lg border border-white/[0.06] bg-white/[0.02] px-2.5 py-2">
-          <div className="mb-1 text-[10.5px] leading-snug text-[var(--text-muted)]">{r.k}</div>
+          <div className="mb-1 text-[10.5px] leading-snug text-[var(--text-muted)]">{r.label}</div>
           <div className="tabular-nums text-[15px] font-semibold tracking-tight text-[var(--text-primary)]">{r.v}</div>
         </div>
       ))}
@@ -598,21 +608,28 @@ function EfficiencyGrid({ totals: t }: { totals: TeamOverview["totals"] }) {
 }
 
 function ProjectsTable({ rows }: { rows: ProjectRow[] }) {
+  const t = useT();
   if (!rows.length) {
-    return <p className="m-0 px-3.5 py-4 text-[11.5px] text-[var(--text-muted)]">No project activity in this range.</p>;
+    return <p className="m-0 px-3.5 py-4 text-[11.5px] text-[var(--text-muted)]">{t("teams.projects.noActivity")}</p>;
   }
+  const headers = [
+    { id: "project", label: t("teams.projects.project") },
+    { id: "active", label: t("teams.stats.active") },
+    { id: "tokens", label: t("teams.charts.tokens") },
+    { id: "sessions", label: t("teams.stats.sessions") },
+  ];
   return (
     <table className="w-full border-collapse tabular-nums">
       <thead>
         <tr>
-          {["Project", "Active", "Tokens", "Sessions"].map((h, i) => (
+          {headers.map((h, i) => (
             <th
-              key={h}
+              key={h.id}
               className={`ui-eyebrow border-b border-white/[0.06] px-3 py-[7px] text-[var(--text-muted)] ${
                 i === 0 ? "text-left" : "text-right"
               }`}
             >
-              {h}
+              {h.label}
             </th>
           ))}
         </tr>
@@ -632,7 +649,7 @@ function ProjectsTable({ rows }: { rows: ProjectRow[] }) {
                 {tok.value}
                 {tok.unit}
               </td>
-              <td className="border-b border-white/[0.035] px-3 text-right text-[12px] text-[var(--text-muted)]">{fmtSessions(r)}</td>
+              <td className="border-b border-white/[0.035] px-3 text-right text-[12px] text-[var(--text-muted)]">{fmtTeamSessions(r)}</td>
             </tr>
           );
         })}
@@ -643,39 +660,43 @@ function ProjectsTable({ rows }: { rows: ProjectRow[] }) {
 
 /** Flags are observations with a named cause — never verdicts, never a score. */
 function Flags({ flags, range }: { flags: TeamOverview["flags"]; range: TeamRange }) {
-  const rows: { icon: typeof Moon; tone: boolean; title: string; detail: string }[] = [];
+  const t = useT();
+  const rows: { id: string; icon: typeof Moon; tone: boolean; title: string; detail: string }[] = [];
 
   if (flags.afterHoursShare > 0) {
     rows.push({
+      id: "afterHours",
       icon: Moon,
       tone: flags.afterHoursShare > 0.15,
-      title: `After-hours ${fmtPct(flags.afterHoursShare)} of active time`,
+      title: t("teams.flags.afterHoursTitle", { share: fmtPct(flags.afterHoursShare) }),
       detail:
         flags.afterHoursSharePrev > 0
-          ? `${flags.afterHoursShare > flags.afterHoursSharePrev ? "Up" : "Down"} from ${fmtPct(flags.afterHoursSharePrev)} last period`
-          : "Outside 08:00–18:00 in each member's own timezone (from their device).",
+          ? t(flags.afterHoursShare > flags.afterHoursSharePrev ? "teams.flags.upFromLastPeriod" : "teams.flags.downFromLastPeriod", { share: fmtPct(flags.afterHoursSharePrev) })
+          : t("teams.flags.outsideMemberHours"),
     });
   }
   if (flags.weekendShare > 0) {
     rows.push({
+      id: "weekend",
       icon: Calendar,
       tone: false,
-      title: `Weekend ${fmtPct(flags.weekendShare)} of active time`,
-      detail: "Saturday and Sunday in each member's own timezone.",
+      title: t("teams.flags.weekendTitle", { share: fmtPct(flags.weekendShare) }),
+      detail: t("teams.flags.memberWeekendTime"),
     });
   }
   if (flags.idleDays > 0) {
     rows.push({
+      id: "idleDays",
       icon: CircleSlash,
       tone: false,
-      title: `${flags.idleDays} idle ${flags.idleDays === 1 ? "day" : "days"} in the last ${TEAM_RANGE_LABELS[range] ?? range}`,
-      detail: "Days with no agent activity uploaded.",
+      title: t("teams.flags.idleDaysTitle", { count: flags.idleDays, countDisplay: flags.idleDays, range: teamRangeLabel(range, t) }),
+      detail: t("teams.flags.noActivityDays"),
     });
   }
   if (!rows.length) {
     return (
       <p className="m-0 text-[11.5px] leading-relaxed text-[var(--text-muted)]">
-        Nothing worth flagging in this range — no after-hours concentration, no idle days.
+        {t("teams.flags.nothingToFlag")}
       </p>
     );
   }
@@ -684,7 +705,7 @@ function Flags({ flags, range }: { flags: TeamOverview["flags"]; range: TeamRang
     <div className="flex flex-col gap-2.5">
       {rows.map((r) => (
         <div
-          key={r.title}
+          key={r.id}
           className={`flex items-start gap-2.5 rounded-[9px] border p-3 text-[12px] leading-snug ${
             r.tone
               ? "border-[#fbbf24]/20 bg-[#fbbf24]/[0.06]"
@@ -709,20 +730,29 @@ function MemberTable({
   members: MemberRow[];
   onOpenMember?: (userId: string) => void;
 }) {
+  const t = useT();
   const maxActive = Math.max(1, ...members.filter((m) => !m.neverSynced).map((m) => m.totals.activeHours));
+  const headers = [
+    { id: "member", label: t("teams.members.member") },
+    { id: "active", label: t("teams.stats.active") },
+    { id: "tokens", label: t("teams.charts.tokens") },
+    { id: "sessions", label: t("teams.stats.sessions") },
+    { id: "peak", label: t("teams.members.peak") },
+    { id: "lastSeen", label: t("teams.members.lastSeen") },
+  ];
 
   return (
     <table className="w-full border-collapse tabular-nums">
       <thead>
         <tr>
-          {["Member", "Active", "Tokens", "Sessions", "Peak", "Last seen"].map((h, i) => (
+          {headers.map((h, i) => (
             <th
-              key={h}
+              key={h.id}
               className={`ui-eyebrow border-b border-white/[0.06] px-3 py-[7px] text-[var(--text-muted)] ${
                 i === 0 ? "text-left" : "text-right"
               }`}
             >
-              {h}
+              {h.label}
             </th>
           ))}
         </tr>
@@ -751,7 +781,7 @@ function MemberTable({
                   colSpan={4}
                   className="border-b border-white/[0.035] px-3 text-left text-[11px] text-[var(--text-muted)]"
                 >
-                  waiting for first sync
+                  {t("teams.dashboard.waitingForFirstSync")}
                 </td>
               ) : (
                 <>
@@ -769,10 +799,10 @@ function MemberTable({
                     {tokens.unit}
                   </td>
                   <td className="border-b border-white/[0.035] px-3 text-right text-[12.5px] text-[var(--text-muted)]">
-                    {fmtSessions(m.totals)}
+                    {fmtTeamSessions(m.totals)}
                   </td>
                   <td className="border-b border-white/[0.035] px-3 text-right text-[12.5px] text-[var(--text-muted)]">
-                    {m.totals.peakConcurrent.toLocaleString("en-US")}
+                    {m.totals.peakConcurrent.toLocaleString(localeTag())}
                   </td>
                 </>
               )}

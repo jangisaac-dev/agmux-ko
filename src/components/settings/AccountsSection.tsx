@@ -9,23 +9,27 @@ import { AccountGroup, AccountList } from "./accounts/AccountGroup";
 import { SharedClaude } from "./accounts/SharedClaude";
 import { useSettingsStore } from "../../stores/settingsStore";
 import { button } from "./accounts/styles";
+import { useT } from "../../i18n";
+
+type UiMessage = { key: string; params?: Record<string, string | number> };
 
 const providerOrder: AccountProvider[] = ["claude", "codex", "grok"];
 const byProvider = (a: ProviderAccount, b: ProviderAccount) =>
   providerOrder.indexOf(a.provider) - providerOrder.indexOf(b.provider) || a.priority - b.priority;
 
 export function AccountsSection() {
+  const t = useT();
   const [data, setData] = useState<ProviderAccountsState | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [rowError, setRowError] = useState<{ id: string; text: string } | null>(null);
-  const [notice, setNotice] = useState<string | null>(null);
+  const [notice, setNotice] = useState<UiMessage | null>(null);
   const [provider, setProvider] = useState<AccountProvider>("codex");
   const [label, setLabel] = useState("");
   const [busy, setBusy] = useState(false);
   const [login, setLogin] = useState<{ id: string; label: string } | null>(null);
   const [starting, setStarting] = useState(false);
-  const [loginError, setLoginError] = useState<string | null>(null);
+  const [loginError, setLoginError] = useState<string | UiMessage | null>(null);
   const [pollAttempt, setPollAttempt] = useState(0);
   const [canceling, setCanceling] = useState(false);
   // "" = your own accounts, otherwise the team ID whose section is adding one.
@@ -89,17 +93,17 @@ export function AccountsSection() {
         if (result.status === "pending") { timer = setTimeout(poll, 1500); return; }
         loginRef.current = null;
         setLogin(null);
-        if (result.status === "failed") setLoginError(result.error || "Sign-in failed. Please try again.");
-        else { setNotice(`${login.label} connected.`); setLabel(""); setAddingTo(null); }
+        if (result.status === "failed") setLoginError(result.error || { key: "accounts.login.failed" });
+        else { setNotice({ key: "accounts.notice.connected", params: { label: login.label } }); setLabel(""); setAddingTo(null); }
         void reload();
-      } catch (e) { if (!stopped) setLoginError(`Could not check sign-in: ${formatError(e)}`); }
+      } catch (e) { if (!stopped) setLoginError({ key: "accounts.login.couldNotCheck", params: { error: formatError(e) } }); }
     };
     void poll();
     return () => { stopped = true; clearTimeout(timer); };
   }, [login, pollAttempt, canceling, reload]);
 
   /** A row action's error shows on that row, where the person clicked, not at the top of the page. */
-  async function run(action: () => Promise<void>, message?: string, rowId?: string) {
+  async function run(action: () => Promise<void>, message?: UiMessage, rowId?: string) {
     if (mutation.current) return;
     mutation.current = true;
     setBusy(true); setError(null); setRowError(null); setNotice(null);
@@ -131,7 +135,7 @@ export function AccountsSection() {
           if (mounted.current) {
             loginRef.current = null;
             setLogin(null);
-            setNotice("Sign-in canceled.");
+            setNotice({ key: "accounts.notice.signInCanceled" });
           }
         } finally { if (mounted.current) setCanceling(false); }
         return;
@@ -145,14 +149,14 @@ export function AccountsSection() {
   async function cancelLogin() {
     generation.current++;
     const id = loginRef.current;
-    if (!id) { setNotice("Canceling sign-in…"); return; }
+    if (!id) { setNotice({ key: "accounts.notice.cancelingSignIn" }); return; }
     setCanceling(true); setLoginError(null);
     try {
       await providerAccounts.loginCancel(id);
       loginRef.current = null;
-      setLogin(null); setNotice("Sign-in canceled.");
+      setLogin(null); setNotice({ key: "accounts.notice.signInCanceled" });
       await reload();
-    } catch (e) { setLoginError(`Could not cancel sign-in: ${formatError(e)}`); }
+    } catch (e) { setLoginError({ key: "accounts.login.couldNotCancel", params: { error: formatError(e) } }); }
     finally { setCanceling(false); }
   }
 
@@ -185,7 +189,7 @@ export function AccountsSection() {
 
   function row(account: ProviderAccount) {
     const key = `${account.teamId ?? ""}:${account.id}`;
-    const act = (action: () => Promise<void>, message?: string) => void run(action, message, key);
+    const act = (action: () => Promise<void>, message?: UiMessage) => void run(action, message, key);
     return <AccountRow key={key} account={account}
       canEdit={canEdit(account)} canUse={canUse(account)} moveTeams={canMove(account) ? manageTeams : []} locked={locked}
       panel={panel?.id === account.id ? panel.kind : null}
@@ -195,38 +199,38 @@ export function AccountsSection() {
         checkUsage: () => act(() => providerAccounts.refresh(account.id, account.teamId)),
         setEnabled: enabled => act(() => providerAccounts.update(account.id, { enabled, teamId: account.teamId })),
         reconnect: () => void startSignIn({ provider: account.provider, label: account.label, teamId: account.teamId }),
-        remove: () => act(async () => { await providerAccounts.remove(account.id, account.teamId); setPanel(null); }, "Account removed."),
-        move: team => act(async () => { await providerAccounts.moveToTeam(account.id, team.id); setPanel(null); }, `Moved to ${team.name}.`),
-        use: () => act(async () => { await providerAccounts.use(account.id, account.teamId); setPanel(null); }, `${providerNames[account.provider]} now uses “${account.label}”.`),
-        rename: label => act(async () => { await providerAccounts.update(account.id, { label, teamId: account.teamId }); setPanel(null); }, "Account renamed."),
+        remove: () => act(async () => { await providerAccounts.remove(account.id, account.teamId); setPanel(null); }, { key: "accounts.notice.accountRemoved" }),
+        move: team => act(async () => { await providerAccounts.moveToTeam(account.id, team.id); setPanel(null); }, { key: "accounts.notice.moved", params: { team: team.name } }),
+        use: () => act(async () => { await providerAccounts.use(account.id, account.teamId); setPanel(null); }, { key: "accounts.notice.used", params: { provider: providerNames[account.provider], label: account.label } }),
+        rename: label => act(async () => { await providerAccounts.update(account.id, { label, teamId: account.teamId }); setPanel(null); }, { key: "accounts.notice.accountRenamed" }),
       }} />;
   }
 
   return (
-    <section className="space-y-6 text-[var(--text-primary)]" aria-label="Provider accounts">
+    <section className="space-y-6 text-[var(--text-primary)]" aria-label={t("accounts.section.ariaLabel")}>
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h2 className="text-xl font-semibold tracking-tight">Accounts</h2>
-          <p className="mt-1 text-sm text-[var(--text-tertiary)]">The Claude, Codex and Grok logins your agents can use</p>
+          <h2 className="text-xl font-semibold tracking-tight">{t("accounts.section.title")}</h2>
+          <p className="mt-1 text-sm text-[var(--text-tertiary)]">{t("accounts.section.description")}</p>
         </div>
         <div className="flex items-center gap-2">
-          <button className={button} disabled={locked} onClick={() => void reload(true)} aria-label="Refresh accounts" title="Refresh accounts">
+          <button className={button} disabled={locked} onClick={() => void reload(true)} aria-label={t("accounts.actions.refresh")} title={t("accounts.actions.refresh")}>
             <RefreshCw size={14} className={loading || checking > 0 ? "animate-spin" : ""} />
           </button>
         </div>
       </div>
 
       {error && <div role="alert" className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-[var(--glass-border)] p-3 text-sm">
-        <span>{error}</span><button className={button} disabled={locked} onClick={() => void reload()}>Retry</button>
+        <span>{error}</span><button className={button} disabled={locked} onClick={() => void reload()}>{t("accounts.actions.retry")}</button>
       </div>}
-      {notice && <p role="status" className="flex items-center gap-2 text-xs text-[var(--accent)]"><Check size={14} />{notice}</p>}
-      {!data ? <p role="status" className="text-sm text-[var(--text-tertiary)]">{loading ? "Loading accounts…" : "Accounts unavailable."}</p> : <>
+      {notice && <p role="status" className="flex items-center gap-2 text-xs text-[var(--accent)]"><Check size={14} />{t(notice.key, notice.params)}</p>}
+      {!data ? <p role="status" className="text-sm text-[var(--text-tertiary)]">{loading ? t("accounts.loading") : t("accounts.unavailable")}</p> : <>
         <div className="flex items-center justify-between gap-4 rounded-xl border border-[var(--glass-border)] p-4">
           <span>
-            <span className="text-sm font-medium">Switch accounts automatically</span>
-            <span className="mt-1 block text-xs text-[var(--text-tertiary)]">When one hits its limit, agents continue on the next: your current login, then your other accounts, then your team’s.</span>
+            <span className="text-sm font-medium">{t("accounts.autoSwitch.title")}</span>
+            <span className="mt-1 block text-xs text-[var(--text-tertiary)]">{t("accounts.autoSwitch.description")}</span>
           </span>
-          <button type="button" role="switch" aria-checked={data.autoSwitch} aria-label="Automatic account switching" disabled={locked}
+          <button type="button" role="switch" aria-checked={data.autoSwitch} aria-label={t("accounts.autoSwitch.ariaLabel")} disabled={locked}
             onClick={() => void run(() => providerAccounts.setAutoSwitch(!data.autoSwitch))}
             className={`relative h-6 w-10 shrink-0 rounded-full transition-colors focus-visible:outline-2 focus-visible:outline-[var(--accent)] disabled:opacity-50 ${data.autoSwitch ? "bg-[var(--accent)]" : "bg-[var(--surface-3)]"}`}>
             <span className={`absolute top-1 h-4 w-4 rounded-full bg-[var(--text-primary)] transition-[left] ${data.autoSwitch ? "left-5" : "left-1"}`} />
@@ -234,43 +238,45 @@ export function AccountsSection() {
         </div>
 
         {teamProblems.length > 0 && <div role="alert" className="rounded-lg border border-[var(--glass-border)] p-3">
-          <p className="text-sm font-medium">Team accounts unavailable</p>
+          <p className="text-sm font-medium">{t("accounts.team.unavailable")}</p>
           {teamProblems.map(text => <p key={text} className="mt-1 text-xs text-[var(--text-tertiary)]">{text}</p>)}
-          <button className={`${button} mt-3`} disabled={locked} onClick={() => void reload()}>Retry team connection</button>
+          <button className={`${button} mt-3`} disabled={locked} onClick={() => void reload()}>{t("accounts.team.retryConnection")}</button>
         </div>}
 
-        {(starting || login) && <div role="status" className="flex flex-wrap items-center gap-3 rounded-xl border border-[var(--accent-border)] bg-[var(--accent-dim)] p-4 text-sm"><Loader2 size={16} className="animate-spin" /><span className="flex-1">{starting ? "Opening sign-in…" : `Finish signing in to ${login?.label} in your browser.`}</span><button className={button} disabled={canceling} onClick={() => void cancelLogin()}>{canceling ? "Canceling…" : "Cancel sign-in"}</button></div>}
-        {loginError && <div role="alert" className="rounded-xl border border-[var(--glass-border)] p-3 text-sm">{loginError}{login && <button className={`${button} ml-2`} disabled={canceling} onClick={() => { setLoginError(null); setPollAttempt(value => value + 1); }}>Check sign-in again</button>}</div>}
+        {(starting || login) && <div role="status" className="flex flex-wrap items-center gap-3 rounded-xl border border-[var(--accent-border)] bg-[var(--accent-dim)] p-4 text-sm"><Loader2 size={16} className="animate-spin" /><span className="flex-1">{starting ? t("accounts.login.opening") : t("accounts.login.finishInBrowser", { label: login?.label ?? "" })}</span><button className={button} disabled={canceling} onClick={() => void cancelLogin()}>{canceling ? t("accounts.login.canceling") : t("accounts.login.cancel")}</button></div>}
+        {loginError && <div role="alert" className="rounded-xl border border-[var(--glass-border)] p-3 text-sm">{typeof loginError === "string" ? loginError : t(loginError.key, loginError.params)}{login && <button className={`${button} ml-2`} disabled={canceling} onClick={() => { setLoginError(null); setPollAttempt(value => value + 1); }}>{t("accounts.login.checkAgain")}</button>}</div>}
 
-        <AccountGroup title="Your accounts" hint="Only you use these." team={false} locked={locked}
-          addLabel={formFor === "" ? null : "Add account"} onAdd={() => startAdding("")}>
+        <AccountGroup title={t("accounts.group.yourAccounts")} hint={t("accounts.group.personalHint")} team={false} locked={locked}
+          addLabel={formFor === "" ? null : t("accounts.actions.addAccount")} onAdd={() => startAdding("")}>
           {formFor === "" && form(null)}
           {personal.length > 0 && <AccountList>{personal.map(row)}</AccountList>}
         </AccountGroup>
 
         {teamIds.map(teamId => {
           const team = teams.find(item => item.id === teamId);
-          const name = team?.name ?? "Team";
+          const name = team?.name ?? t("accounts.team.fallbackName");
           const rows = accounts.filter(account => account.teamId === teamId).sort(byProvider);
           const manage = manageTeams.find(item => item.id === teamId);
-          return <AccountGroup key={teamId} title={`${name} team`} team locked={locked}
-            hint={`Shared with everyone on ${name}. Nobody needs to sign in to use them.`}
-            addLabel={manage && formFor !== teamId ? "Add team account" : null} onAdd={() => startAdding(teamId)}>
+          return <AccountGroup key={teamId} title={t("accounts.group.teamTitle", { name })} team locked={locked}
+            hint={`${t("accounts.group.teamHint.sharedWith", { name })} ${t("accounts.group.teamHint.noSignInNeeded")}`}
+            addLabel={manage && formFor !== teamId ? t("accounts.actions.addTeamAccount") : null} onAdd={() => startAdding(teamId)}>
             {manage && formFor === teamId && form(manage)}
             {team && <SharedClaude team={team} locked={locked} onToggle={enabled => void run(() => providerAccounts.setClaudeActivity(teamId, enabled),
-              enabled ? "Shared Claude account activity is on." : "Shared Claude account activity is off.")} />}
+              { key: enabled ? "accounts.notice.sharedClaudeActivityOn" : "accounts.notice.sharedClaudeActivityOff" })} />}
             {rows.length > 0 ? <AccountList>{rows.map(row)}</AccountList>
-              : !team?.error && <p className="text-xs text-[var(--text-tertiary)]">{manage ? `No team accounts yet. Add one and everyone on ${name} can use it.` : "No team accounts yet."}</p>}
+              : !team?.error && <p className="text-xs text-[var(--text-tertiary)]">{manage
+                ? `${t("accounts.team.empty.addOne")} ${t("accounts.team.empty.availableToEveryone", { name })}`
+                : t("accounts.team.empty.noAccounts")}</p>}
           </AccountGroup>;
         })}
 
         {teams.length === 0 && !data.teamError && <div className="rounded-xl border border-dashed border-[var(--glass-border)] p-4">
-          <p className="flex items-center gap-2 text-sm font-medium"><Users size={14} className="text-[var(--text-tertiary)]" />Team accounts</p>
-          <p className="mt-1 text-xs text-[var(--text-tertiary)]">Share Codex and Grok accounts with a team, and everyone on it can use them without signing in. Create or join a team first.</p>
-          <button className={`${button} mt-3`} onClick={() => useSettingsStore.getState().openSettings("teams")}>Open Teams</button>
+          <p className="flex items-center gap-2 text-sm font-medium"><Users size={14} className="text-[var(--text-tertiary)]" />{t("accounts.team.title")}</p>
+          <p className="mt-1 text-xs text-[var(--text-tertiary)]">{`${t("accounts.team.noTeamDescription.share")} ${t("accounts.team.noTeamDescription.createOrJoin")}`}</p>
+          <button className={`${button} mt-3`} onClick={() => useSettingsStore.getState().openSettings("teams")}>{t("accounts.team.openTeams")}</button>
         </div>}
       </>}
-      {busy && <p role="status" className="text-xs text-[var(--text-tertiary)]">Saving…</p>}
+      {busy && <p role="status" className="text-xs text-[var(--text-tertiary)]">{t("accounts.saving")}</p>}
     </section>
   );
 }

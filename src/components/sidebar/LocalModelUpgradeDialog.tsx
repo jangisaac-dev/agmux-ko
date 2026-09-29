@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Sparkles, Download, Loader2, X, CheckCircle2 } from "lucide-react";
 import { useLocalModelStore } from "../../stores/localModelStore";
 import { useSettingsStore } from "../../stores/settingsStore";
+import { localeTag, tx, useT } from "../../i18n";
 import {
   isLegacyLocalModelVariant,
   type LocalModelVariant,
@@ -18,25 +19,25 @@ const DISMISS_KEY = `agmux-local-model-catalog-${CATALOG_VERSION}-dismissed`;
 const SUGGESTED: {
   variant: LocalModelVariant;
   title: string;
-  blurb: string;
+  blurbKey: string;
   primary?: boolean;
 }[] = [
   {
     variant: "qwen3-1.7b",
     title: "Qwen3-1.7B",
-    blurb: "~1.1 GB · recommended for speed",
+    blurbKey: "localModel.upgrade.options.qwen31_7b.blurb",
     primary: true,
   },
   {
     variant: "qwen3-4b",
     title: "Qwen3-4B Instruct",
-    blurb: "~2.5 GB · best quality for titles & summaries",
+    blurbKey: "localModel.upgrade.options.qwen34b.blurb",
     primary: true,
   },
   {
     variant: "phi4-mini",
     title: "Phi-4-mini",
-    blurb: "~2.5 GB · strong reasoning · MIT",
+    blurbKey: "localModel.upgrade.options.phi4mini.blurb",
   },
 ];
 
@@ -46,6 +47,7 @@ const SUGGESTED: {
  * the rest of this app run; Settings → Summaries keeps its own notice.
  */
 export function LocalModelUpgradeDialog() {
+  const t = useT();
   const status = useLocalModelStore((s) => s.status);
   const downloading = useLocalModelStore((s) => s.downloading);
   const downloadProgress = useLocalModelStore((s) => s.downloadProgress);
@@ -141,7 +143,7 @@ export function LocalModelUpgradeDialog() {
           >
             <button
               type="button"
-              aria-label="Close"
+              aria-label={t("localModel.upgrade.action.close")}
               onClick={() => setDismissed(true)}
               className="absolute right-4 top-4 rounded-lg p-1.5 text-[var(--text-tertiary)] transition-colors hover:bg-[var(--surface-hover)] hover:text-[var(--text-primary)]"
             >
@@ -156,13 +158,12 @@ export function LocalModelUpgradeDialog() {
               id="local-model-upgrade-title"
               className="mb-1.5 text-lg font-semibold text-[var(--text-primary)]"
             >
-              Switch your local model
+              {t("localModel.upgrade.title")}
             </h2>
             <p className="mb-5 text-sm leading-relaxed text-[var(--text-tertiary)]">
-              You&apos;re on{" "}
-              <span className="text-[var(--text-secondary)]">{status?.model_name ?? "Qwen2.5"}</span>,
-              which is retired. Automatic titles and summaries are paused until you pick a
-              current model.
+              {tx("localModel.upgrade.description", {
+                model: <span className="text-[var(--text-secondary)]">{status?.model_name ?? "Qwen2.5"}</span>,
+              })}
             </p>
 
             <div className="mb-4 space-y-2">
@@ -192,12 +193,12 @@ export function LocalModelUpgradeDialog() {
                         {opt.title}
                         {opt.primary && (
                           <span className="rounded-full border border-[color:var(--accent-border)] bg-[var(--accent-dim)] px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-[color:var(--accent)]">
-                            Rec
+                            {t("localModel.upgrade.status.recommended")}
                           </span>
                         )}
                       </span>
                       <span className="mt-0.5 block text-xs text-[var(--text-muted)]">
-                        {onDisk ? "Already downloaded · use this" : opt.blurb}
+                        {onDisk ? t("localModel.upgrade.status.downloaded") : t(opt.blurbKey)}
                       </span>
                     </span>
                   </button>
@@ -210,11 +211,11 @@ export function LocalModelUpgradeDialog() {
                 <div className="mb-1 flex justify-between text-[11px] text-[var(--text-muted)]">
                   <span>
                     {downloadProgress?.stage === "server"
-                      ? "Downloading server…"
-                      : "Downloading model…"}
+                      ? t("localModel.upgrade.progress.downloadingServer")
+                      : t("localModel.upgrade.progress.downloadingModel")}
                   </span>
                   {progressPercent != null && (
-                    <span className="tabular-nums">{progressPercent}%</span>
+                    <span className="tabular-nums">{progressPercent.toLocaleString(localeTag())}%</span>
                   )}
                 </div>
                 <div className="h-1 w-full overflow-hidden rounded-full bg-[var(--glass-border)]">
@@ -226,7 +227,7 @@ export function LocalModelUpgradeDialog() {
                   />
                 </div>
                 <p className="mt-1.5 text-[11px] text-[var(--text-muted)]">
-                  You can close this — the download keeps going.
+                  {t("localModel.upgrade.progress.background")}
                 </p>
               </div>
             )}
@@ -241,14 +242,14 @@ export function LocalModelUpgradeDialog() {
                 onClick={handleOpenSettings}
                 className="text-xs text-[var(--text-tertiary)] underline-offset-2 hover:text-[var(--text-primary)] hover:underline"
               >
-                Open Settings → Summaries
+                {t("localModel.upgrade.action.openSummaries")}
               </button>
               <button
                 type="button"
                 onClick={() => setDismissed(true)}
                 className="rounded-lg px-3 py-1.5 text-xs font-medium text-[var(--text-secondary)] transition-colors hover:bg-[var(--surface-hover)]"
               >
-                Not now
+                {t("localModel.upgrade.action.later")}
               </button>
             </div>
           </motion.div>

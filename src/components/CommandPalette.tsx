@@ -18,6 +18,7 @@ import { navigateToSession } from "../lib/navigateToSession";
 import { filterProjectsForCowork, getCoworkFolders } from "../lib/coworkFolders";
 import { isClaudeCoworkThread, isCodexWorkSession, resolveCoworkDraftProject } from "../lib/coworkMode";
 import { isGrokCoworkThread } from "../lib/grokCoworkProfile";
+import { localeTag, useT } from "../i18n";
 
 // Agent icons
 import claudeIcon from "../assets/claude-ai-icon.svg";
@@ -95,30 +96,31 @@ function AgentIcon({ agent, size = 22 }: { agent: Provider; size?: number }) {
 }
 
 function TypeTag({ type }: { type: ItemType }) {
-  const config: Record<ItemType, { label: string; color: string; fx: string }> = {
+  const t = useT();
+  const config: Record<ItemType, { labelKey: string; color: string; fx: string }> = {
     // M6: fx-chip-q's flat !important rules were flattening every type to
     // the same neutral tertiary chip, and the inline 9.5px shrank it below
     // the standard 10.5px .ui-chip.sm — the tag was the only way to tell
     // chat/project/branch results apart. Route chat + project through their
     // own soft-color fx-* helper; term/action/branch keep the neutral chip.
-    chat: { label: "chat", color: "var(--status-blue)", fx: "fx-soft-blue" },
-    term: { label: "term", color: "var(--text-tertiary)", fx: "fx-chip-q" },
-    action: { label: "action", color: "var(--accent)", fx: "fx-chip-q" },
-    project: { label: "project", color: "var(--status-purple)", fx: "fx-soft-violet" },
-    branch: { label: "branch", color: "var(--status-amber)", fx: "fx-chip-q" },
+    chat: { labelKey: "palette.type.chat", color: "var(--status-blue)", fx: "fx-soft-blue" },
+    term: { labelKey: "palette.type.term", color: "var(--text-tertiary)", fx: "fx-chip-q" },
+    action: { labelKey: "palette.type.action", color: "var(--accent)", fx: "fx-chip-q" },
+    project: { labelKey: "palette.type.project", color: "var(--status-purple)", fx: "fx-soft-violet" },
+    branch: { labelKey: "palette.type.branch", color: "var(--status-amber)", fx: "fx-chip-q" },
   };
-  const t = config[type];
+  const style = config[type];
   return (
     <span
-      className={`ui-chip sm ${t.fx} shrink-0`}
+      className={`ui-chip sm ${style.fx} shrink-0`}
       style={{
         padding: "2px 6px",
-        background: `color-mix(in srgb, ${t.color} 8%, transparent)`,
-        color: t.color,
-        border: `1px solid color-mix(in srgb, ${t.color} 19%, transparent)`,
+        background: `color-mix(in srgb, ${style.color} 8%, transparent)`,
+        color: style.color,
+        border: `1px solid color-mix(in srgb, ${style.color} 19%, transparent)`,
       }}
     >
-      {t.label}
+      {t(style.labelKey)}
     </span>
   );
 }
@@ -145,7 +147,7 @@ function Kbd({ children, muted = false }: { children: React.ReactNode; muted?: b
   );
 }
 
-function formatRelativeTime(dateStr: string): string {
+function formatRelativeTime(dateStr: string, t: ReturnType<typeof useT>): string {
   // last_active is SQLite UTC without a zone suffix; plain Date() reads it as local time.
   const date = new Date(/[zZ]|[+-]\d{2}:?\d{2}$/.test(dateStr) ? dateStr : `${dateStr.replace(" ", "T")}Z`);
   const now = new Date();
@@ -154,14 +156,15 @@ function formatRelativeTime(dateStr: string): string {
   const diffHours = Math.floor(diffMins / 60);
   const diffDays = Math.floor(diffHours / 24);
 
-  if (diffMins < 1) return "now";
-  if (diffMins < 60) return `${diffMins}m`;
-  if (diffHours < 24) return `${diffHours}h`;
-  if (diffDays < 7) return `${diffDays}d`;
-  return date.toLocaleDateString(undefined, { month: "short", day: "numeric" });
+  if (diffMins < 1) return t("palette.time.now");
+  if (diffMins < 60) return t("palette.time.minutes", { count: diffMins });
+  if (diffHours < 24) return t("palette.time.hours", { count: diffHours });
+  if (diffDays < 7) return t("palette.time.days", { count: diffDays });
+  return date.toLocaleDateString(localeTag(), { month: "short", day: "numeric" });
 }
 
 export function CommandPalette({ open, onClose }: Props) {
+  const t = useT();
   const [query, setQuery] = useState("");
   const [selectedIndex, setSelectedIndex] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -209,9 +212,9 @@ export function CommandPalette({ open, onClose }: Props) {
       const project = projects.find((p) => p.id === thread.project_id);
       result.push({
         id: `recent-${thread.id}`,
-        label: `Continue: ${thread.name}`,
-        group: "Recent",
-        meta: `${project?.name ?? "unknown"} · ${formatRelativeTime(thread.last_active)}`,
+        label: t("palette.item.continue", { name: thread.name }),
+        group: "recent",
+        meta: `${project?.name ?? t("palette.unknown")} · ${formatRelativeTime(thread.last_active, t)}`,
         type: "chat",
         agent: thread.provider,
         action: () => {
@@ -224,17 +227,17 @@ export function CommandPalette({ open, onClose }: Props) {
     // Create actions
     const createActions: Array<{
       id: string;
-      label: string;
+      labelKey: string;
       provider: Provider;
       type: ItemType;
       shortcut?: string;
       isTerminal?: boolean;
     }> = [
-      { id: "new-claude", label: "New Claude chat", provider: "ClaudeCode", type: "chat", shortcut: "⌘1" },
-      { id: "new-codex", label: "New Codex chat", provider: "Codex", type: "chat", shortcut: "⌘2" },
-      { id: "new-grok", label: "New Grok chat", provider: "Grok", type: "chat" },
-      { id: "new-pi", label: "New Pi terminal", provider: "Pi", type: "term", shortcut: "⌘⇧3", isTerminal: true },
-      { id: "new-opencode", label: "New OpenCode chat", provider: "OpenCode", type: "chat", shortcut: "⌘4" },
+      { id: "new-claude", labelKey: "palette.action.newClaudeChat", provider: "ClaudeCode", type: "chat", shortcut: "⌘1" },
+      { id: "new-codex", labelKey: "palette.action.newCodexChat", provider: "Codex", type: "chat", shortcut: "⌘2" },
+      { id: "new-grok", labelKey: "palette.action.newGrokChat", provider: "Grok", type: "chat" },
+      { id: "new-pi", labelKey: "palette.action.newPiTerminal", provider: "Pi", type: "term", shortcut: "⌘⇧3", isTerminal: true },
+      { id: "new-opencode", labelKey: "palette.action.newOpenCodeChat", provider: "OpenCode", type: "chat", shortcut: "⌘4" },
     ];
 
     const coworkProviders = new Set(["ClaudeCode", "Codex", "Grok"]);
@@ -245,8 +248,8 @@ export function CommandPalette({ open, onClose }: Props) {
       }
       result.push({
         id: action.id,
-        label: action.label,
-        group: "Create",
+        label: t(action.labelKey),
+        group: "create",
         type: action.type,
         agent: action.provider,
         shortcut: action.shortcut,
@@ -268,8 +271,8 @@ export function CommandPalette({ open, onClose }: Props) {
     if (appMode !== "cowork") {
       result.push({
         id: "new-worktree",
-        label: "New worktree task",
-        group: "Create",
+        label: t("palette.action.newWorktreeTask"),
+        group: "create",
         type: "branch",
         icon: <GitFork size={12} />,
         shortcut: "⌘⇧W",
@@ -282,8 +285,8 @@ export function CommandPalette({ open, onClose }: Props) {
     // Navigate actions
     result.push({
       id: "switch-cowork",
-      label: appMode === "cowork" ? "Switch to Agent mode" : "Switch to Cowork mode",
-      group: "Navigate",
+      label: appMode === "cowork" ? t("palette.action.switchToAgentMode") : t("palette.action.switchToCoworkMode"),
+      group: "navigate",
       type: "action",
       icon: <Briefcase size={12} />,
       action: () => {
@@ -293,8 +296,8 @@ export function CommandPalette({ open, onClose }: Props) {
 
     result.push({
       id: "switch-task",
-      label: "Switch to Task mode",
-      group: "Navigate",
+      label: t("palette.action.switchToTaskMode"),
+      group: "navigate",
       type: "action",
       icon: <GitFork size={12} />,
       shortcut: "⌘⇧T",
@@ -305,8 +308,8 @@ export function CommandPalette({ open, onClose }: Props) {
 
     result.push({
       id: "toggle-sidebar",
-      label: "Toggle sidebar",
-      group: "Navigate",
+      label: t("palette.action.toggleSidebar"),
+      group: "navigate",
       type: "action",
       icon: <PanelLeft size={12} />,
       shortcut: "⌘B",
@@ -315,8 +318,8 @@ export function CommandPalette({ open, onClose }: Props) {
 
     result.push({
       id: "settings",
-      label: "Open settings",
-      group: "Navigate",
+      label: t("palette.action.openSettings"),
+      group: "navigate",
       type: "action",
       icon: <Settings size={12} />,
       shortcut: "⌘,",
@@ -325,8 +328,8 @@ export function CommandPalette({ open, onClose }: Props) {
 
     result.push({
       id: "notifications",
-      label: "Notification history",
-      group: "Navigate",
+      label: t("palette.action.notificationHistory"),
+      group: "navigate",
       type: "action",
       icon: <Bell size={12} />,
       action: () => setShowNotificationHistory(true),
@@ -339,8 +342,8 @@ export function CommandPalette({ open, onClose }: Props) {
     for (const project of paletteProjects) {
       result.push({
         id: `project-${project.id}`,
-        label: `Open ${project.name}`,
-        group: "Projects",
+        label: t("palette.item.openProject", { name: project.name }),
+        group: "projects",
         meta: project.repo_path.replace(/^\/Users\/[^/]+/, "~"),
         type: "project",
         icon: <FolderOpen size={12} />,
@@ -360,8 +363,8 @@ export function CommandPalette({ open, onClose }: Props) {
       result.push({
         id: `chat-${thread.id}`,
         label: thread.name,
-        group: "Chats",
-        meta: `${project?.name ?? "unknown"} · ${formatRelativeTime(thread.last_active)}`,
+        group: "chats",
+        meta: `${project?.name ?? t("palette.unknown")} · ${formatRelativeTime(thread.last_active, t)}`,
         type: "chat",
         agent: thread.provider,
         action: () => {
@@ -383,6 +386,7 @@ export function CommandPalette({ open, onClose }: Props) {
     openSettings,
     setShowNotificationHistory,
     appMode,
+    t,
     setAppMode,
   ]);
 
@@ -392,11 +396,11 @@ export function CommandPalette({ open, onClose }: Props) {
     return items.filter((item) =>
       words.every((w) =>
         item.label.toLowerCase().includes(w) ||
-        item.group.toLowerCase().includes(w) ||
+        t(`palette.group.${item.group}`).toLowerCase().includes(w) ||
         (item.meta?.toLowerCase().includes(w) ?? false)
       )
     );
-  }, [items, query]);
+  }, [items, query, t]);
 
   // Reset selection when filtered results change
   useEffect(() => {
@@ -502,8 +506,8 @@ export function CommandPalette({ open, onClose }: Props) {
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             onKeyDown={handleKeyDown}
-            placeholder="Start a session, jump to a project, run a command…"
-            aria-label="Search commands"
+            placeholder={t("palette.search.placeholder")}
+            aria-label={t("palette.search.ariaLabel")}
             className="w-full bg-transparent outline-none"
             style={{
               color: "var(--text-primary)",
@@ -518,7 +522,7 @@ export function CommandPalette({ open, onClose }: Props) {
         {/* Results list */}
         <div ref={listRef} className="overflow-y-auto" style={{ maxHeight: 380, padding: "4px 0 6px" }}>
           {filtered.length === 0 && (
-            <div className="px-4 py-8 text-center text-sm text-zinc-500">No matching commands</div>
+            <div className="px-4 py-8 text-center text-sm text-zinc-500">{t("palette.search.noMatches")}</div>
           )}
           {filtered.map((item) => {
             const showGroup = item.group !== lastGroup;
@@ -535,7 +539,7 @@ export function CommandPalette({ open, onClose }: Props) {
                       padding: "10px 14px 4px",
                     }}
                   >
-                    {item.group}
+                    {t(`palette.group.${item.group}`)}
                   </div>
                 )}
                 <div
@@ -632,15 +636,15 @@ export function CommandPalette({ open, onClose }: Props) {
         >
           <span className="flex items-center gap-1">
             <Kbd muted>↑↓</Kbd>
-            <span style={{ marginLeft: 4 }}>navigate</span>
+            <span style={{ marginLeft: 4 }}>{t("palette.footer.navigate")}</span>
           </span>
           <span className="flex items-center gap-1">
             <Kbd muted>↵</Kbd>
-            <span style={{ marginLeft: 4 }}>open</span>
+            <span style={{ marginLeft: 4 }}>{t("palette.footer.open")}</span>
           </span>
           <span className="flex items-center gap-1 ml-auto">
             <Kbd muted>?</Kbd>
-            <span style={{ marginLeft: 4 }}>help</span>
+            <span style={{ marginLeft: 4 }}>{t("palette.footer.help")}</span>
           </span>
         </div>
       </div>

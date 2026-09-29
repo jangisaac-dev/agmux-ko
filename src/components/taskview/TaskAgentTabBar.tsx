@@ -12,6 +12,7 @@ import { TaskAgentTab } from "./TaskAgentTab";
 import { AgentAvatar } from "./AgentAvatar";
 import { createTaskAgent, terminateThreadProcess } from "../../lib/taskCommands";
 import { providerDisplayName, type Thread, type Provider, type InteractionMode } from "../../lib/types";
+import { useT } from "../../i18n";
 
 interface AddAgentRowProps {
   icon: React.ReactNode;
@@ -46,34 +47,34 @@ function AddAgentRow({ icon, title, hint, onClick, disabled }: AddAgentRowProps)
 
 type AgentOption = {
   provider: Provider;
-  label: string;
-  hint: string;
+  labelKey: string;
+  hintKey: string;
   interactionMode: InteractionMode;
   local?: boolean;
 };
 
 const CHAT_OPTIONS: AgentOption[] = [
-  { provider: "ClaudeCode", label: "Claude Chat", hint: "SDK conversational agent", interactionMode: "sdk" },
-  { provider: "Codex", label: "Codex Chat", hint: "SDK conversational agent", interactionMode: "sdk" },
-  { provider: "OpenCode", label: "OpenCode Chat", hint: "OpenCode SDK conversational agent", interactionMode: "opencode-sdk" },
-  { provider: "Grok", label: "Grok Chat", hint: "Grok SDK conversational agent", interactionMode: "grok-sdk" },
-  { provider: "Cursor", label: "Cursor Chat", hint: "Cursor SDK conversational agent", interactionMode: "cursor-sdk" },
-  { provider: "Gemini", label: "Gemini Chat", hint: "Antigravity conversational agent", interactionMode: "gemini-sdk" },
-  { provider: "OpenCode", label: "Local Chat", hint: "Installed local model", interactionMode: "opencode-sdk", local: true },
+  { provider: "ClaudeCode", labelKey: "task.agent.option.claudeChat", hintKey: "task.agent.hint.sdkConversational", interactionMode: "sdk" },
+  { provider: "Codex", labelKey: "task.agent.option.codexChat", hintKey: "task.agent.hint.sdkConversational", interactionMode: "sdk" },
+  { provider: "OpenCode", labelKey: "task.agent.option.openCodeChat", hintKey: "task.agent.hint.openCodeSdkConversational", interactionMode: "opencode-sdk" },
+  { provider: "Grok", labelKey: "task.agent.option.grokChat", hintKey: "task.agent.hint.grokSdkConversational", interactionMode: "grok-sdk" },
+  { provider: "Cursor", labelKey: "task.agent.option.cursorChat", hintKey: "task.agent.hint.cursorSdkConversational", interactionMode: "cursor-sdk" },
+  { provider: "Gemini", labelKey: "task.agent.option.geminiChat", hintKey: "task.agent.hint.antigravityConversational", interactionMode: "gemini-sdk" },
+  { provider: "OpenCode", labelKey: "task.agent.option.localChat", hintKey: "task.agent.hint.installedLocalModel", interactionMode: "opencode-sdk", local: true },
 ];
 
 const TERMINAL_OPTIONS: AgentOption[] = [
-  { provider: "ClaudeCode", label: "Claude Code", hint: "PTY terminal agent", interactionMode: "pty" },
-  { provider: "Codex", label: "Codex", hint: "PTY terminal agent", interactionMode: "pty" },
-  { provider: "Droid", label: "Droid", hint: "PTY terminal agent", interactionMode: "pty" },
-  { provider: "Kimi", label: "Kimi", hint: "PTY terminal agent", interactionMode: "pty" },
-  { provider: "OpenCode", label: "OpenCode", hint: "PTY terminal agent", interactionMode: "pty" },
-  { provider: "Grok", label: "Grok", hint: "PTY terminal agent", interactionMode: "pty" },
-  { provider: "Cline", label: "Cline", hint: "PTY terminal agent", interactionMode: "pty" },
-  { provider: "Gemini", label: "Gemini", hint: "PTY terminal agent", interactionMode: "pty" },
-  { provider: "Hermes", label: "Hermes", hint: "PTY terminal agent", interactionMode: "pty" },
-  { provider: "Pi", label: "Pi", hint: "PTY terminal agent", interactionMode: "pty" },
-  { provider: "Pi", label: "Local", hint: "Installed local model · Pi", interactionMode: "pty", local: true },
+  { provider: "ClaudeCode", labelKey: "task.agent.option.claudeCode", hintKey: "task.agent.hint.ptyTerminalAgent", interactionMode: "pty" },
+  { provider: "Codex", labelKey: "task.agent.option.codex", hintKey: "task.agent.hint.ptyTerminalAgent", interactionMode: "pty" },
+  { provider: "Droid", labelKey: "task.agent.option.droid", hintKey: "task.agent.hint.ptyTerminalAgent", interactionMode: "pty" },
+  { provider: "Kimi", labelKey: "task.agent.option.kimi", hintKey: "task.agent.hint.ptyTerminalAgent", interactionMode: "pty" },
+  { provider: "OpenCode", labelKey: "task.agent.option.openCode", hintKey: "task.agent.hint.ptyTerminalAgent", interactionMode: "pty" },
+  { provider: "Grok", labelKey: "task.agent.option.grok", hintKey: "task.agent.hint.ptyTerminalAgent", interactionMode: "pty" },
+  { provider: "Cline", labelKey: "task.agent.option.cline", hintKey: "task.agent.hint.ptyTerminalAgent", interactionMode: "pty" },
+  { provider: "Gemini", labelKey: "task.agent.option.gemini", hintKey: "task.agent.hint.ptyTerminalAgent", interactionMode: "pty" },
+  { provider: "Hermes", labelKey: "task.agent.option.hermes", hintKey: "task.agent.hint.ptyTerminalAgent", interactionMode: "pty" },
+  { provider: "Pi", labelKey: "task.agent.option.pi", hintKey: "task.agent.hint.ptyTerminalAgent", interactionMode: "pty" },
+  { provider: "Pi", labelKey: "task.agent.option.local", hintKey: "task.agent.hint.installedLocalModelPi", interactionMode: "pty", local: true },
 ];
 
 const EMPTY_ARCHIVED: Thread[] = [];
@@ -86,6 +87,7 @@ const EMPTY_THREADS: Thread[] = [];
 
 
 export function TaskAgentTabBar({ taskId }: TaskAgentTabBarProps) {
+  const t = useT();
   const task = useTaskViewStore((s) => s.getTaskById(taskId));
   const activeAgentTabId = useTaskViewStore((s) => s.activeAgentTabId);
   const setActiveAgent = useTaskViewStore((s) => s.setActiveAgent);
@@ -291,12 +293,12 @@ export function TaskAgentTabBar({ taskId }: TaskAgentTabBarProps) {
       } catch (err) {
         const msg = err instanceof Error ? err.message : String(err);
         console.error("Failed to create task agent:", err);
-        setTabBarError(`Couldn't create agent: ${msg}`);
+        setTabBarError(t("task.agent.error.create", { message: msg }));
       } finally {
         setCreating(false);
       }
     },
-    [task, taskId, taskThreads.length, creating, fetchThreads, setActiveAgent],
+    [task, taskId, taskThreads.length, creating, fetchThreads, setActiveAgent, t],
   );
 
   return (
@@ -315,7 +317,7 @@ export function TaskAgentTabBar({ taskId }: TaskAgentTabBarProps) {
           role="alert"
           className="absolute left-0 right-0 top-full z-30 flex items-start gap-2 border-b border-red-500/30 bg-red-950/80 px-4 py-2"
         >
-          <span className="text-xs font-medium text-red-400">Error:</span>
+          <span className="text-xs font-medium text-red-400">{t("task.common.error")}</span>
           <span className="flex-1 truncate text-xs text-red-300/80">
             {tabBarError}
           </span>
@@ -324,7 +326,7 @@ export function TaskAgentTabBar({ taskId }: TaskAgentTabBarProps) {
             onClick={() => setTabBarError(null)}
             className="text-xs text-red-400 hover:text-red-300"
           >
-            Dismiss
+            {t("task.common.dismiss")}
           </button>
         </div>
       )}
@@ -344,8 +346,8 @@ export function TaskAgentTabBar({ taskId }: TaskAgentTabBarProps) {
               try {
                 const { ask } = await import("@tauri-apps/plugin-dialog");
                 const confirmed = await ask(
-                  `Archive agent "${thread.name || "Untitled"}"?`,
-                  { title: "Confirm Archive", kind: "warning" },
+                  t("task.agent.archiveConfirm", { name: thread.name || t("task.agent.untitled") }),
+                  { title: t("task.agent.confirmArchive"), kind: "warning" },
                 );
                 if (!confirmed) return;
                 // Backend `archive_thread` kills PTY sessions but leaves SDK
@@ -365,7 +367,7 @@ export function TaskAgentTabBar({ taskId }: TaskAgentTabBarProps) {
               } catch (err) {
                 const msg = err instanceof Error ? err.message : String(err);
                 console.error("Failed to archive agent:", err);
-                setTabBarError(`Couldn't archive agent: ${msg}`);
+                setTabBarError(t("task.agent.error.archive", { message: msg }));
               }
             }}
           />
@@ -385,7 +387,7 @@ export function TaskAgentTabBar({ taskId }: TaskAgentTabBarProps) {
             className="flex items-center gap-2 px-3 py-2 text-[13px] font-medium text-zinc-500 hover:text-zinc-300 transition-colors"
           >
             <Plus size={12} />
-            Start an agent
+            {t("task.agent.start")}
           </button>
         )}
       </div>
@@ -403,10 +405,10 @@ export function TaskAgentTabBar({ taskId }: TaskAgentTabBarProps) {
               }
               setArchivedOpen((v) => !v);
             }}
-            title="Archived agents in this worktree"
+            title={t("task.agent.archivedTitle")}
           >
             <Archive size={12} />
-            <span>Archived</span>
+            <span>{t("task.agent.archived")}</span>
             <span className="rounded-full bg-white/[0.06] px-1.5 text-[10px] text-zinc-400">
               {archivedThreads.length}
             </span>
@@ -440,7 +442,7 @@ export function TaskAgentTabBar({ taskId }: TaskAgentTabBarProps) {
             }
             setMenuOpen((v) => !v);
           }}
-          title="Add another agent attempt"
+          title={t("task.agent.addAttempt")}
         >
           <Plus size={13} />
         </button>
@@ -464,28 +466,28 @@ export function TaskAgentTabBar({ taskId }: TaskAgentTabBarProps) {
               className="min-w-[260px] max-h-[360px] overflow-y-auto rounded-xl border border-white/10 bg-zinc-900/95 backdrop-blur-xl py-1.5 shadow-2xl"
             >
               <div className="ui-eyebrow px-3 py-1.5 text-zinc-500">
-                Archived in this worktree
+                {t("task.agent.archivedInWorktree")}
               </div>
-              {archivedThreads.map((t) => (
+              {archivedThreads.map((archivedThread) => (
                 <div
-                  key={t.id}
+                  key={archivedThread.id}
                   className="group flex items-center gap-2 px-3 py-1.5 text-[13px] text-zinc-300 hover:bg-white/[0.04]"
                 >
                   <Archive size={11} className="flex-shrink-0 text-zinc-600" />
-                  <span className="flex-1 truncate" title={t.name || "Untitled"}>
-                    {t.name || "Untitled"}
+                  <span className="flex-1 truncate" title={archivedThread.name || t("task.agent.untitled")}>
+                    {archivedThread.name || t("task.agent.untitled")}
                   </span>
                   <span className="flex-shrink-0 text-[10px] text-zinc-600">
-                    {providerDisplayName(t.provider)}
+                    {providerDisplayName(archivedThread.provider)}
                   </span>
                   <button
                     type="button"
-                    onClick={() => handleRestore(t.id)}
+                    onClick={() => handleRestore(archivedThread.id)}
                     className="flex flex-shrink-0 items-center gap-1 rounded-md px-1.5 py-0.5 text-[11px] text-zinc-500 opacity-0 transition-all hover:bg-white/[0.08] hover:text-zinc-200 group-hover:opacity-100"
-                    title="Restore agent"
+                    title={t("task.agent.restoreTitle")}
                   >
                     <RotateCcw size={10} />
-                    Restore
+                    {t("task.agent.restore")}
                   </button>
                 </div>
               ))}
@@ -522,10 +524,10 @@ export function TaskAgentTabBar({ taskId }: TaskAgentTabBarProps) {
                   <div
                     className="ui-eyebrow text-zinc-500"
                   >
-                    New agent in
+                    {t("task.agent.newIn")}
                   </div>
                   <div className="truncate text-[12.5px] text-zinc-200">
-                    {task?.name || task?.branch_name || "worktree"}
+                    {task?.name || task?.branch_name || t("task.worktree.generic")}
                   </div>
                 </div>
               </div>
@@ -535,16 +537,16 @@ export function TaskAgentTabBar({ taskId }: TaskAgentTabBarProps) {
                 <div
                   className="ui-eyebrow px-3 pt-1 pb-1 text-zinc-600"
                 >
-                  Chat
+                  {t("task.agent.mode.chat")}
                 </div>
                 {CHAT_OPTIONS.map((opt) => (
                   <AddAgentRow
-                    key={opt.label}
+                    key={opt.labelKey}
                     icon={<AgentAvatar provider={opt.local ? "MLX" : opt.provider} size={18} />}
-                    title={opt.label}
-                    hint={opt.hint}
+                    title={t(opt.labelKey)}
+                    hint={t(opt.hintKey)}
                     disabled={creating}
-                    onClick={() => handleAddAgent(opt.provider, opt.interactionMode, opt.label, opt.local)}
+                    onClick={() => handleAddAgent(opt.provider, opt.interactionMode, t(opt.labelKey), opt.local)}
                   />
                 ))}
               </div>
@@ -554,16 +556,16 @@ export function TaskAgentTabBar({ taskId }: TaskAgentTabBarProps) {
                 <div
                   className="ui-eyebrow px-3 pt-1 pb-1 text-zinc-600"
                 >
-                  Terminal
+                  {t("task.agent.mode.terminal")}
                 </div>
                 {TERMINAL_OPTIONS.map((opt) => (
                   <AddAgentRow
-                    key={opt.label}
+                    key={opt.labelKey}
                     icon={<AgentAvatar provider={opt.local ? "MLX" : opt.provider} size={18} />}
-                    title={opt.label}
-                    hint={opt.hint}
+                    title={t(opt.labelKey)}
+                    hint={t(opt.hintKey)}
                     disabled={creating}
-                    onClick={() => handleAddAgent(opt.provider, opt.interactionMode, opt.label, opt.local)}
+                    onClick={() => handleAddAgent(opt.provider, opt.interactionMode, t(opt.labelKey), opt.local)}
                   />
                 ))}
               </div>

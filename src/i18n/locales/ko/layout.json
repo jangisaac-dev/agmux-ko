@@ -1,0 +1,21 @@
+{
+  "layout.pane.closeTab": "탭 닫기",
+  "layout.pane.splitPane": "창 분할",
+  "layout.pane.splitRight": "오른쪽으로 분할",
+  "layout.pane.splitDown": "아래로 분할",
+  "layout.pane.unsplit": "분할 해제",
+  "layout.pane.renameTab": "탭 이름 바꾸기",
+  "layout.pane.closeTabMenu": "탭 닫기",
+  "layout.splitPane.threadNotFound": "스레드를 찾을 수 없습니다",
+  "layout.splitPane.sessionDataMissing": "세션 데이터가 없습니다",
+  "layout.splitPane.terminalDataMissing": "터미널 데이터가 없습니다",
+  "layout.splitPane.noTabOpen": "열린 탭이 없습니다",
+  "layout.cowork.opening": "코워크 여는 중",
+  "layout.cowork.title": "코워크 — Claude Cowork 및 ChatGPT Work 채팅",
+  "layout.tab.kind.chat": "채팅",
+  "layout.tab.kind.terminal": "터미널",
+  "layout.tab.kind.cowork": "코워크",
+  "layout.tab.kind.work": "워크",
+  "layout.tab.kind.draft": "초안",
+  "layout.tab.kind.thread": "스레드"
+}

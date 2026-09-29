@@ -65,6 +65,7 @@ import {
 import { navBack, navForward } from "./Sidebar";
 import { useDesktopCowork } from "../../lib/useDesktopCowork";
 import { CoworkModeButton } from "./CoworkModeButton";
+import { useT } from "../../i18n";
 
 const EMPTY_KIMI_SESSIONS: KimiSession[] = [];
 const EMPTY_PI_SESSIONS: PiSession[] = [];
@@ -94,6 +95,7 @@ interface Props {
 }
 
 export function AgentTopChrome({ onReady }: Props = {}) {
+  const t = useT();
   const [newProjectOpen, setNewProjectOpen] = useState(false);
   const [archiveOpen, setArchiveOpen] = useState(false);
   const searchOpen = useUiStore((s) => s.searchDialogOpen);
@@ -844,7 +846,7 @@ export function AgentTopChrome({ onReady }: Props = {}) {
               }}
               className="tbtn"
               data-active={appMode === "task" ? "true" : "false"}
-              title="Task View (⌘⇧T)"
+              title={t("topbar.taskView")}
             >
               <LayoutList size={14} />
             </button>
@@ -853,7 +855,7 @@ export function AgentTopChrome({ onReady }: Props = {}) {
             type="button"
             onClick={() => useUiStore.getState().setSearchDialogOpen(true)}
             className="tbtn"
-            title="Search (⌘⇧F)"
+            title={t("topbar.search")}
           >
             <Search size={14} />
           </button>
@@ -862,20 +864,20 @@ export function AgentTopChrome({ onReady }: Props = {}) {
             onClick={() => updateSettings({ multiViewEnabled: !multiViewEnabled })}
             className={`tbtn ${multiViewEnabled ? "split-on" : ""}`}
             data-active={multiViewEnabled ? "true" : "false"}
-            title={multiViewEnabled ? "Disable split view" : "Enable split view"}
+            title={multiViewEnabled ? t("topbar.disableSplitView") : t("topbar.enableSplitView")}
           >
             <Columns2 size={14} />
           </button>
-          <button type="button" onClick={() => navBack()} className="tbtn" title="Back">
+          <button type="button" onClick={() => navBack()} className="tbtn" title={t("topbar.back")}>
             <ChevronLeft size={14} />
           </button>
-          <button type="button" onClick={() => navForward()} className="tbtn" title="Forward">
+          <button type="button" onClick={() => navForward()} className="tbtn" title={t("topbar.forward")}>
             <ChevronRight size={14} />
           </button>
-          <button type="button" onClick={handleRefresh} className="tbtn" title="Refresh sessions">
+          <button type="button" onClick={handleRefresh} className="tbtn" title={t("topbar.refreshSessions")}>
             <RefreshCw size={14} className={isLoading ? "animate-spin" : ""} />
           </button>
-          <button type="button" onClick={() => openSettings()} className="tbtn" title="Settings">
+          <button type="button" onClick={() => openSettings()} className="tbtn" title={t("topbar.settings")}>
             <Settings size={14} />
           </button>
           <button
@@ -883,7 +885,7 @@ export function AgentTopChrome({ onReady }: Props = {}) {
             onClick={() => setArchiveOpen((v) => !v)}
             className="tbtn"
             data-active={archiveOpen ? "true" : "false"}
-            title="Archived threads"
+            title={t("topbar.archivedThreads")}
           >
             <Archive size={14} />
           </button>
@@ -896,22 +898,22 @@ export function AgentTopChrome({ onReady }: Props = {}) {
           type="button"
           className="agent-top-chrome-scope"
           data-active={scope === "running" ? "true" : "false"}
-          title="All running / attention / unread sessions across projects"
+          title={t("topbar.runningScopeTitle")}
           onClick={() => setScope("running")}
         >
           <Zap size={12} strokeWidth={1.8} />
-          Running
+          {t("topbar.running")}
           <span className="count">{runningItems.length}</span>
         </button>
         <button
           type="button"
           className="agent-top-chrome-scope"
           data-active={scope === "yours" ? "true" : "false"}
-          title="Sessions you've opened — stay until you × them out"
+          title={t("topbar.yourThreadsTitle")}
           onClick={() => setScope("yours")}
         >
           <Layers size={12} strokeWidth={1.8} />
-          Your Threads
+          {t("topbar.yourThreads")}
           <span className="count">{yourTabs.length}</span>
         </button>
         <span className="agent-top-chrome-scope-divider" aria-hidden />
@@ -948,7 +950,7 @@ export function AgentTopChrome({ onReady }: Props = {}) {
           type="button"
           onClick={() => setNewProjectOpen(true)}
           className="tbtn shrink-0"
-          title="New project"
+          title={t("topbar.newProject")}
         >
           <FolderPlus size={14} />
         </button>
@@ -967,23 +969,23 @@ export function AgentTopChrome({ onReady }: Props = {}) {
               }}
               data-active={showOnlyRunning ? "true" : "false"}
               className="agent-top-chrome-filter"
-              title="Show only running / attention / unread threads in this project"
+              title={t("topbar.activeOnlyTitle")}
             >
-              Active only
+              {t("topbar.activeOnly")}
             </button>
             <span className="shrink-0 font-mono text-[11px] text-zinc-500">
-              Threads · {activeProject.name}
+            {t("topbar.projectThreads", { name: activeProject.name })}
             </span>
           </>
         )}
         {scope === "running" && (
           <span className="shrink-0 font-mono text-[11px] text-zinc-500">
-            Live across projects
+            {t("topbar.liveAcrossProjects")}
           </span>
         )}
         {scope === "yours" && (
           <span className="shrink-0 font-mono text-[11px] text-zinc-500">
-            Open until × · {yourTabs.length}
+            {t("topbar.openUntil", { count: yourTabs.length })}
           </span>
         )}
       </div>
@@ -1012,8 +1014,8 @@ export function AgentTopChrome({ onReady }: Props = {}) {
             items={scope === "running" ? runningItems : yourItems}
             emptyLabel={
               scope === "running"
-                ? "No running sessions"
-                : "Open a session — it stays here until you × it out"
+                ? t("topbar.noRunningSessions")
+                : t("topbar.openSessionHint")
             }
             isSelected={isItemSelected}
             onSelect={selectCrossItem}
@@ -1021,7 +1023,7 @@ export function AgentTopChrome({ onReady }: Props = {}) {
           />
         ) : (
           <p className="px-3 text-xs text-zinc-500">
-            No projects yet. Create one to get started.
+            {t("topbar.noProjects")}
           </p>
         )}
       </div>
@@ -1069,6 +1071,7 @@ function CrossProjectStrip({
   onSelect: (item: CrossStripItem) => void;
   onClose?: (item: CrossStripItem) => void;
 }) {
+  const t = useT();
   if (items.length === 0) {
     return <p className="px-2 text-xs text-zinc-500">{emptyLabel}</p>;
   }
@@ -1106,7 +1109,7 @@ function CrossProjectStrip({
               <span
                 role="button"
                 tabIndex={0}
-                aria-label="Close tab"
+                aria-label={t("topbar.closeTab")}
                 className="agent-top-chrome-chip-close"
                 onClick={(e) => {
                   e.stopPropagation();

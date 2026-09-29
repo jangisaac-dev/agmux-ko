@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Check, Download, Loader2, Trash2 } from "lucide-react";
 import type { Skill } from "../../stores/skillsStore";
+import { useT } from "../../i18n";
 
 interface SkillCardProps {
   skill: Skill;
@@ -9,15 +10,17 @@ interface SkillCardProps {
   onUninstall: () => void;
 }
 
-const SOURCE_LABELS: Record<string, string> = {
-  official: "Official",
-  community: "Community",
+const SOURCE_KEYS: Record<string, string> = {
+  official: "skills.official",
+  community: "skills.community",
 };
 
 export function SkillCard({ skill, installing, onInstall, onUninstall }: SkillCardProps) {
+  const t = useT();
   const [hovered, setHovered] = useState(false);
 
-  const sourceLabel = SOURCE_LABELS[skill.source] ?? skill.source;
+  const sourceKey = SOURCE_KEYS[skill.source];
+  const sourceLabel = sourceKey ? t(sourceKey) : skill.source;
 
   return (
     <div
@@ -59,12 +62,12 @@ export function SkillCard({ skill, installing, onInstall, onUninstall }: SkillCa
                 className="flex h-6 items-center gap-1 rounded-md bg-red-500/10 px-1.5 text-[10px] font-medium text-red-400 transition-colors hover:bg-red-500/20"
               >
                 <Trash2 size={10} />
-                Remove
+                {t("skills.remove")}
               </button>
             ) : (
               <div className="flex h-6 items-center gap-1 rounded-md bg-[var(--accent-dim)] px-1.5 text-[10px] font-medium text-[color:var(--accent)]">
                 <Check size={10} />
-                Installed
+                {t("skills.installed")}
               </div>
             )
           ) : (
@@ -73,7 +76,7 @@ export function SkillCard({ skill, installing, onInstall, onUninstall }: SkillCa
               className="flex h-6 items-center gap-1 rounded-md bg-blue-600/20 px-1.5 text-[10px] font-medium text-blue-400 transition-colors hover:bg-blue-600/30"
             >
               <Download size={10} />
-              Install
+              {t("skills.install")}
             </button>
           )}
         </div>

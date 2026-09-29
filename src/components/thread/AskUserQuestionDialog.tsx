@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { HelpCircle, Send, Check } from "lucide-react";
 import type { AskQuestion } from "../../lib/types";
+import { useT } from "../../i18n";
 
 interface Props {
   questions: AskQuestion[];
@@ -43,6 +44,7 @@ function answerFor(q: AskQuestion, s: QState): string {
  * `updatedInput.answers`.
  */
 export function AskUserQuestionDialog({ questions, onSubmit, onCancel }: Props) {
+  const t = useT();
   const [states, setStates] = useState<QState[]>(() => questions.map(emptyState));
 
   const update = (i: number, patch: Partial<QState>) =>
@@ -89,6 +91,7 @@ export function AskUserQuestionDialog({ questions, onSubmit, onCancel }: Props) 
   submitRef.current = submit;
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
+      if (e.isComposing) return; // IME conversion Enter must not submit
       if (e.key === "Escape") {
         e.preventDefault();
         onCancel();
@@ -108,7 +111,7 @@ export function AskUserQuestionDialog({ questions, onSubmit, onCancel }: Props) 
         <div className="flex items-center gap-2 border-b border-white/[0.06] px-5 py-3.5 text-blue-400">
           <HelpCircle size={16} />
           <span className="text-sm font-semibold">
-            {questions.length > 1 ? `${questions.length} questions` : "Question"}
+            {t("composer.askUser.question", { count: Math.max(1, questions.length) })}
           </span>
         </div>
 
@@ -128,7 +131,7 @@ export function AskUserQuestionDialog({ questions, onSubmit, onCancel }: Props) 
                   {q.question}
                 </p>
                 {multi && (
-                  <p className="text-[10px] text-zinc-500">Select all that apply</p>
+                  <p className="text-[10px] text-zinc-500">{t("composer.askUser.selectAll")}</p>
                 )}
 
                 {noOptions ? (
@@ -136,7 +139,7 @@ export function AskUserQuestionDialog({ questions, onSubmit, onCancel }: Props) 
                     type="text"
                     value={s.otherText}
                     onChange={(e) => update(i, { otherText: e.target.value })}
-                    placeholder="Type your answer..."
+                    placeholder={t("composer.askUser.answerPlaceholder")}
                     autoFocus={i === 0}
                     className="w-full rounded-lg border border-white/[0.08] bg-white/[0.04] px-3 py-2 text-xs text-zinc-100 placeholder-zinc-500 outline-none transition-colors focus:border-blue-400/60 focus:bg-white/[0.06] fx-input"
                   />
@@ -205,14 +208,14 @@ export function AskUserQuestionDialog({ questions, onSubmit, onCancel }: Props) 
                       >
                         {s.otherOn && <Check size={11} strokeWidth={3} />}
                       </span>
-                      <span className="text-xs font-medium text-zinc-300">Other…</span>
+                      <span className="text-xs font-medium text-zinc-300">{t("composer.askUser.other")}</span>
                     </button>
                     {s.otherOn && (
                       <input
                         type="text"
                         value={s.otherText}
                         onChange={(e) => update(i, { otherText: e.target.value })}
-                        placeholder="Type your answer..."
+                        placeholder={t("composer.askUser.answerPlaceholder")}
                         autoFocus
                         className="w-full rounded-lg border border-white/[0.08] bg-white/[0.04] px-3 py-2 text-xs text-zinc-100 placeholder-zinc-500 outline-none transition-colors focus:border-blue-400/60 focus:bg-white/[0.06] fx-input"
                       />
@@ -230,7 +233,7 @@ export function AskUserQuestionDialog({ questions, onSubmit, onCancel }: Props) 
             onClick={onCancel}
             className="rounded-lg px-3 py-2 text-xs font-medium text-zinc-400 transition-colors hover:bg-white/[0.06] hover:text-zinc-200"
           >
-            Cancel
+            {t("composer.cancel")}
           </button>
           <button
             type="button"
@@ -239,7 +242,7 @@ export function AskUserQuestionDialog({ questions, onSubmit, onCancel }: Props) 
             className="flex shrink-0 items-center gap-1.5 rounded-lg bg-blue-600 px-4 py-2 text-xs font-medium text-white transition-colors hover:bg-blue-500 disabled:opacity-50 fx-accent"
           >
             <Send size={12} />
-            Submit
+            {t("composer.submit")}
           </button>
         </div>
       </div>

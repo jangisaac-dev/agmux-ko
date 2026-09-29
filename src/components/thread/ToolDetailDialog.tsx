@@ -4,6 +4,7 @@ import { X, Copy, Check, Terminal, FileEdit, FilePlus, FileText, Search, Users, 
 import { useState } from "react";
 import { shortenPath } from "./tools/types";
 import { useWorkDir } from "./WorkDirContext";
+import { localeTag, useT } from "../../i18n";
 
 interface ToolDetailData {
   name: string;
@@ -36,22 +37,23 @@ function getToolIcon(name: string) {
   return <Wrench size={16} className="text-zinc-400" />;
 }
 
-function getToolCategory(name: string): string {
-  if (EDIT_NAMES.has(name)) return "File Edit";
-  if (WRITE_NAMES.has(name)) return "File Write";
-  if (READ_NAMES.has(name)) return "File Read";
-  if (BASH_NAMES.has(name)) return "Command";
-  if (SEARCH_NAMES.has(name)) return "Search";
-  if (AGENT_NAMES.has(name)) return "Agent";
+function getToolCategory(name: string): [string, string?] {
+  if (EDIT_NAMES.has(name)) return ["thread.tool.category.fileEdit"];
+  if (WRITE_NAMES.has(name)) return ["thread.tool.category.fileWrite"];
+  if (READ_NAMES.has(name)) return ["thread.tool.category.fileRead"];
+  if (BASH_NAMES.has(name)) return ["thread.tool.category.command"];
+  if (SEARCH_NAMES.has(name)) return ["thread.tool.category.search"];
+  if (AGENT_NAMES.has(name)) return ["thread.tool.category.agent"];
   // MCP tools
   if (name.startsWith("mcp__")) {
     const parts = name.split("__");
-    return parts.length >= 2 ? `MCP: ${parts[1]}` : "MCP Tool";
+    return parts.length >= 2 ? ["thread.tool.category.mcp", parts[1]] : ["thread.tool.category.mcpTool"];
   }
-  return "Tool";
+  return ["thread.tool.category.tool"];
 }
 
 function CopyButton({ text }: { text: string }) {
+  const t = useT();
   const [copied, setCopied] = useState(false);
 
   const handleCopy = (e: React.MouseEvent) => {
@@ -65,7 +67,7 @@ function CopyButton({ text }: { text: string }) {
     <button
       onClick={handleCopy}
       className="shrink-0 rounded-md p-1 text-zinc-500 hover:text-zinc-300 hover:bg-white/[0.06] transition-colors"
-      title="Copy to clipboard"
+      title={t("thread.tool.copyToClipboard")}
     >
       {copied ? <Check size={12} className="text-[color:var(--accent)]" /> : <Copy size={12} />}
     </button>
@@ -103,6 +105,7 @@ function ParamRow({ name, value }: { name: string; value: unknown }) {
 export type { ToolDetailData };
 
 export function ToolDetailDialog({ tool, onClose }: Props) {
+  const t = useT();
   const workDir = useWorkDir();
   const overlayRef = useRef<HTMLDivElement>(null);
 
@@ -125,6 +128,7 @@ export function ToolDetailDialog({ tool, onClose }: Props) {
     : null;
 
   const inputEntries = Object.entries(tool.input);
+  const [categoryKey, categoryName] = getToolCategory(tool.name);
 
   // Portal the dialog to document.body so ancestor `backdrop-filter`/`transform`
   // stacking contexts (ToolUseBlock has `backdrop-blur-sm`) can't re-root
@@ -145,7 +149,7 @@ export function ToolDetailDialog({ tool, onClose }: Props) {
           <div className="flex-1 min-w-0">
             <h2 className="text-sm font-semibold text-zinc-100">{tool.name}</h2>
             <div className="flex items-center gap-2 mt-0.5">
-              <span className="text-[11px] text-zinc-500">{getToolCategory(tool.name)}</span>
+              <span className="text-[11px] text-zinc-500">{categoryName ? t(categoryKey, { name: categoryName }) : t(categoryKey)}</span>
               {filePath && (
                 <>
                   <span className="text-[11px] text-zinc-600">·</span>
@@ -154,17 +158,17 @@ export function ToolDetailDialog({ tool, onClose }: Props) {
               )}
               {tool.pending && (
                 <span className="rounded-full bg-amber-500/15 border border-amber-500/20 px-2 py-0.5 text-[10px] font-medium text-amber-400">
-                  Running
+                  {t("thread.tool.running")}
                 </span>
               )}
               {tool.result?.isError && (
                 <span className="rounded-full bg-red-500/15 border border-red-500/20 px-2 py-0.5 text-[10px] font-medium text-red-400">
-                  Error
+                  {t("thread.tool.error")}
                 </span>
               )}
               {tool.result && !tool.result.isError && (
                 <span className="rounded-full bg-[var(--accent-dim)] border border-[color:var(--accent)]/20 px-2 py-0.5 text-[10px] font-medium text-[color:var(--accent)]">
-                  Success
+                  {t("thread.tool.success")}
                 </span>
               )}
             </div>
@@ -183,7 +187,7 @@ export function ToolDetailDialog({ tool, onClose }: Props) {
           {inputEntries.length > 0 && (
             <section>
               <div className="flex items-center gap-2 mb-3">
-                <h3 className="text-xs font-semibold uppercase tracking-wider text-zinc-400">Input</h3>
+                <h3 className="text-xs font-semibold uppercase tracking-wider text-zinc-400">{t("thread.tool.input")}</h3>
                 <CopyButton text={JSON.stringify(tool.input, null, 2)} />
               </div>
               <div className="space-y-3">
@@ -199,14 +203,14 @@ export function ToolDetailDialog({ tool, onClose }: Props) {
             <section>
               <div className="flex items-center gap-2 mb-3">
                 <h3 className="text-xs font-semibold uppercase tracking-wider text-zinc-400">
-                  {tool.result.isError ? "Error Output" : "Output"}
+                  {tool.result.isError ? t("thread.tool.errorOutput") : t("thread.tool.output")}
                 </h3>
                 <CopyButton text={tool.result.content} />
               </div>
               {tool.result.isError && (
                 <div className="flex items-start gap-2 rounded-lg border border-red-500/20 bg-red-950/20 px-3 py-2 mb-2">
                   <AlertCircle size={14} className="shrink-0 mt-0.5 text-red-400" />
-                  <span className="text-xs text-red-300">This tool call returned an error</span>
+                  <span className="text-xs text-red-300">{t("thread.tool.callReturnedError")}</span>
                 </div>
               )}
               <pre
@@ -216,7 +220,7 @@ export function ToolDetailDialog({ tool, onClose }: Props) {
                     : "border-white/[0.06] bg-black/30 text-zinc-300"
                 }`}
               >
-                {tool.result.content || "(empty)"}
+                {tool.result.content || t("thread.tool.emptyOutput")}
               </pre>
             </section>
           )}
@@ -225,18 +229,18 @@ export function ToolDetailDialog({ tool, onClose }: Props) {
           {tool.pending && !tool.result && (
             <div className="flex items-center gap-2 rounded-lg border border-amber-500/15 bg-amber-950/10 px-3 py-3">
               <div className="h-2 w-2 rounded-full bg-amber-400 animate-pulse" />
-              <span className="text-xs text-amber-300">Tool is currently executing…</span>
+              <span className="text-xs text-amber-300">{t("thread.tool.executing")}</span>
             </div>
           )}
 
           {/* Tool ID (footer metadata) */}
           <div className="pt-2 border-t border-white/[0.04]">
             <div className="flex items-center gap-2 text-[10px] text-zinc-600">
-              <span>ID: {tool.toolId}</span>
+              <span>{t("thread.tool.id", { id: tool.toolId })}</span>
               {tool.timestamp && (
                 <>
                   <span>·</span>
-                  <span>{new Date(tool.timestamp).toLocaleTimeString()}</span>
+                  <span>{new Date(tool.timestamp).toLocaleTimeString(localeTag())}</span>
                 </>
               )}
             </div>

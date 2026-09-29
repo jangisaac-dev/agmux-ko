@@ -1,4 +1,5 @@
 import { Loader2, Server, Trash2 } from "lucide-react";
+import { useT } from "../../i18n";
 import type { McpServerInfo } from "../../stores/skillsStore";
 
 interface McpServerCardProps {
@@ -17,6 +18,7 @@ const accents = [
 ];
 
 export function McpServerCard({ server, removing, onRemove }: McpServerCardProps) {
+  const t = useT();
   const nameHash = server.name.split("").reduce((acc, c) => acc + c.charCodeAt(0), 0);
   const accent = accents[nameHash % accents.length];
   const accentParts = accent.split(" ");
@@ -39,7 +41,7 @@ export function McpServerCard({ server, removing, onRemove }: McpServerCardProps
             {server.transport}
           </span>
           <span className="rounded-full bg-zinc-800 px-2 py-0.5 text-[10px] font-medium text-zinc-400">
-            {server.scope}
+            {t(server.scope === "user" ? "tools.addMcpServer.scope.user" : "tools.addMcpServer.scope.project")}
           </span>
         </div>
       </div>
@@ -65,12 +67,12 @@ export function McpServerCard({ server, removing, onRemove }: McpServerCardProps
       <div className="mb-4 flex flex-1 flex-wrap gap-1.5">
         {argCount > 0 && (
           <span className="rounded-md bg-zinc-800/80 px-2 py-0.5 text-[10px] text-zinc-400">
-            {argCount} {argCount === 1 ? "arg" : "args"}
+            {t("tools.mcpServerCard.argumentCount", { count: argCount })}
           </span>
         )}
         {envCount > 0 && (
           <span className="rounded-md bg-zinc-800/80 px-2 py-0.5 text-[10px] text-zinc-400">
-            {envCount} env {envCount === 1 ? "var" : "vars"}
+            {t("tools.mcpServerCard.environmentCount", { count: envCount })}
           </span>
         )}
       </div>
@@ -80,7 +82,7 @@ export function McpServerCard({ server, removing, onRemove }: McpServerCardProps
         {removing ? (
           <div className="flex h-8 items-center justify-center rounded-lg bg-zinc-800 text-xs text-zinc-400">
             <Loader2 size={14} className="mr-1.5 animate-spin" />
-            Removing...
+            {t("tools.mcpServerCard.removing")}
           </div>
         ) : (
           <button
@@ -88,7 +90,7 @@ export function McpServerCard({ server, removing, onRemove }: McpServerCardProps
             className="flex h-8 w-full items-center justify-center gap-1.5 rounded-lg bg-red-500/10 text-xs font-medium text-red-400 opacity-0 transition-all group-hover:opacity-100 hover:bg-red-500/20"
           >
             <Trash2 size={13} />
-            Remove
+            {t("tools.mcpServerCard.remove")}
           </button>
         )}
       </div>

@@ -18,7 +18,6 @@ import { useSettingsStore } from "../../stores/settingsStore";
 import {
   countGithubOpenIssues,
   discoverProjectGithubRepos,
-  formatIssueRelativeTime,
   formatOpenIssueCount,
   githubAuthStatus,
   listGithubIssues,
@@ -46,6 +45,19 @@ import {
   type CodexModelOption,
   type Provider,
 } from "../../lib/types";
+import { localeTag, tx, useT } from "../../i18n";
+
+function formatIssueTime(iso: string | null | undefined, t: ReturnType<typeof useT>): string {
+  if (!iso) return "—";
+  const time = Date.parse(iso);
+  if (Number.isNaN(time)) return "—";
+  const diff = Date.now() - time;
+  if (diff < 60_000) return t("session.issues.justNow");
+  if (diff < 3_600_000) return t("session.issues.minutesAgo", { count: Math.floor(diff / 60_000) });
+  if (diff < 86_400_000) return t("session.issues.hoursAgo", { count: Math.floor(diff / 3_600_000) });
+  if (diff < 7 * 86_400_000) return t("session.issues.daysAgo", { count: Math.floor(diff / 86_400_000) });
+  return new Date(time).toLocaleDateString(localeTag(), { month: "short", day: "numeric" });
+}
 
 function LabelChip({ name, color }: { name: string; color?: string | null }) {
   const bg = color ? `#${color.replace(/^#/, "")}` : "rgba(255,255,255,0.08)";
@@ -75,13 +87,14 @@ function RepoTabLabel({
   projectName?: string;
   showOwner?: boolean;
 }) {
+  const t = useT();
   const { owner, name } = splitRepoSlug(slug);
   const badge = formatOpenIssueCount(openCount);
   const pending = openCount === null || openCount === undefined;
   const title = [
     slug,
-    projectName ? `Project: ${projectName}` : null,
-    openCount != null ? `${openCount} open issue${openCount === 1 ? "" : "s"}` : null,
+    projectName ? t("session.issues.projectTitle", { projectName }) : null,
+    openCount != null ? t("session.issues.openIssueCount", { count: openCount, value: openCount.toLocaleString(localeTag()) }) : null,
   ]
     .filter(Boolean)
     .join(" · ");
@@ -103,6 +116,7 @@ function RepoTabLabel({
 }
 
 export function IssuesMainPanel() {
+  const t = useT();
   const projects = useProjectStore((s) => s.projects);
   const fetchProjects = useProjectStore((s) => s.fetchProjects);
   const selectedProjectId = useUiStore((s) => s.selectedProjectId);
@@ -432,7 +446,7 @@ export function IssuesMainPanel() {
       .replace(/^https?:\/\/github\.com\//, "")
       .replace(/\.git$/, "");
     if (!slug.includes("/") || slug.split("/").length !== 2) {
-      setError("Repo must look like owner/repo");
+      setError(t("session.issues.invalidRepo"));
       return;
     }
     if (projectRepoBySlug.has(slug) || tracked.includes(slug)) {
@@ -484,15 +498,11 @@ export function IssuesMainPanel() {
 
   const handleDispatch = async (issue: GithubIssue) => {
     if (!activeProjectContext) {
-      setDispatchError(
-        "This repository is not linked to an agmux project folder. Add the project so the agent has a local checkout, then dispatch.",
-      );
+      setDispatchError(`${t("session.issues.projectRequiredForDispatch")} ${t("session.issues.addProjectToDispatch")}`);
       return;
     }
     if (auth && !auth.loggedIn) {
-      setDispatchError(
-        `${auth.message || "GitHub CLI not authenticated."} Run \`gh auth login\` then refresh.`,
-      );
+      setDispatchError(`${auth.message || t("session.issues.githubCliNotAuthenticated")} ${t("session.issues.runGhAuthLoginThenRefresh")}`);
       return;
     }
     setDispatching(true);
@@ -567,13 +577,13 @@ export function IssuesMainPanel() {
             <span className="orch-mark">
               <CircleDot size={14} strokeWidth={2} />
             </span>
-            <h1 className="text-sm font-semibold text-[var(--text-primary)]">Issues</h1>
+            <h1 className="text-sm font-semibold text-[var(--text-primary)]">{t("session.issues.title")}</h1>
           </div>
         </header>
         <EmptyState
           icon={FolderGit2}
-          headline="No projects yet"
-          body="Issues lists the GitHub repos linked to your agmux projects. Add a project to get started."
+          headline={t("session.issues.noProjects")}
+          body={`${t("session.issues.noProjectsBody")} ${t("session.issues.addProjectToGetStarted")}`}
         />
       </>,
     );
@@ -587,12 +597,12 @@ export function IssuesMainPanel() {
             <CircleDot size={14} strokeWidth={2} />
           </span>
           <div className="min-w-0">
-            <h1 className="text-sm font-semibold text-[var(--text-primary)]">Issues</h1>
+            <h1 className="text-sm font-semibold text-[var(--text-primary)]">{t("session.issues.title")}</h1>
             <p className="mt-0.5 font-mono text-[10px] uppercase tracking-[0.16em] text-[var(--text-muted)]">
               {auth?.loggedIn && auth.login
                 ? auth.login
                 : scanning
-                  ? "Scanning…"
+                  ? t("session.issues.scanning")
                   : "GitHub"}
               {activeRepo ? ` · ${activeRepo}` : ""}
             </p>
@@ -609,8 +619,8 @@ export function IssuesMainPanel() {
             className="mem-refresh"
             onClick={() => refreshRepos()}
             disabled={loading || scanning}
-            title="Refresh"
-            aria-label="Refresh issues"
+            title={t("session.issues.refresh")}
+            aria-label={t("session.issues.refreshIssues")}
           >
             <RefreshCw size={13} className={loading || scanning ? "animate-spin" : undefined} />
           </button>
@@ -618,7 +628,7 @@ export function IssuesMainPanel() {
       </header>
 
       <div className="issues-toolbar">
-        <div className="issues-repo-tabs" role="tablist" aria-label="Repositories">
+        <div className="issues-repo-tabs" role="tablist" aria-label={t("session.issues.repositories")}>
           {projectRepos.map((r) => (
             <button
               key={r.slug}
@@ -658,7 +668,7 @@ export function IssuesMainPanel() {
                   role="button"
                   tabIndex={0}
                   className="issues-repo-remove"
-                  title="Stop tracking"
+                  title={t("session.issues.stopTracking")}
                   onClick={(e) => {
                     e.stopPropagation();
                     handleRemoveTracked(slug);
@@ -699,7 +709,7 @@ export function IssuesMainPanel() {
                   px-2 py-0.5 transition-colors duration-150"
                 style={{ fontSize: "var(--text-meta)" }}
               >
-                Add
+                {t("session.issues.add")}
               </button>
             </form>
           ) : (
@@ -707,10 +717,10 @@ export function IssuesMainPanel() {
               type="button"
               className="issues-repo-tab issues-repo-add"
               onClick={() => setAddRepoOpen(true)}
-              title="Track another repo"
+              title={t("session.issues.trackAnotherRepo")}
             >
               <Plus size={12} />
-              Repo
+              {t("session.issues.repo")}
             </button>
           )}
         </div>
@@ -720,7 +730,7 @@ export function IssuesMainPanel() {
             <Search size={13} className="text-[var(--text-tertiary)]" />
             <input
               className="issues-input flex-1"
-              placeholder="Filter issues…"
+              placeholder={t("session.issues.filterIssues")}
               value={query}
               onChange={(e) => setQuery(e.target.value)}
             />
@@ -730,9 +740,9 @@ export function IssuesMainPanel() {
             value={stateFilter}
             onChange={(e) => setStateFilter(e.target.value as GithubIssueState)}
           >
-            <option value="open">Open</option>
-            <option value="closed">Closed</option>
-            <option value="all">All</option>
+            <option value="open">{t("session.issues.state.open")}</option>
+            <option value="closed">{t("session.issues.state.closed")}</option>
+            <option value="all">{t("session.issues.state.all")}</option>
           </select>
         </div>
       </div>
@@ -741,8 +751,7 @@ export function IssuesMainPanel() {
         <div className="issues-banner">
           <AlertCircle size={14} />
           <span>
-            {auth.message || "GitHub CLI not authenticated."} Run{" "}
-            <code className="font-mono text-[11px]">gh auth login</code> then refresh.
+            {auth.message || t("session.issues.githubCliNotAuthenticated")} {tx("session.issues.runGhAuthLoginThenRefreshCode", { command: <code className="font-mono text-[11px]">gh auth login</code> })}
           </span>
         </div>
       )}
@@ -758,8 +767,7 @@ export function IssuesMainPanel() {
         <div className="issues-banner">
           <AlertCircle size={14} />
           <span>
-            No GitHub remotes found on your agmux projects. Open a project with a GitHub remote, or
-            add a repo with + Repo.
+            {t("session.issues.noGitHubRemotes")} {t("session.issues.openProjectOrAddRepo", { repo: t("session.issues.repo") })}
           </span>
         </div>
       )}
@@ -769,26 +777,26 @@ export function IssuesMainPanel() {
           {loading && issues.length === 0 ? (
             <div className="orch-empty">
               <Loader2 size={20} className="animate-spin text-[var(--text-tertiary)]" />
-              <p className="text-sm text-[var(--text-secondary)] mt-2">Loading issues…</p>
+              <p className="text-sm text-[var(--text-secondary)] mt-2">{t("session.issues.loading")}</p>
             </div>
           ) : !activeRepo ? (
             <EmptyState
               icon={FolderGit2}
-              headline={scanning ? "Scanning for repositories…" : "No repository selected"}
+              headline={scanning ? t("session.issues.scanningRepositories") : t("session.issues.noRepositorySelected")}
               body={
                 scanning
-                  ? "Checking each project for a linked GitHub remote."
-                  : "Pick a repository tab above, or track one by name."
+                  ? t("session.issues.checkingProjectRemotes")
+                  : t("session.issues.pickRepositoryOrTrack")
               }
             />
           ) : filtered.length === 0 ? (
             <EmptyState
               icon={error ? AlertCircle : CircleDot}
-              headline={error ? "Could not load issues" : "No issues match"}
+              headline={error ? t("session.issues.loadFailed") : t("session.issues.noMatchingIssues")}
               body={
                 error
-                  ? "Check your GitHub sign-in and the repository name, then refresh."
-                  : "Try a different search term or switch the open/closed filter."
+                  ? t("session.issues.checkSignInAndRepo")
+                  : t("session.issues.tryAnotherSearchOrFilter")
               }
             />
           ) : (
@@ -796,10 +804,10 @@ export function IssuesMainPanel() {
               <thead>
                 <tr>
                   <th className="w-14">#</th>
-                  <th>Title</th>
-                  <th className="w-36">Labels</th>
-                  <th className="w-28">Assignees</th>
-                  <th className="w-20 text-right">Updated</th>
+                  <th>{t("session.issues.table.title")}</th>
+                  <th className="w-36">{t("session.issues.table.labels")}</th>
+                  <th className="w-28">{t("session.issues.table.assignees")}</th>
+                  <th className="w-20 text-right">{t("session.issues.table.updated")}</th>
                 </tr>
               </thead>
               <tbody>
@@ -825,7 +833,7 @@ export function IssuesMainPanel() {
                         <div className="issues-title-cell">
                           <span className="issues-title-text">{issue.title}</span>
                           {issue.state?.toLowerCase() === "closed" && (
-                            <span className="issues-state-closed">Closed</span>
+                            <span className="issues-state-closed">{t("session.issues.state.closed")}</span>
                           )}
                         </div>
                       </td>
@@ -845,7 +853,7 @@ export function IssuesMainPanel() {
                         {issue.assignees.map((a) => a.login).join(", ") || "—"}
                       </td>
                       <td className="text-right text-[11px] tabular-nums text-[var(--text-tertiary)]">
-                        {formatIssueRelativeTime(issue.updatedAt)}
+                        {formatIssueTime(issue.updatedAt, t)}
                       </td>
                     </tr>
                   );
@@ -872,7 +880,7 @@ export function IssuesMainPanel() {
                 target="_blank"
                 rel="noreferrer"
                 className="mem-refresh shrink-0"
-                title="Open on GitHub"
+                title={t("session.issues.openOnGitHub")}
               >
                 <ExternalLink size={13} />
               </a>
@@ -886,7 +894,7 @@ export function IssuesMainPanel() {
 
             {selected.assignees.length > 0 && (
               <p className="mt-2 text-[12px] text-[var(--text-secondary)]">
-                Assignees: {selected.assignees.map((a) => a.login).join(", ")}
+                {t("session.issues.assigneesList", { assignees: selected.assignees.map((a) => a.login).join(", ") })}
               </p>
             )}
 
@@ -897,7 +905,7 @@ export function IssuesMainPanel() {
               </p>
             ) : (
               <p className="issues-detail-body mt-3 text-[var(--text-tertiary)]">
-                No description on the list row — full body is fetched from GitHub on dispatch.
+                {t("session.issues.noDescriptionInList")}
               </p>
             )}
 
@@ -905,8 +913,7 @@ export function IssuesMainPanel() {
               <div className="issues-banner issues-banner-error mt-3 !mx-0">
                 <AlertCircle size={14} />
                 <span className="min-w-0 break-words">
-                  This remote isn&apos;t linked to an agmux project folder. You can browse issues,
-                  but dispatch needs a local checkout — add the project first.
+                  {t("session.issues.remoteProjectRequired")} {t("session.issues.remoteProjectDispatchRequired")}
                 </span>
               </div>
             )}
@@ -914,8 +921,8 @@ export function IssuesMainPanel() {
             {activeProjectContext && (
               <>
                 <label className="issues-field-label mt-4">
-                  Agent
-                  <span className="issues-field-hint">model &amp; provider</span>
+                  {t("session.issues.agent")}
+                  <span className="issues-field-hint">{t("session.issues.modelAndProvider")}</span>
                 </label>
                 <div className="issues-dispatch-chrome">
                   <ProviderModelDropdown
@@ -937,12 +944,12 @@ export function IssuesMainPanel() {
                     onClick={() => setPreferWorktree((v) => !v)}
                     title={
                       preferWorktree
-                        ? "Worktree isolation on — click for main checkout"
-                        : "Working in main checkout — click for worktree"
+                        ? t("session.issues.worktreeOnTitle")
+                        : t("session.issues.worktreeOffTitle")
                     }
                   >
                     {preferWorktree ? <GitBranch size={13} /> : <FolderGit2 size={13} />}
-                    <span>{preferWorktree ? "Worktree" : "Local"}</span>
+                    <span>{preferWorktree ? t("session.issues.worktree") : t("session.issues.local")}</span>
                   </button>
                 </div>
                 <p className="mt-1.5 text-[10.5px] text-[var(--text-tertiary)] leading-snug">
@@ -951,12 +958,12 @@ export function IssuesMainPanel() {
                 </p>
 
                 <label className="issues-field-label mt-4">
-                  Special instructions
-                  <span className="issues-field-hint">this dispatch only</span>
+                  {t("session.issues.specialInstructions")}
+                  <span className="issues-field-hint">{t("session.issues.thisDispatchOnly")}</span>
                 </label>
                 <textarea
                   className="issues-textarea"
-                  placeholder="e.g. Focus on the spinner path; don’t refactor unrelated modules."
+                  placeholder={t("session.issues.specialInstructionsPlaceholder")}
                   value={specialInstructions}
                   onChange={(e) => setSpecialInstructions(e.target.value)}
                   rows={3}
@@ -964,15 +971,15 @@ export function IssuesMainPanel() {
 
                 <div className="mt-3 flex items-center justify-between gap-2">
                   <label className="issues-field-label m-0">
-                    Default instructions
-                    <span className="issues-field-hint">every dispatch</span>
+                    {t("session.issues.defaultInstructions")}
+                    <span className="issues-field-hint">{t("session.issues.everyDispatch")}</span>
                   </label>
                   <button
                     type="button"
                     className="issues-link-btn"
                     onClick={() => setShowGlobalEditor((v) => !v)}
                   >
-                    {showGlobalEditor ? "Hide" : globalInstructions.trim() ? "Edit" : "Add"}
+                    {showGlobalEditor ? t("session.issues.hide") : globalInstructions.trim() ? t("session.issues.edit") : t("session.issues.add")}
                   </button>
                 </div>
                 {!showGlobalEditor && globalInstructions.trim() ? (
@@ -984,7 +991,7 @@ export function IssuesMainPanel() {
                 {showGlobalEditor && (
                   <textarea
                     className="issues-textarea mt-1.5"
-                    placeholder="Standing notes for all Issues dispatches (also in Settings → Issues)."
+                    placeholder={t("session.issues.defaultInstructionsPlaceholder")}
                     value={globalInstructions}
                     onChange={(e) =>
                       updateSettings({ issuesDispatchInstructions: e.target.value })
@@ -994,11 +1001,10 @@ export function IssuesMainPanel() {
                 )}
 
                 <p className="mt-3 text-[11px] text-[var(--text-tertiary)] leading-relaxed">
-                  Opens a new{" "}
-                  <span className="text-[var(--text-secondary)]">{dispatchProvider}</span>{" "}
-                  session with a structured issue brief
-                  {preferWorktree ? " in a git worktree" : " on the main checkout"}. Double-click a
-                  row to dispatch with these settings.
+                  {tx("session.issues.dispatchDescription", {
+                    provider: <span className="text-[var(--text-secondary)]">{dispatchProvider}</span>,
+                    checkout: preferWorktree ? t("session.issues.gitWorktree") : t("session.issues.mainCheckout"),
+                  })} {t("session.issues.dispatchDoubleClick")}
                 </p>
               </>
             )}
@@ -1017,8 +1023,8 @@ export function IssuesMainPanel() {
               onClick={() => void handleDispatch(selected)}
               title={
                 !activeProjectContext
-                  ? "Add this repo as an agmux project first"
-                  : "Dispatch to agent"
+                  ? t("session.issues.addProjectFirst")
+                  : t("session.issues.dispatch")
               }
             >
               {dispatching ? (
@@ -1026,7 +1032,7 @@ export function IssuesMainPanel() {
               ) : (
                 <Sparkles size={14} />
               )}
-              {dispatching ? "Dispatching…" : "Dispatch to agent"}
+              {dispatching ? t("session.issues.dispatching") : t("session.issues.dispatch")}
             </button>
           </aside>
         )}

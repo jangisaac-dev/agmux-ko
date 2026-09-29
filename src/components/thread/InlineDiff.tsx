@@ -1,4 +1,5 @@
 import { useMemo } from "react";
+import { useT } from "../../i18n";
 import { getCachedDiff, type DiffLine } from "../../lib/diffCache";
 import { shortenPath } from "./tools/types";
 import { useWorkDir } from "./WorkDirContext";
@@ -105,6 +106,7 @@ interface WriteViewProps {
 }
 
 export function FileWriteView({ filePath, content }: WriteViewProps) {
+  const t = useT();
   const workDir = useWorkDir();
   const lines = content.split("\n");
   const ext = filePath.split(".").pop() ?? "";
@@ -121,9 +123,9 @@ export function FileWriteView({ filePath, content }: WriteViewProps) {
             {langLabel}
           </span>
         )}
-        <span className="text-[10px] font-medium text-emerald-400">+{lines.length} lines</span>
+        <span className="text-[10px] font-medium text-emerald-400">{t("tools.inlineDiff.newFileLineCount", { count: lines.length })}</span>
         <span className="rounded bg-indigo-500/10 border border-indigo-500/20 px-1.5 py-0.5 text-[9px] font-medium text-indigo-400">
-          NEW FILE
+          {t("tools.inlineDiff.newFile")}
         </span>
       </div>
 

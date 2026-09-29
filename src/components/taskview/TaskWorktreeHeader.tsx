@@ -30,9 +30,11 @@ import {
   worktreeCommitAndPush,
 } from "../../lib/taskCommands";
 import type { ChangedFile } from "../../lib/types";
+import { useT } from "../../i18n";
 import { StatePill } from "./StatePill";
 import {
   deriveEffectiveState,
+  isJustNow,
   relativeTime,
 } from "./taskStateMeta";
 import { isThreadMidTurn, isThreadAwaitingInput } from "../../lib/taskAgentActivity";
@@ -78,6 +80,7 @@ const iconBtn: React.CSSProperties = {
 };
 
 export function TaskWorktreeHeader({ taskId }: TaskWorktreeHeaderProps) {
+  const t = useT();
   const task = useTaskViewStore((s) => s.getTaskById(taskId));
   const gitState = useTaskViewStore((s) => s.gitState[taskId]);
   const toggleReviewSidebar = useTaskViewStore((s) => s.toggleReviewSidebar);
@@ -151,12 +154,12 @@ export function TaskWorktreeHeader({ taskId }: TaskWorktreeHeaderProps) {
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       console.error("[TaskWorktreeHeader] createWorktreePr failed:", err);
-      setPrError(msg || "Failed to create PR (unknown error)");
+      setPrError(msg || t("task.pr.error.createUnknown"));
     } finally {
       setIsCreatingPr(false);
       setPrStage(null);
     }
-  }, [task, updateTaskInStore]);
+  }, [task, updateTaskInStore, t]);
 
   const handleCreatePr = useCallback(async () => {
     if (!task || isCreatingPr) return;
@@ -179,7 +182,7 @@ export function TaskWorktreeHeader({ taskId }: TaskWorktreeHeaderProps) {
     if (pendingChanges.length > 0) {
       setUncommittedGuard({
         files: pendingChanges,
-        commitMessage: "Checkpoint before PR",
+        commitMessage: t("task.pr.checkpointCommitMessage"),
       });
       return;
     }
@@ -187,14 +190,12 @@ export function TaskWorktreeHeader({ taskId }: TaskWorktreeHeaderProps) {
     // Working tree clean. If branch is known to be at upstream HEAD, there's
     // literally nothing to PR — surface that as a real error.
     if (hasUpstream && ahead === 0) {
-      setPrError(
-        "No commits to push — make at least one commit on this branch before opening a PR.",
-      );
+      setPrError(t("task.pr.error.noCommitsToPush"));
       return;
     }
 
     await runCreatePr();
-  }, [task, isCreatingPr, hasUpstream, ahead, runCreatePr]);
+  }, [task, isCreatingPr, hasUpstream, ahead, runCreatePr, t]);
 
   // Guard actions
   const handleGuardCommitAndProceed = useCallback(async () => {
@@ -205,14 +206,14 @@ export function TaskWorktreeHeader({ taskId }: TaskWorktreeHeaderProps) {
     try {
       await worktreeCommitAndPush(
         task.worktree_path,
-        uncommittedGuard.commitMessage.trim() || "Checkpoint before PR",
+        uncommittedGuard.commitMessage.trim() || t("task.pr.checkpointCommitMessage"),
         task.branch_name,
         uncommittedGuard.files.map((f) => f.path),
       );
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       console.error("[TaskWorktreeHeader] worktreeCommitAndPush failed:", err);
-      setPrError(msg || "Failed to commit pending changes");
+      setPrError(msg || t("task.pr.error.commitPendingChanges"));
       setIsCreatingPr(false);
       setPrStage(null);
       return;
@@ -222,7 +223,7 @@ export function TaskWorktreeHeader({ taskId }: TaskWorktreeHeaderProps) {
     setIsCreatingPr(false);
     setPrStage(null);
     await runCreatePr();
-  }, [task, uncommittedGuard, runCreatePr]);
+  }, [task, uncommittedGuard, runCreatePr, t]);
 
   const handleGuardIgnoreAndProceed = useCallback(async () => {
     setUncommittedGuard(null);
@@ -254,13 +255,15 @@ export function TaskWorktreeHeader({ taskId }: TaskWorktreeHeaderProps) {
     (t) => isThreadAwaitingInput(t.id, { pendingApprovalsBySession: pendingApprovals, claudeSessionMap }),
   ).length;
   const state = deriveEffectiveState(task, gitState, runningCount, attentionCount);
-  const when = relativeTime(task.created_at);
+  const now = Date.now();
+  const when = relativeTime(task.created_at, now);
+  const startedJustNow = isJustNow(task.created_at, now);
   // Button stays enabled whenever we can try to create a PR — the guard flow
   // handles uncommitted changes, and handleCreatePr shows a clear error when
   // the branch really has nothing to push. Disabling up front would hide the
   // Commit & Push escape hatch from the user.
   const prButtonDisabled = isCreatingPr;
-  const prButtonTitle = prError ?? "Create GitHub PR via gh";
+  const prButtonTitle = prError ?? t("task.pr.createGitHubViaGh");
 
   return (
     <div
@@ -335,7 +338,7 @@ export function TaskWorktreeHeader({ taskId }: TaskWorktreeHeaderProps) {
           <span>·</span>
           <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
             <FolderGit2 size={10} />
-            worktree
+            {t("task.worktree.label")}
           </span>
           {gitState && (gitState.ahead > 0 || gitState.behind > 0) && (
             <>
@@ -357,7 +360,7 @@ export function TaskWorktreeHeader({ taskId }: TaskWorktreeHeaderProps) {
           {when && (
             <>
               <span>·</span>
-              <span>{when === "just now" ? "started just now" : `started ${when} ago`}</span>
+              <span>{startedJustNow ? t("task.worktree.startedJustNow") : t("task.worktree.startedAgo", { time: when })}</span>
             </>
           )}
         </div>
@@ -366,7 +369,7 @@ export function TaskWorktreeHeader({ taskId }: TaskWorktreeHeaderProps) {
       {/* Agent count chip */}
       {agentCount > 0 && (
         <div
-          title={`${agentCount} agent${agentCount > 1 ? "s" : ""}`}
+          title={t("task.agent.count", { count: agentCount })}
           className="task-agent-chip ui-chip fx-chip-q"
           style={{
             padding: "3px 8px",
@@ -378,7 +381,7 @@ export function TaskWorktreeHeader({ taskId }: TaskWorktreeHeaderProps) {
             flexShrink: 0,
           }}
         >
-          {agentCount} agent{agentCount > 1 ? "s" : ""}
+          {t("task.agent.count", { count: agentCount })}
         </div>
       )}
 
@@ -392,7 +395,7 @@ export function TaskWorktreeHeader({ taskId }: TaskWorktreeHeaderProps) {
           background: terminalOpen ? "var(--surface-2)" : iconBtn.background,
           color: terminalOpen ? "var(--text-primary)" : iconBtn.color,
         }}
-        title="Toggle terminal"
+        title={t("task.worktree.toggleTerminal")}
       >
         <Terminal size={14} />
       </button>
@@ -403,10 +406,10 @@ export function TaskWorktreeHeader({ taskId }: TaskWorktreeHeaderProps) {
         onClick={() => setCommitDialogOpen(true)}
         className="task-glass-btn"
         style={glassBtn}
-        title="Commit changes in this worktree"
+        title={t("task.worktree.commitChanges")}
       >
         <GitCommitHorizontal size={12} />
-        Commit
+        {t("task.pr.commit")}
       </button>
 
       {/* PR action — Open existing or Create new (left of Files) */}
@@ -416,10 +419,10 @@ export function TaskWorktreeHeader({ taskId }: TaskWorktreeHeaderProps) {
           target="_blank"
           rel="noreferrer"
           style={{ ...glassBtnPrimary, textDecoration: "none" }}
-          title="Open linked PR"
+          title={t("task.pr.openLinked")}
         >
           <GitMerge size={12} />
-          {task.linked_pr_number ? `Open PR #${task.linked_pr_number}` : "Open PR"}
+          {task.linked_pr_number ? t("task.pr.openNumber", { number: task.linked_pr_number }) : t("task.pr.open")}
         </a>
       ) : (
         <button
@@ -440,13 +443,13 @@ export function TaskWorktreeHeader({ taskId }: TaskWorktreeHeaderProps) {
           )}
           {isCreatingPr
             ? prStage === "checking"
-              ? "Checking…"
+              ? t("task.pr.stage.checking")
               : prStage === "committing"
-                ? "Committing…"
+                ? t("task.pr.stage.committing")
                 : prStage === "generating"
-                  ? "Generating…"
-                  : "Creating PR…"
-            : "Create PR"}
+                  ? t("task.pr.stage.generating")
+                  : t("task.pr.stage.creating")
+            : t("task.pr.create")}
         </button>
       )}
 
@@ -486,12 +489,12 @@ export function TaskWorktreeHeader({ taskId }: TaskWorktreeHeaderProps) {
             <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
               <AlertCircle size={18} color="#ef4444" />
               <div style={{ fontSize: 14, fontWeight: 600, flex: 1 }}>
-                Couldn’t create PR
+                {t("task.pr.error.title")}
               </div>
               <button
                 type="button"
                 onClick={() => setPrError(null)}
-                aria-label="Close"
+                aria-label={t("task.common.close")}
                 style={{
                   ...iconBtn,
                   width: 24,
@@ -524,7 +527,7 @@ export function TaskWorktreeHeader({ taskId }: TaskWorktreeHeaderProps) {
                 onClick={() => setPrError(null)}
                 style={glassBtn}
               >
-                Dismiss
+                {t("task.common.dismiss")}
               </button>
             </div>
           </div>
@@ -568,13 +571,12 @@ export function TaskWorktreeHeader({ taskId }: TaskWorktreeHeaderProps) {
             <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
               <AlertTriangle size={18} color="#f59e0b" />
               <div style={{ fontSize: 14, fontWeight: 600, flex: 1 }}>
-                {uncommittedGuard.files.length} uncommitted change
-                {uncommittedGuard.files.length === 1 ? "" : "s"}
+                {t("task.pr.uncommittedChanges", { count: uncommittedGuard.files.length })}
               </div>
               <button
                 type="button"
                 onClick={handleGuardCancel}
-                aria-label="Close"
+                aria-label={t("task.common.close")}
                 style={{ ...iconBtn, width: 24, height: 24 }}
               >
                 <X size={14} />
@@ -582,8 +584,7 @@ export function TaskWorktreeHeader({ taskId }: TaskWorktreeHeaderProps) {
             </div>
 
             <div style={{ fontSize: 12.5, lineHeight: 1.5, color: "var(--text-secondary)" }}>
-              These files aren’t committed yet. Commit them to include them in the PR, or skip
-              to open the PR without them.
+              {t("task.pr.uncommittedDescription")}
             </div>
 
             <div
@@ -659,7 +660,7 @@ export function TaskWorktreeHeader({ taskId }: TaskWorktreeHeaderProps) {
                   letterSpacing: "-0.01em",
                 }}
               >
-                Commit message
+                {t("task.pr.commitMessage")}
               </div>
               <input
                 type="text"
@@ -691,16 +692,16 @@ export function TaskWorktreeHeader({ taskId }: TaskWorktreeHeaderProps) {
                 disabled={isCreatingPr}
                 style={{ ...glassBtn, opacity: isCreatingPr ? 0.5 : 1 }}
               >
-                Cancel
+                {t("task.common.cancel")}
               </button>
               <button
                 type="button"
                 onClick={handleGuardIgnoreAndProceed}
                 disabled={isCreatingPr}
                 style={{ ...glassBtn, opacity: isCreatingPr ? 0.5 : 1 }}
-                title="Create the PR without committing these changes"
+                title={t("task.pr.ignoreTitle")}
               >
-                Ignore & Create PR
+                {t("task.pr.ignoreAndCreate")}
               </button>
               <button
                 type="button"
@@ -717,7 +718,7 @@ export function TaskWorktreeHeader({ taskId }: TaskWorktreeHeaderProps) {
                 ) : (
                   <GitPullRequest size={12} />
                 )}
-                Commit & Create PR
+                {t("task.pr.commitAndCreate")}
               </button>
             </div>
           </div>
@@ -735,10 +736,10 @@ export function TaskWorktreeHeader({ taskId }: TaskWorktreeHeaderProps) {
           background: fileTreeOpen ? "var(--surface-2)" : glassBtn.background,
           color: fileTreeOpen ? "var(--text-primary)" : glassBtn.color,
         }}
-        title="Toggle file tree"
+        title={t("task.worktree.toggleFileTree")}
       >
         <FolderTree size={12} />
-        Files
+        {t("task.worktree.files")}
       </button>
 
       {/* Review panel toggle */}
@@ -751,7 +752,7 @@ export function TaskWorktreeHeader({ taskId }: TaskWorktreeHeaderProps) {
           background: reviewSidebarOpen ? "var(--surface-2)" : iconBtn.background,
           color: reviewSidebarOpen ? "var(--text-primary)" : iconBtn.color,
         }}
-        title="Toggle review panel"
+        title={t("task.worktree.toggleReviewPanel")}
       >
         <PanelRightOpen size={14} />
       </button>

@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Check, MessageCircle } from "lucide-react";
 import { MarkdownContent } from "./MarkdownContent";
+import { useT } from "../../i18n";
 
 export interface CodexQuestion {
   id: string;
@@ -14,6 +15,7 @@ export function CodexUserInput({ questions, onSubmit }: {
   questions: CodexQuestion[];
   onSubmit: (answers: CodexAnswers) => Promise<void>;
 }) {
+  const t = useT();
   const [values, setValues] = useState<Record<string, string>>({});
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -31,7 +33,7 @@ export function CodexUserInput({ questions, onSubmit }: {
         setSending(false);
       }
     }}>
-      <div className="flex items-center gap-2 text-xs font-medium text-[var(--text-muted)]"><MessageCircle size={14} aria-hidden />Your input</div>
+      <div className="flex items-center gap-2 text-xs font-medium text-[var(--text-muted)]"><MessageCircle size={14} aria-hidden />{t("composer.codexInput.heading")}</div>
       {questions.map((q) => (
         <fieldset key={q.id} disabled={sending} className="space-y-2">
           <legend className="w-full text-sm leading-relaxed"><MarkdownContent content={q.question} /></legend>
@@ -44,7 +46,7 @@ export function CodexUserInput({ questions, onSubmit }: {
               <span>{option.label}{option.description && <span className="mt-0.5 block text-xs leading-relaxed text-[var(--text-muted)]">{option.description}</span>}</span>
             </button>
           ))}
-          <input aria-label={q.question} value={values[q.id] ?? ""} placeholder="Type your answer…"
+          <input aria-label={q.question} value={values[q.id] ?? ""} placeholder={t("composer.codexInput.answerPlaceholder")}
             className="block w-full rounded-lg border border-[var(--glass-border)] bg-[var(--surface-1)] px-3 py-2 text-sm outline-none focus:border-[var(--text-muted)] fx-input"
             onChange={(event) => setValues((prev) => ({ ...prev, [q.id]: event.target.value }))} />
         </fieldset>
@@ -52,7 +54,7 @@ export function CodexUserInput({ questions, onSubmit }: {
       {error && <p role="alert" className="text-sm">{error}</p>}
       <button type="submit" disabled={sending || questions.some((q) => !values[q.id]?.trim())}
         className="rounded-lg bg-[var(--text-primary)] px-4 py-2 text-sm font-medium text-[var(--surface-popover)] transition-opacity hover:opacity-90 disabled:opacity-40 fx-accent">
-        {sending ? "Sending…" : "Send answers"}
+        {sending ? t("composer.codexInput.sending") : t("composer.codexInput.sendAnswers")}
       </button>
     </form>
   );

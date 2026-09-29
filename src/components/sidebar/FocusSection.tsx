@@ -7,10 +7,10 @@ import { useUiStore } from "../../stores/uiStore";
 import { useSettingsStore } from "../../stores/settingsStore";
 import { useFocusRowsStore } from "../../stores/focusRowsStore";
 import type { Project } from "../../lib/types";
+import { useT } from "../../i18n";
 import {
   FOCUS_GROUP_EXPAND_KEY,
   MAX_FOCUS_THREADS_VISIBLE,
-  formatFocusWindow,
   requestFocusNewSession,
   resolveFocusThreadsVisible,
 } from "../../lib/focusView";
@@ -55,6 +55,7 @@ interface Props {
  * new sessions, since a new session always belongs to a real project.
  */
 export function FocusSection({ projects, windowMinutes, onListElement }: Props) {
+  const t = useT();
   const expanded = useUiStore((s) => s.projectExpandedById[FOCUS_GROUP_EXPAND_KEY] ?? true);
   const setProjectExpanded = useUiStore((s) => s.setProjectExpanded);
   const limit = useSettingsStore((s) => resolveFocusThreadsVisible(s.settings.focusThreadsVisible));
@@ -126,11 +127,11 @@ export function FocusSection({ projects, windowMinutes, onListElement }: Props) 
           type="button"
           onClick={() => setProjectExpanded(FOCUS_GROUP_EXPAND_KEY, !expanded)}
           className="flex min-w-0 flex-1 items-center gap-1.5 text-left bg-transparent border-0 p-0 cursor-default"
-          title={`Threads running or active in the last ${formatFocusWindow(windowMinutes)}, from every project`}
+          title={t("sidebar.focus.title", { window: t("sidebar.focus.window", { count: windowMinutes }) })}
         >
           <ChevronRight size={13} className="chev" />
           <Focus size={14} className="picn" />
-          <span className="pnm">Focus</span>
+          <span className="pnm">{t("sidebar.focus.label")}</span>
           <span className="pcount">{rowCount}</span>
         </button>
         <button
@@ -141,8 +142,8 @@ export function FocusSection({ projects, windowMinutes, onListElement }: Props) 
             togglePicker();
           }}
           className="padd"
-          title="New session in…"
-          aria-label="New session in a project"
+          title={t("sidebar.focus.newSessionIn")}
+          aria-label={t("sidebar.focus.newSessionInProject")}
         >
           <Plus size={13} />
         </button>
@@ -162,7 +163,7 @@ export function FocusSection({ projects, windowMinutes, onListElement }: Props) 
           className="flex w-full items-center gap-1.5 rounded px-3 py-1 text-left text-xs text-zinc-400 hover:bg-zinc-800 hover:text-zinc-300"
         >
           <ChevronDown size={12} />
-          <span>Show more ({Math.min(remaining, limit)} of {remaining})</span>
+          <span>{t("sidebar.threads.showMoreCount", { shown: Math.min(remaining, limit), remaining })}</span>
         </button>
       )}
       {expanded && remaining <= 0 && extraShown > 0 && rowCount > limit && (
@@ -172,12 +173,12 @@ export function FocusSection({ projects, windowMinutes, onListElement }: Props) 
           className="flex w-full items-center gap-1.5 rounded px-3 py-1 text-left text-xs text-zinc-400 hover:bg-zinc-800 hover:text-zinc-300"
         >
           <ChevronUp size={12} />
-          <span>Show less</span>
+          <span>{t("sidebar.threads.showLess")}</span>
         </button>
       )}
       {expanded && rowCount === 0 && (
         <p className="px-4 pb-2 text-xs text-zinc-500">
-          Nothing active in the last {formatFocusWindow(windowMinutes)}.
+          {t("sidebar.focus.nothingActive", { window: t("sidebar.focus.window", { count: windowMinutes }) })}
         </p>
       )}
 
@@ -188,11 +189,11 @@ export function FocusSection({ projects, windowMinutes, onListElement }: Props) 
           style={{ left: menu.x, top: menu.y, width: MENU_WIDTH }}
         >
           <DropdownPopover>
-            <DropdownHeader title="Focus" />
+            <DropdownHeader title={t("sidebar.focus.label")} />
             <div className="flex items-center justify-between gap-2 px-3 py-1.5 text-[13px] text-zinc-200">
               <span className="flex items-center gap-2.5">
                 <ChevronDown size={13} className="shrink-0 text-zinc-400" />
-                Threads visible
+                {t("sidebar.threads.visible")}
               </span>
               <div className="flex items-center gap-1">
                 <button
@@ -200,7 +201,7 @@ export function FocusSection({ projects, windowMinutes, onListElement }: Props) 
                   onClick={() => setLimit(limit - 1)}
                   disabled={limit <= 1}
                   className="flex h-5 w-5 items-center justify-center rounded border border-white/10 text-xs text-zinc-300 hover:bg-white/10 disabled:opacity-40"
-                  aria-label="Decrease visible threads"
+                  aria-label={t("sidebar.threads.decreaseVisible")}
                 >
                   −
                 </button>
@@ -212,7 +213,7 @@ export function FocusSection({ projects, windowMinutes, onListElement }: Props) 
                   onClick={() => setLimit(limit + 1)}
                   disabled={limit >= MAX_FOCUS_THREADS_VISIBLE}
                   className="flex h-5 w-5 items-center justify-center rounded border border-white/10 text-xs text-zinc-300 hover:bg-white/10 disabled:opacity-40"
-                  aria-label="Increase visible threads"
+                  aria-label={t("sidebar.threads.increaseVisible")}
                 >
                   +
                 </button>
@@ -232,7 +233,7 @@ export function FocusSection({ projects, windowMinutes, onListElement }: Props) 
               style={{ top: picker.top, left: picker.left, width: PICKER_WIDTH }}
             >
               <DropdownPopover>
-                <DropdownHeader title="New session in" />
+                <DropdownHeader title={t("sidebar.focus.newSessionInHeading")} />
                 {projects.length > 6 && (
                   <input
                     autoFocus
@@ -241,15 +242,15 @@ export function FocusSection({ projects, windowMinutes, onListElement }: Props) 
                     onKeyDown={(e) => {
                       if (e.key === "Enter" && filteredProjects.length > 0) chooseProject(filteredProjects[0]);
                     }}
-                    placeholder="Search projects"
-                    aria-label="Search projects"
+                    placeholder={t("sidebar.projects.search")}
+                    aria-label={t("sidebar.projects.search")}
                     className="mx-1 mb-1 w-[calc(100%-8px)] rounded-md border border-white/[0.08] bg-white/[0.03] px-2 py-1 text-[12px] text-zinc-200 outline-none placeholder:text-zinc-500"
                   />
                 )}
                 <div className="max-h-[320px] overflow-y-auto">
                   {filteredProjects.length === 0 ? (
                     <div className="px-3 py-2 text-[12px] text-zinc-500">
-                      {projects.length === 0 ? "No projects yet. Add one first." : "No matching projects."}
+                      {projects.length === 0 ? t("sidebar.focus.noProjectsToAdd") : t("sidebar.projects.noMatching")}
                     </div>
                   ) : (
                     filteredProjects.map((p) => (

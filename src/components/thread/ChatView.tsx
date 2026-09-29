@@ -13,6 +13,7 @@ import { UserMessageText } from "./UserMessageText";
 import { listThreadTurns } from "../../lib/commands";
 import { registerThreadTimelineScroll, rebindChatTurnIds, findTurnElement, flashTurnHighlight } from "../../lib/threadTimelineScroll";
 import type { ChatBlock, JournalKind } from "../../lib/types";
+import { useT } from "../../i18n";
 
 const ANSI_REGEX = /\x1b\[[0-9;]*[a-zA-Z]/g;
 
@@ -113,12 +114,26 @@ const kindColors: Record<JournalKind, string> = {
   Pin: "text-cyan-400 hover:bg-cyan-500/10",
 };
 
+const JOURNAL_KIND_KEYS: Record<JournalKind, string> = {
+  Decision: "chat.journal.kind.decision",
+  Convention: "chat.journal.kind.convention",
+  CompletedWork: "chat.journal.kind.completedWork",
+  KnownIssue: "chat.journal.kind.knownIssue",
+  Note: "chat.journal.kind.note",
+  Pin: "chat.journal.kind.pin",
+};
+
+function journalKindLabel(kind: JournalKind, t: ReturnType<typeof useT>): string {
+  return t(JOURNAL_KIND_KEYS[kind]);
+}
+
 interface ResponseBlockProps {
   block: ChatBlock;
   threadId: string;
 }
 
 function ResponseBlock({ block, threadId }: ResponseBlockProps) {
+  const t = useT();
   const [showRaw, setShowRaw] = useState(false);
   const [journalDropdownOpen, setJournalDropdownOpen] = useState(false);
   const [journalDialogOpen, setJournalDialogOpen] = useState(false);
@@ -146,7 +161,7 @@ function ResponseBlock({ block, threadId }: ResponseBlockProps) {
             <button
               onClick={() => setShowRaw(!showRaw)}
               className="flex items-center gap-1 rounded-md p-1.5 text-zinc-400 hover:bg-white/10 hover:text-zinc-200 transition-colors"
-              title={showRaw ? "Show formatted" : "Show raw"}
+              title={showRaw ? t("chat.showFormatted") : t("chat.showRaw")}
             >
               {showRaw ? <EyeOff size={13} /> : <Eye size={13} />}
             </button>
@@ -171,11 +186,7 @@ function ResponseBlock({ block, threadId }: ResponseBlockProps) {
                       }}
                       className={`w-full px-3 py-2 text-left text-xs font-medium transition-colors hover:bg-white/5 ${kindColors[kind]}`}
                     >
-                      {kind === "CompletedWork"
-                        ? "Completed Work"
-                        : kind === "KnownIssue"
-                          ? "Known Issue"
-                          : kind}
+                      {journalKindLabel(kind, t)}
                     </button>
                   ))}
                 </div>
@@ -215,6 +226,7 @@ interface Props {
 }
 
 export function ChatView({ threadId, onExit }: Props) {
+  const t = useT();
   const [rawOutput, setRawOutput] = useState("");
   const scrollRef = useRef<HTMLDivElement>(null);
   const following = useRef(true);
@@ -267,14 +279,14 @@ export function ChatView({ threadId, onExit }: Props) {
         {blocks.length === 0 && (
           <div className="flex h-full flex-col items-center justify-center gap-4 opacity-40">
             <Bot size={40} strokeWidth={1.5} className="text-zinc-500" />
-            <p className="text-sm font-medium tracking-wide text-zinc-400 uppercase">Awaiting input...</p>
+            <p className="text-sm font-medium tracking-wide text-zinc-400 uppercase">{t("chat.awaitingInput")}</p>
           </div>
         )}
         {blocks.map((block) =>
           block.type === "user" ? (
             <div key={block.id} data-timeline-user-msg="" data-user-prompt={block.content.replace(/^\s*(?:[>$?]|human>|you>)\s*/i, "")} className="animate-fade-in flex flex-col gap-2 max-w-[90%] ml-auto">
               <div className="flex items-center gap-2 mb-1 justify-end">
-                <span className="text-[10px] font-bold tracking-widest text-zinc-500 uppercase">You</span>
+                <span className="text-[10px] font-bold tracking-widest text-zinc-500 uppercase">{t("chat.speaker.you")}</span>
                 <div className="h-[1px] w-8 bg-zinc-800" />
               </div>
               <div className="codex-bubble-user min-w-0 rounded-[16px_16px_5px_16px] px-[15px] py-[11px] text-[14.5px] leading-[1.55] text-[var(--text-primary)]">
@@ -285,7 +297,7 @@ export function ChatView({ threadId, onExit }: Props) {
             <div key={block.id} className="animate-fade-in max-w-[95%]">
               <div className="flex items-center gap-2 mb-4">
                 <div className="h-[1px] w-8 bg-indigo-500/30" />
-                <span className="text-[10px] font-bold tracking-widest text-indigo-400/80 uppercase">Assistant</span>
+                <span className="text-[10px] font-bold tracking-widest text-indigo-400/80 uppercase">{t("chat.speaker.assistant")}</span>
               </div>
                <ResponseBlock
                 block={block}

@@ -1540,4 +1540,20 @@ describe("SettingsDialog — Final coverage gaps", () => {
       "Always run tests",
     );
   });
+
+  it("selecting Korean saves Korean as the interface language", () => {
+    const initialLanguage = useSettingsStore.getState().settings.uiLanguage;
+    useSettingsStore.getState().openSettings();
+    render(<SettingsDialog />);
+    try {
+      fireEvent.change(screen.getByRole("combobox", { name: "Language" }), {
+        target: { value: "ko" },
+      });
+      expect(useSettingsStore.getState().settings.uiLanguage).toBe("ko");
+      // Switching re-renders in place: still on General, same control, now in Korean.
+      expect(screen.getByRole("combobox", { name: "언어" })).toHaveProperty("value", "ko");
+    } finally {
+      useSettingsStore.getState().updateSettings({ uiLanguage: initialLanguage });
+    }
+  });
 });

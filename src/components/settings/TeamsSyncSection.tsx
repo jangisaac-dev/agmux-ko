@@ -9,9 +9,8 @@
 import { useCallback, useEffect, useState } from "react";
 import { RotateCw, WifiOff } from "lucide-react";
 import {
-  agoLabel,
-  fmtWhen,
   parseTeamsTs,
+  since,
   teamsGetStatus,
   teamsListQueue,
   teamsPreviewPayload,
@@ -22,11 +21,26 @@ import {
 } from "../../lib/teams";
 import { GlassButton } from "../ui/GlassButton";
 import { Banner, EmptyState, Panel, Pill } from "../teams/primitives";
+import { localeTag, useT } from "../../i18n";
 
 const fmtBytes = (n: number): string =>
   n >= 1024 ? `${Math.round(n / 1024)} KB` : `${n} B`;
 
+function relativeTimeLabel(value: string | null, t: ReturnType<typeof useT>): string | null {
+  if (!value) return null;
+  if (value === "now") return t("settings.relativeTime.justNow");
+  const match = /^(\d+)(m|h|d)$/.exec(value);
+  if (!match) return value;
+  const key = match[2] === "m"
+    ? "settings.relativeTime.minutes"
+    : match[2] === "h"
+      ? "settings.relativeTime.hours"
+      : "settings.relativeTime.days";
+  return t(key, { count: Number(match[1]) });
+}
+
 export function TeamsSyncSection() {
+  const t = useT();
   const [status, setStatus] = useState<TeamsSyncStatus | null>(null);
   const [queue, setQueue] = useState<QueuedBatch[]>([]);
   const [preview, setPreview] = useState<HourlyBucket[] | null>(null);
@@ -59,12 +73,12 @@ export function TeamsSyncSection() {
       } else if (outcome.sent > 0) {
         const n = outcome.buckets;
         setNote(
-          `Uploaded ${outcome.sent} ${outcome.sent === 1 ? "batch" : "batches"}` +
-            (n > 0 ? ` · ${n} hourly ${n === 1 ? "bucket" : "buckets"}` : "") +
-            (outcome.duplicates > 0 ? ` · ${outcome.duplicates} already applied` : ""),
+          t("settings.teamsSync.uploaded", { count: outcome.sent }) +
+            (n > 0 ? ` · ${t("settings.teamsSync.hourlyBuckets", { count: n })}` : "") +
+            (outcome.duplicates > 0 ? ` · ${t("settings.teamsSync.alreadyApplied", { count: outcome.duplicates })}` : ""),
         );
       } else {
-        setNote("Up to date — nothing new to upload.");
+        setNote(t("settings.teamsSync.upToDate"));
       }
       await refresh();
     } catch (e) {
@@ -89,8 +103,8 @@ export function TeamsSyncSection() {
         <Panel padded={false}>
           <EmptyState
             icon={WifiOff}
-            title="Not signed in"
-            body="Link this Mac under Settings → Teams to start uploading aggregates."
+            title={t("settings.teamsSync.notSignedIn")}
+            body={t("settings.teamsSync.linkMac")}
           />
         </Panel>
       </div>
@@ -109,17 +123,17 @@ export function TeamsSyncSection() {
     <div className="flex flex-col gap-2.5">
       <SyncHeader />
       <p className="m-0 text-[11.5px] text-[var(--text-muted)]">
-        Teams includes verified agmux-created sessions and reported usage only. Create new Grok and Cline sessions from agmux’s New menu;
-        internal session changes and Gemini terminal may lack creation evidence. Missing provider reports are not counted as zero usage.
+        {t("settings.teamsSync.coverage.explainer.first")} {t("settings.teamsSync.coverage.explainer.second")} {t("settings.teamsSync.coverage.explainer.third")}
       </p>
 
       {coverage && (coverage.unverifiedLegacyRecords > 0 || coverage.awaitingNativeBinding > 0 || coverage.unrevalidatedCodexSnapshots > 0) ? (
         <Banner tone="plain" icon={RotateCw}>
-          <b className="font-medium">Usage coverage is incomplete.</b>{" "}
-          {coverage.unverifiedLegacyRecords > 0 ? `${coverage.unverifiedLegacyRecords} older records have unverified creation origins. ` : ""}
-          {coverage.awaitingNativeBinding > 0 ? `${coverage.awaitingNativeBinding} created threads are awaiting a provider session identity. ` : ""}
-          {coverage.unrevalidatedCodexSnapshots > 0 ? `${coverage.unrevalidatedCodexSnapshots} saved Codex sessions need their original logs to verify usage. ` : ""}
-          Unverified history is kept locally and excluded from confirmed Teams totals. Missing provider reports cannot be reconstructed.
+          <b className="font-medium">{t("settings.teamsSync.coverage.incomplete")}</b>{" "}
+          {coverage.unverifiedLegacyRecords > 0 ? `${t("settings.teamsSync.coverage.legacyRecords", { count: coverage.unverifiedLegacyRecords })} ` : ""}
+          {coverage.awaitingNativeBinding > 0 ? `${t("settings.teamsSync.coverage.awaitingIdentity", { count: coverage.awaitingNativeBinding })} ` : ""}
+          {coverage.unrevalidatedCodexSnapshots > 0 ? `${t("settings.teamsSync.coverage.codexLogs", { count: coverage.unrevalidatedCodexSnapshots })} ` : ""}
+          {t("settings.teamsSync.coverage.localHistory")}{" "}
+          {t("settings.teamsSync.coverage.missingReports")}
         </Banner>
       ) : null}
 
@@ -134,14 +148,14 @@ export function TeamsSyncSection() {
               onClick={() => void syncNow()}
               disabled={busy}
             >
-              Retry now
+              {t("settings.teamsSync.retryNow")}
             </GlassButton>
           }
         >
-          <b className="font-medium">Upload failed.</b>{" "}
+          <b className="font-medium">{t("settings.teamsSync.uploadFailed")}</b>{" "}
           {error ?? status.lastError}
           {status.queuedBatches > 0
-            ? ` ${status.queuedBatches} ${status.queuedBatches === 1 ? "batch is" : "batches are"} queued locally and will send automatically.`
+            ? ` ${t("settings.teamsSync.queuedLocally", { count: status.queuedBatches })}`
             : ""}
         </Banner>
       ) : note ? (
@@ -151,14 +165,14 @@ export function TeamsSyncSection() {
       ) : null}
 
       <Panel
-        title="Status"
+        title={t("settings.teamsSync.status.title")}
         right={
           failing ? (
-            <Pill tone="err">failing</Pill>
+            <Pill tone="err">{t("settings.teamsSync.status.failing")}</Pill>
           ) : stale ? (
-            <Pill tone="warn">stale</Pill>
+            <Pill tone="warn">{t("settings.teamsSync.status.stale")}</Pill>
           ) : (
-            <Pill tone="ok">healthy</Pill>
+            <Pill tone="ok">{t("settings.teamsSync.status.healthy")}</Pill>
           )
         }
       >
@@ -166,40 +180,40 @@ export function TeamsSyncSection() {
           className="grid gap-y-2 text-[12.5px]"
           style={{ gridTemplateColumns: "170px 1fr", columnGap: 14 }}
         >
-          <dt className="text-[var(--text-muted)]">Last successful upload</dt>
+          <dt className="text-[var(--text-muted)]">{t("settings.teamsSync.status.lastSuccessfulUpload")}</dt>
           <dd className="m-0 tabular-nums text-[var(--text-secondary)]">
             {status.lastUploadAt ? (
               <>
-                {fmtWhen(status.lastUploadAt)}{" "}
+                {Number.isFinite(lastMs) ? new Date(lastMs).toLocaleString(localeTag()) : null}{" "}
                 <span className={stale ? "text-[var(--status-amber)]" : "text-[var(--text-muted)]"}>
-                  · {agoLabel(status.lastUploadAt)}
+                  · {relativeTimeLabel(since(status.lastUploadAt), t)}
                 </span>
               </>
             ) : (
-              <span className="text-[var(--text-muted)]">never</span>
+              <span className="text-[var(--text-muted)]">{t("settings.teamsSync.status.never")}</span>
             )}
           </dd>
 
-          <dt className="text-[var(--text-muted)]">Next attempt</dt>
+          <dt className="text-[var(--text-muted)]">{t("settings.teamsSync.status.nextAttempt")}</dt>
           <dd className="m-0 tabular-nums text-[var(--text-secondary)]">
             {status.nextAttemptAt ? (
               <>
                 {(() => {
-                  const t = parseTeamsTs(status.nextAttemptAt);
-                  return Number.isFinite(t)
-                    ? new Date(t).toLocaleTimeString()
+                  const attemptTimeMs = parseTeamsTs(status.nextAttemptAt);
+                  return Number.isFinite(attemptTimeMs)
+                    ? new Date(attemptTimeMs).toLocaleTimeString(localeTag())
                     : status.nextAttemptAt;
                 })()}
                 {status.backoffStep > 0 ? (
-                  <span className="text-[var(--text-muted)]"> · backoff {status.backoffStep}/6</span>
+                  <span className="text-[var(--text-muted)]">{t("settings.teamsSync.status.backoff", { step: status.backoffStep })}</span>
                 ) : null}
               </>
             ) : (
-              "on the next flush"
+              t("settings.teamsSync.status.nextFlush")
             )}
           </dd>
 
-          <dt className="text-[var(--text-muted)]">Queued batches</dt>
+          <dt className="text-[var(--text-muted)]">{t("settings.teamsSync.status.queuedBatches")}</dt>
           <dd className="m-0 tabular-nums text-[var(--text-secondary)]">
             {status.queuedBatches}
             {status.queuedBytes > 0 ? (
@@ -207,24 +221,24 @@ export function TeamsSyncSection() {
             ) : null}
           </dd>
 
-          <dt className="text-[var(--text-muted)]">Teams receiving</dt>
+          <dt className="text-[var(--text-muted)]">{t("settings.teamsSync.status.teamsReceiving")}</dt>
           <dd className="m-0 text-[var(--text-secondary)]">
-            {status.teams.length ? status.teams.map((t) => t.name).join(", ") : "none"}
+            {status.teams.length ? status.teams.map((team) => team.name).join(", ") : t("settings.teamsSync.status.none")}
           </dd>
 
-          <dt className="text-[var(--text-muted)]">Linked account</dt>
+          <dt className="text-[var(--text-muted)]">{t("settings.teamsSync.status.linkedAccount")}</dt>
           <dd className="m-0 text-[var(--text-secondary)]">
             {status.account?.handle ? `@${status.account.handle}` : (status.account?.email ?? "—")}
           </dd>
 
-          <dt className="text-[var(--text-muted)]">Payload</dt>
+          <dt className="text-[var(--text-muted)]">{t("settings.teamsSync.status.payload")}</dt>
           <dd className="m-0 text-[var(--text-secondary)]">
-            counters and labels only —{" "}
+            {t("settings.teamsSync.payload.summary")} {" "}
             <button
               onClick={loadPreview}
               className="text-[var(--status-blue)] underline-offset-2 hover:underline"
             >
-              see exactly what would be sent
+              {t("settings.teamsSync.payload.previewAction")}
             </button>
           </dd>
         </dl>
@@ -236,39 +250,39 @@ export function TeamsSyncSection() {
             onClick={() => void syncNow()}
             disabled={busy}
           >
-            {busy ? "Syncing…" : "Sync now"}
+            {busy ? t("settings.teamsSync.syncing") : t("settings.teamsSync.syncNow")}
           </GlassButton>
         </div>
       </Panel>
 
       {preview ? (
         <Panel
-          title="Payload preview"
-          sub={`${preview.length} hourly ${preview.length === 1 ? "bucket" : "buckets"}`}
+          title={t("settings.teamsSync.payload.previewTitle")}
+          sub={t("settings.teamsSync.hourlyBuckets", { count: preview.length })}
           right={
             <GlassButton size="sm" variant="ghost" onClick={() => setPreview(null)}>
-              Hide
+              {t("settings.teamsSync.hide")}
             </GlassButton>
           }
           padded={false}
         >
           {preview.length === 0 ? (
             <p className="m-0 px-4 py-6 text-center text-[12px] text-[var(--text-muted)]">
-              Nothing to upload right now — no agent activity in the last 48 hours.
+              {t("settings.teamsSync.payload.nothingRecent")}
             </p>
           ) : (
             <div className="max-h-[280px] overflow-auto">
               <table className="w-full border-collapse tabular-nums">
                 <thead className="sticky top-0 bg-[var(--surface-code-panel)]">
                   <tr>
-                    {["Hour (UTC)", "Provider", "Project", "Tokens", "Active", "Sessions"].map((h, i) => (
+                    {["hour", "provider", "project", "tokens", "active", "sessions"].map((column, i) => (
                       <th
-                        key={h}
+                        key={column}
                         className={`border-b border-white/[0.06] px-3 py-[7px] ui-eyebrow ${
                           i < 3 ? "text-left" : "text-right"
                         }`}
                       >
-                        {h}
+                        {t(`settings.teamsSync.columns.${column}`)}
                       </th>
                     ))}
                   </tr>
@@ -288,7 +302,7 @@ export function TeamsSyncSection() {
                       <td className="border-b border-white/[0.035] px-3 text-right text-[11.5px] text-[var(--text-secondary)]">
                         {(
                           b.tokensIn + b.tokensOut + b.tokensCacheRead + b.tokensCacheWrite
-                        ).toLocaleString()}
+                        ).toLocaleString(localeTag())}
                       </td>
                       <td className="border-b border-white/[0.035] px-3 text-right text-[11.5px] text-[var(--text-muted)]">
                         {(b.activeMs / 3_600_000).toFixed(1)}h
@@ -306,7 +320,7 @@ export function TeamsSyncSection() {
       ) : null}
 
       {queue.length > 0 ? (
-        <Panel title="Queued batches" sub="retried automatically with backoff" padded={false}>
+        <Panel title={t("settings.teamsSync.queue.title")} sub={t("settings.teamsSync.queue.subtitle")} padded={false}>
           {queue.map((b) => (
             <div
               key={b.batchId}
@@ -315,11 +329,11 @@ export function TeamsSyncSection() {
               <div className="min-w-0 flex-1">
                 <div className="font-mono text-[11px] text-[var(--text-tertiary)]">{b.batchId.slice(0, 8)}</div>
                 <div className="mt-0.5 text-[11.5px] text-[var(--text-muted)]">
-                  {b.bucketCount} buckets · {fmtBytes(b.byteSize)}
-                  {b.attempts > 0 ? ` · ${b.attempts} attempts` : ""}
+                  {t("settings.teamsSync.queue.buckets", { count: b.bucketCount })} · {fmtBytes(b.byteSize)}
+                  {b.attempts > 0 ? ` · ${t("settings.teamsSync.queue.attempts", { count: b.attempts })}` : ""}
                 </div>
               </div>
-              {b.lastError ? <Pill tone="err">failing</Pill> : <Pill tone="warn">queued</Pill>}
+              {b.lastError ? <Pill tone="err">{t("settings.teamsSync.status.failing")}</Pill> : <Pill tone="warn">{t("settings.teamsSync.status.queued")}</Pill>}
             </div>
           ))}
         </Panel>
@@ -329,14 +343,14 @@ export function TeamsSyncSection() {
 }
 
 function SyncHeader() {
+  const t = useT();
   return (
     <div>
       <h2 className="m-0 text-[16px] font-semibold text-[var(--text-primary)]" style={{ letterSpacing: "-0.02em" }}>
-        Sync
+        {t("settings.teamsSync.title")}
       </h2>
       <p className="mt-1.5 text-[11.5px] leading-relaxed text-[var(--text-muted)]">
-        Aggregated counters upload about every two minutes while agmux is running. Nothing is sent when
-        you&apos;re not on a team.
+        {t("settings.teamsSync.description.first")} {t("settings.teamsSync.description.second")}
       </p>
     </div>
   );

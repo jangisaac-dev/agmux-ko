@@ -1,5 +1,6 @@
 import { useState, useMemo, useCallback } from "react";
 import { Terminal, Copy, Check } from "lucide-react";
+import { useT } from "../../../i18n";
 import type { ToolRendererProps } from "./types";
 
 const PREVIEW_LINES = 5;
@@ -61,6 +62,7 @@ function DiffColorizedOutput({ lines }: { lines: string[] }) {
 }
 
 function CopyButton({ text }: { text: string }) {
+  const t = useT();
   const [copied, setCopied] = useState(false);
 
   const handleCopy = useCallback(() => {
@@ -74,12 +76,12 @@ function CopyButton({ text }: { text: string }) {
     <button
       onClick={handleCopy}
       className="flex items-center gap-1 px-1.5 py-0.5 text-[10px] text-zinc-500 hover:text-zinc-300 transition-colors rounded"
-      title="Copy output"
+      title={t("tools.bash.copyOutput")}
     >
       {copied ? (
         <>
           <Check size={10} className="text-[color:var(--accent)]" />
-          <span className="text-[color:var(--accent)]">Copied</span>
+          <span className="text-[color:var(--accent)]">{t("tools.bash.copied")}</span>
         </>
       ) : (
         <Copy size={10} />
@@ -89,6 +91,7 @@ function CopyButton({ text }: { text: string }) {
 }
 
 export function BashToolRenderer({ input, result, isError, isPending }: ToolRendererProps): React.ReactElement {
+  const t = useT();
   const [expanded, setExpanded] = useState(false);
 
   const command = typeof input.command === "string" ? input.command : "";
@@ -132,7 +135,7 @@ export function BashToolRenderer({ input, result, isError, isPending }: ToolRend
       </div>
 
       {isPending && (
-        <p className="text-[10px] text-zinc-400 italic">Running...</p>
+        <p className="text-[10px] text-zinc-400 italic">{t("tools.bash.running")}</p>
       )}
 
       {result != null && (
@@ -140,10 +143,10 @@ export function BashToolRenderer({ input, result, isError, isPending }: ToolRend
           <div className="flex items-center gap-1.5 border-b border-white/5 bg-white/[0.03] px-3 py-1">
             <span className={`inline-block w-1.5 h-1.5 rounded-full ${isError ? "bg-red-500" : "bg-[var(--accent)]"}`} />
             <span className={`text-[10px] ${isError ? "text-red-400" : "text-zinc-400"}`}>
-              {isError ? "error" : formattedJson ? "json" : showDiff ? "diff" : "output"}
+              {isError ? t("tools.status.error.lowercase") : formattedJson ? "json" : showDiff ? "diff" : t("tools.output.output.lowercase")}
             </span>
             <span className="text-[10px] text-zinc-600">
-              {outputLines.length} line{outputLines.length !== 1 ? "s" : ""}
+              {t("tools.bash.lineCount", { count: outputLines.length })}
             </span>
             <div className="ml-auto">
               <CopyButton text={result} />
@@ -167,8 +170,8 @@ export function BashToolRenderer({ input, result, isError, isPending }: ToolRend
                   className="w-full border-t border-white/5 bg-white/[0.03] px-3 py-1.5 text-left text-[10px] text-blue-400 hover:text-blue-300 transition-colors"
                 >
                   {expanded
-                    ? "Show less"
-                    : `Show all (${formattedJson ? formattedJsonLines.length : outputLines.length} lines)`}
+                    ? t("tools.showLess")
+                    : t("tools.bash.showAllLines", { count: formattedJson ? formattedJsonLines.length : outputLines.length })}
                 </button>
               )}
             </>

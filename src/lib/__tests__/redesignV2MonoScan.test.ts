@@ -319,11 +319,14 @@ describe("redesign v2 — mono/eyebrow source scan (Task 12)", () => {
         "text-tertiary, #a1a1aa", // "Jump to" list row: file name (file identity)
       ],
       "components/thread/McpToolBlock.tsx": [
-        ">Arguments</div>", // raw tool-call arguments <pre> block
-        ">Result</div>", // raw tool-call result <pre> block
-        ">Error</div>", // raw tool-call error <pre> block
+        '>{t("tools.label.arguments")}</div>', // raw tool-call arguments <pre> block
+        '>{t("tools.label.result")}</div>', // raw tool-call result <pre> block
+        '>{t("tools.status.error.title")}</div>', // raw tool-call error <pre> block
       ],
-      "components/thread/OpenCodeSdkSessionView.tsx": ["space-y-0.5 font-mono"], // <ul> of file paths from a patch
+      "components/thread/OpenCodeSdkSessionView.tsx": [
+        "space-y-0.5 font-mono", // <ul> of file paths from a patch
+        "bg-black/30 p-2 font-mono text-[11px]", // JSON approval metadata
+      ],
       "components/thread/ThreadTopBar.tsx": [
         'borderTop: "1px solid var(--glass-border)"', // the font-stack CSS variable declaration itself, not applied content
         "bg-zinc-800 font-mono text-[9px] font-bold", // provider avatar fallback initial
@@ -333,14 +336,20 @@ describe("redesign v2 — mono/eyebrow source scan (Task 12)", () => {
         "fontSize: Math.round(size * 0.6)", // ExtTile: file-extension badge (file identity)
         "file-tree-row group", // tree row: file/folder name (file identity)
         'color: "var(--text-tertiary, #a1a1aa)"', // header: root folder name/path
-        "{changedCount} changed", // header: changed-file count badge (a count, out of "labels only" scope for this file's leftover sweep)
+        't("editor.fileTree.changed", { count: changedCount })', // header: changed-file count badge (a count, out of "labels only" scope for this file's leftover sweep)
         'padding: "7px 10px"', // rename dialog: input editing a filename
         'background: "var(--surface-2)"', // delete-confirmation dialog: the relativePath being deleted
       ],
       "components/settings/TeamsSyncSection.tsx": ["batchId.slice(0, 8)"], // truncated batch id — a short hash-like identifier
+      "components/settings/YourDataSection.tsx": [
+        "font-mono text-[11.5px] text-[var(--text-muted)]", // compact tool-call count kept tabular
+        "truncate font-mono text-[11.5px] text-[var(--text-secondary)]", // project basename/hash identifier
+      ],
       "components/settings/OpenCodeAuthPanel.tsx": [
-        'placeholder="Paste API key"', // API-key text input
-        'placeholder="Callback code"', // OAuth callback-code text input
+        'placeholder={t("providerAuth.pasteApiKey")}', // API-key text input
+        'placeholder={t("providerAuth.oauth.callbackCode")}', // OAuth callback-code text input
+        "providerAuth.notice.connected", // provider ID shown as machine text
+        "providerAuth.notice.notConnected", // provider ID shown as machine text
       ],
     };
 

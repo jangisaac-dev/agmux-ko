@@ -69,6 +69,7 @@ import { isAppForeground, syncPollingToAppForeground } from "../../lib/appVisibi
 import type { GitBranch } from "../../lib/commands";
 import { useSettingsStore } from "../../stores/settingsStore";
 import { useThreadStore } from "../../stores/threadStore";
+import { useT } from "../../i18n";
 import { useSessionNameStore } from "../../stores/sessionNameStore";
 import { PromptDiffView } from "./PromptDiffView";
 import { CLAUDE_MODELS, CLAUDE_EFFORTS, GROK_MODELS, mergeClaudeModelOptions, supportsXHighEffort, supportsGrokEffort, isEffortOptionDisabled, geminiEffortFromSlug, applyGeminiEffort } from "../../lib/types";
@@ -192,6 +193,7 @@ function truncate(str: string, max: number): string {
 export function ClaudeInputBar({ threadId, disabled, currentModel, workDir, active = true, isWorking = false, onStop, messageQueue = [], onQueueMessage, onSteer, onDeleteQueued, contextUsage, onClear, onSend, mode = "pty", sessionStarting = false, permissionMode: permissionModeProp, onSetPermissionMode, addImagesRef, dropPathsRef, onModelChange, onPlanModeChange, initialPlanMode = false, compact = false, provider = "ClaudeCode", sdkSlashCommands, transport }: Props) {
   const isOllama = false;
   const setClaudeProcessing = useUiStore((s) => s.setClaudeProcessing);
+  const t = useT();
   const [value, setValue] = useState("");
   const draftSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   /** Host for auto density — falls back to prop `compact` for IDE chat. */
@@ -896,6 +898,9 @@ export function ClaudeInputBar({ threadId, disabled, currentModel, workDir, acti
   }, [threadId, mode, onStop, setClaudeProcessing, transport]);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
+    // IME composition (Japanese/Chinese): Enter confirms the conversion. macOS
+    // WebKit sends Korean without composition, so isComposing stays false there.
+    if (e.nativeEvent.isComposing) return;
     if (
       handleTextFieldCmdArrowNav(
         e,
@@ -992,17 +997,17 @@ export function ClaudeInputBar({ threadId, disabled, currentModel, workDir, acti
                 <button
                   onClick={() => onSteer(msg.id)}
                   className="flex shrink-0 items-center gap-1 rounded-lg bg-white/10 backdrop-blur-sm px-2.5 py-1 text-xs font-medium text-white/80 hover:bg-white/15 transition-colors"
-                  title="Send this message now"
+                  title={t("composer.queue.sendNowTitle")}
                 >
                   <CornerDownRight size={12} />
-                  Steer
+                  {t("composer.queue.steer")}
                 </button>
               )}
               {onDeleteQueued && (
                 <button
                   onClick={() => onDeleteQueued(msg.id)}
                   className="shrink-0 rounded p-1 text-white/40 hover:bg-white/10 hover:text-white/70 transition-colors"
-                  title="Remove from queue"
+                  title={t("composer.queue.removeTitle")}
                 >
                   <Trash2 size={14} />
                 </button>
@@ -1076,11 +1081,11 @@ export function ClaudeInputBar({ threadId, disabled, currentModel, workDir, acti
             placeholder={
               disabled
                 ? sessionStarting
-                  ? "Starting session…"
-                  : "Session not running..."
+                  ? t("composer.input.startingSession")
+                  : t("composer.input.sessionNotRunning")
                 : isWorking
-                  ? "Type to queue a follow-up..."
-                  : "Ask for follow-up changes"
+                  ? t("composer.input.queueFollowup")
+                  : t("composer.input.askFollowup")
             }
             rows={mode === "sdk" ? 1 : 2}
             className={`composer-input w-full resize-none bg-transparent text-[15px] leading-[1.55] outline-none disabled:opacity-50 ${mode === "sdk" ? "min-h-[26px]" : "min-h-[56px]"} antialiased focus:ring-0 ${
@@ -1149,7 +1154,10 @@ export function ClaudeInputBar({ threadId, disabled, currentModel, workDir, acti
                       provider: inputBarProvider,
                       model: selectedModel,
                     }),
-                ).map((e) => ({ value: e.value, label: e.label }));
+                ).map((e) => ({
+                  value: e.value,
+                  label: t("composer.reasoning.claude.label." + e.value),
+                }));
                 if (effortOptions.length === 0) return null;
                 return (
                   <>
@@ -1198,10 +1206,10 @@ export function ClaudeInputBar({ threadId, disabled, currentModel, workDir, acti
               <button
                 onClick={() => handleTogglePlanMode()}
                 className={`${toolbarCompact ? CBTN_SQ : CBTN} ${planMode ? CBTN_PLAN : ""}`}
-                title={planMode ? "Plan mode" : "Chat mode"}
+                title={planMode ? t("composer.mode.planTitle") : t("composer.mode.chatTitle")}
               >
                 {planMode ? <Map size={15} className="shrink-0" /> : <Bot size={15} className="shrink-0" />}
-                {!toolbarCompact && planMode && <span>Plan</span>}
+                {!toolbarCompact && planMode && <span>{t("composer.mode.plan")}</span>}
               </button>
               </>
               )}
@@ -1223,17 +1231,17 @@ export function ClaudeInputBar({ threadId, disabled, currentModel, workDir, acti
                   title={
                     isCursorThread
                       ? permissionMode === "full"
-                        ? "Full access — Cursor runs tools without sandbox"
+                        ? t("composer.permissions.cursorFullDescription")
                         : permissionMode === "auto"
-                          ? "Auto — Cursor Auto-review classifier"
-                          : "Supervised — sandboxed tool runs"
+                          ? t("composer.permissions.cursorAutoDescription")
+                          : t("composer.permissions.cursorSupervisedDescription")
                       : permissionMode === "full"
-                        ? "Full access — skip approval prompts"
+                        ? t("composer.permissions.fullAccessDescription")
                         : permissionMode === "auto"
                           ? isGeminiThread
-                            ? "Auto-accept edits — file changes go through; commands still ask"
-                            : "Auto — classifier-supervised autonomous execution"
-                          : "Supervised — approve each tool call"
+                            ? t("composer.permissions.autoAcceptDescription")
+                            : t("composer.permissions.autonomousDescription")
+                          : t("composer.permissions.supervisedDescription")
                   }
                 >
                   {permissionMode === "full" ? (
@@ -1246,12 +1254,12 @@ export function ClaudeInputBar({ threadId, disabled, currentModel, workDir, acti
                   {!toolbarCompact && (
                     <span>
                       {permissionMode === "full"
-                        ? "Full access"
+                        ? t("composer.permissions.fullAccess")
                         : permissionMode === "auto"
                           ? isGeminiThread
-                            ? "Auto-accept edits"
-                            : "Auto"
-                          : "Supervised"}
+                            ? t("composer.permissions.autoAcceptEdits")
+                            : t("composer.permissions.auto")
+                          : t("composer.permissions.supervised")}
                     </span>
                   )}
                   {!toolbarCompact && <ChevronDown size={10} className="ml-0.5 opacity-50" />}
@@ -1260,36 +1268,36 @@ export function ClaudeInputBar({ threadId, disabled, currentModel, workDir, acti
                 {showPermMenu && (
                   <div className="absolute bottom-full left-0 z-30 mb-2" style={{ width: 280 }}>
                     <DropdownPopover>
-                      <DropdownHeader title="Mode" kbd="⌘⌥1-3" />
+                      <DropdownHeader title={t("composer.mode.header")} kbd="⌘⌥1-3" />
                       {([
                         {
                           key: "default" as const,
-                          title: "Supervised",
+                          title: t("composer.permissions.supervised"),
                           sub: isCursorThread
-                            ? "Sandbox tool runs (Cursor local policy)"
-                            : "Approve every tool call",
+                            ? t("composer.permissions.cursorPolicy")
+                            : t("composer.permissions.approveEvery"),
                           kbd: "⌘1",
                           Icon: Lock,
                           sdk: "default" as const,
                         },
                         {
                           key: "auto" as const,
-                          title: isGeminiThread ? "Auto-accept edits" : "Auto",
+                          title: isGeminiThread ? t("composer.permissions.autoAcceptEdits") : t("composer.permissions.auto"),
                           sub: isCursorThread
-                            ? "Cursor Auto-review classifier"
+                            ? t("composer.permissions.cursorClassifier")
                             : isGeminiThread
-                              ? "File changes go through; commands still ask"
-                              : "Classifier-supervised autonomy",
+                              ? t("composer.permissions.fileChangesGoThrough")
+                              : t("composer.permissions.classifierAutonomy"),
                           kbd: "⌘2",
                           Icon: Zap,
                           sdk: "auto" as const,
                         },
                         {
                           key: "full" as const,
-                          title: "Full access",
+                          title: t("composer.permissions.fullAccess"),
                           sub: isCursorThread
-                            ? "No sandbox — full local tools"
-                            : "Skip all approval prompts",
+                            ? t("composer.permissions.noSandboxFullTools")
+                            : t("composer.permissions.skipAllApprovals"),
                           kbd: "⌘3",
                           Icon: LockOpen,
                           sdk: "bypassPermissions" as const,
@@ -1342,7 +1350,7 @@ export function ClaudeInputBar({ threadId, disabled, currentModel, workDir, acti
                 onClick={handleOptimize}
                 disabled={disabled || !value.trim() || optimizing}
                 className={`${CBTN_SQ} composer-action-amber disabled:opacity-30`}
-                title="Optimize prompt"
+                title={t("composer.optimize.title")}
               >
                 {optimizing ? <Loader2 size={15} className="animate-spin" /> : <WandSparkles size={15} />}
               </button>
@@ -1352,7 +1360,7 @@ export function ClaudeInputBar({ threadId, disabled, currentModel, workDir, acti
                 <button
                   onClick={handleStop}
                   className={STOP_BTN}
-                  title="Stop (Esc)"
+                  title={t("composer.stop.title")}
                 >
                   <Square size={15} fill="currentColor" />
                 </button>
@@ -1361,7 +1369,7 @@ export function ClaudeInputBar({ threadId, disabled, currentModel, workDir, acti
                   onClick={handleSend}
                   disabled={disabled || !value.trim() || showDiff}
                   className={value.trim() && !disabled && !showDiff ? SEND_BTN_ACTIVE : SEND_BTN_IDLE}
-                  title={isWorking ? "Queue message" : "Send message"}
+                  title={isWorking ? t("composer.send.queueTitle") : t("composer.send.messageTitle")}
                 >
                   <ArrowUp size={16} />
                 </button>
@@ -1375,7 +1383,7 @@ export function ClaudeInputBar({ threadId, disabled, currentModel, workDir, acti
                   onClick={() => setShowPlusMenu(!showPlusMenu)}
                   disabled={disabled || showDiff}
                   className="shrink-0 rounded-lg p-2 text-white/50 transition-colors hover:bg-white/5 hover:text-white disabled:opacity-40 disabled:pointer-events-none"
-                  title="Options"
+                  title={t("composer.options")}
                 >
                   <Plus size={18} />
                 </button>
@@ -1400,7 +1408,7 @@ export function ClaudeInputBar({ threadId, disabled, currentModel, workDir, acti
                       }}
                     >
                       <Plus size={12} />
-                      Attach files
+                      {t("composer.fileAttachment.attachFiles")}
                     </FileAttachmentButton>
                     <button
                       onClick={() => handleTogglePlanMode()}
@@ -1408,7 +1416,7 @@ export function ClaudeInputBar({ threadId, disabled, currentModel, workDir, acti
                       className="flex w-full items-center gap-2 px-3 py-1.5 text-left text-xs text-zinc-400 hover:bg-white/5 transition-colors disabled:opacity-40"
                     >
                       <Map size={12} className={planMode ? "text-purple-400" : ""} />
-                      <span className="flex-1">Plan mode</span>
+                      <span className="flex-1">{t("composer.mode.planTitle")}</span>
                       <div className={`relative h-4 w-7 rounded-full transition-colors ${planMode ? "bg-purple-500" : "bg-zinc-700"}`}>
                         <div className={`absolute top-0.5 h-3 w-3 rounded-full bg-white transition-transform ${planMode ? "translate-x-3.5" : "translate-x-0.5"}`} />
                       </div>
@@ -1467,7 +1475,7 @@ export function ClaudeInputBar({ threadId, disabled, currentModel, workDir, acti
                 onClick={handleOptimize}
                 disabled={disabled || !value.trim() || optimizing}
                 className="shrink-0 rounded-md p-1.5 text-amber-400/80 transition-colors hover:bg-white/[0.06] hover:text-amber-400 disabled:opacity-30"
-                title="Optimize prompt"
+                title={t("composer.optimize.title")}
               >
                 {optimizing ? <Loader2 size={14} className="animate-spin" /> : <Sparkles size={14} />}
               </button>
@@ -1477,7 +1485,7 @@ export function ClaudeInputBar({ threadId, disabled, currentModel, workDir, acti
                 <button
                   onClick={handleStop}
                   className="ml-0.5 inline-flex h-[30px] w-[30px] shrink-0 items-center justify-center rounded-full bg-red-500/20 text-red-400 shadow-[0_4px_16px_-4px_rgba(248,113,113,0.4)] transition-colors hover:bg-red-500/30"
-                  title="Stop (Esc)"
+                  title={t("composer.stop.title")}
                 >
                   <Square size={14} fill="currentColor" />
                 </button>
@@ -1490,7 +1498,7 @@ export function ClaudeInputBar({ threadId, disabled, currentModel, workDir, acti
                       ? "bg-[var(--accent)] text-[var(--accent-foreground)] shadow-[0_4px_16px_-4px_color-mix(in_srgb,var(--accent)_50%,transparent)] hover:bg-[color-mix(in_srgb,var(--accent)_65%,white)]"
                       : "bg-white/[0.07] text-white/40"
                   }`}
-                  title={isWorking ? "Queue message" : "Send message"}
+                  title={isWorking ? t("composer.send.queueTitle") : t("composer.send.messageTitle")}
                 >
                   <Send size={14} />
                 </button>
@@ -1508,10 +1516,10 @@ export function ClaudeInputBar({ threadId, disabled, currentModel, workDir, acti
             <button
               onClick={() => setShowWorkModeMenu(!showWorkModeMenu)}
               className={CBTN}
-              title="Workspace mode"
+              title={t("composer.mode.workspaceTitle")}
             >
               {workMode === "worktree" ? <GitBranchIcon size={15} className="shrink-0" /> : <FolderIcon size={15} className="shrink-0" />}
-              <span>{workMode === "worktree" ? "Worktree" : "Local"}</span>
+              <span>{workMode === "worktree" ? t("composer.mode.worktree") : t("composer.mode.local")}</span>
               <ChevronDown size={12} className="-ml-0.5 shrink-0 opacity-45" />
             </button>
             <AnimatePresence>
@@ -1529,7 +1537,7 @@ export function ClaudeInputBar({ threadId, disabled, currentModel, workDir, acti
                     workMode === "local" ? "text-white bg-white/[0.06]" : "text-zinc-300 hover:bg-white/[0.05] hover:text-white"
                   }`}
                 >
-                  <FolderIcon size={14} /> Local
+                  <FolderIcon size={14} /> {t("composer.mode.local")}
                 </button>
                 <button
                   onClick={() => { setWorkMode("worktree"); setShowWorkModeMenu(false); }}
@@ -1537,7 +1545,7 @@ export function ClaudeInputBar({ threadId, disabled, currentModel, workDir, acti
                     workMode === "worktree" ? "text-white bg-white/[0.06]" : "text-zinc-300 hover:bg-white/[0.05] hover:text-white"
                   }`}
                 >
-                  <GitBranchIcon size={12} /> New worktree
+                  <GitBranchIcon size={12} /> {t("composer.mode.newWorktree")}
                 </button>
               </motion.div>
             )}
@@ -1551,7 +1559,7 @@ export function ClaudeInputBar({ threadId, disabled, currentModel, workDir, acti
               <button
                 onClick={handleBranchMenuOpen}
                 className={CBTN}
-                title="Switch branch"
+                title={t("composer.branch.switch")}
               >
                 <GitBranchIcon size={15} className="shrink-0" />
                 <span>{truncate(currentBranch, 20)}</span>
@@ -1568,7 +1576,7 @@ export function ClaudeInputBar({ threadId, disabled, currentModel, workDir, acti
                   {branchLoading && (
                     <div className="flex items-center gap-2 px-3 py-2 text-xs text-zinc-400">
                       <Loader2 size={12} className="animate-spin" />
-                      Loading branches…
+                      {t("composer.branch.loading")}
                     </div>
                   )}
                   {!branchLoading && (
@@ -1576,7 +1584,7 @@ export function ClaudeInputBar({ threadId, disabled, currentModel, workDir, acti
                       {localBranches.length > 0 && (
                         <>
                           <div className="px-3 py-1 text-[10px] font-medium uppercase tracking-wider text-zinc-500">
-                            Local
+                            {t("composer.branch.local")}
                           </div>
                           {localBranches.map((b) => (
                             <button
@@ -1597,7 +1605,7 @@ export function ClaudeInputBar({ threadId, disabled, currentModel, workDir, acti
                       {remoteBranches.length > 0 && (
                         <>
                           <div className="mt-1 border-t border-white/5 px-3 py-1 text-[10px] font-medium uppercase tracking-wider text-zinc-500">
-                            Remote
+                            {t("composer.branch.remote")}
                           </div>
                           {remoteBranches.map((b) => (
                             <button
@@ -1624,7 +1632,7 @@ export function ClaudeInputBar({ threadId, disabled, currentModel, workDir, acti
                               if (e.key === "Enter") handleCreateBranch();
                               if (e.key === "Escape") { setShowNewBranch(false); setNewBranchName(""); }
                             }}
-                            placeholder="branch-name"
+                            placeholder={t("composer.branch.namePlaceholder")}
                             className="flex-1 rounded bg-white/5 px-2 py-1 text-xs text-zinc-200 placeholder-zinc-600 outline-none focus:ring-1 focus:ring-indigo-500/40"
                           />
                           <button
@@ -1640,7 +1648,7 @@ export function ClaudeInputBar({ threadId, disabled, currentModel, workDir, acti
                           className="flex w-full items-center gap-2 px-3 py-1.5 text-left text-xs text-zinc-300 hover:bg-white/[0.05] hover:text-white transition-colors"
                         >
                           <Plus size={12} />
-                          New branch…
+                          {t("composer.branch.new")}
                         </button>
                       )}
                     </>
@@ -1659,17 +1667,17 @@ export function ClaudeInputBar({ threadId, disabled, currentModel, workDir, acti
           <button
             onClick={() => setShowPermMenu(!showPermMenu)}
             className={`${CBTN} ${permissionMode === "full" ? CBTN_PERM_FULL : ""}`}
-            title={permissionMode === "full" ? "Full permissions — skip approval prompts" : "Default permissions"}
+            title={permissionMode === "full" ? t("composer.permissions.fullWithSkipTitle") : t("composer.permissions.defaultTitle")}
           >
             {permissionMode === "full" ? <ShieldOff size={15} className="shrink-0" /> : <Shield size={15} className="shrink-0" />}
-            <span>{permissionMode === "full" ? "Full Perms" : "Default"}</span>
+            <span>{permissionMode === "full" ? t("composer.permissions.fullShort") : t("composer.permissions.default")}</span>
             <ChevronDown size={12} className="-ml-0.5 shrink-0 opacity-45" />
           </button>
           <AnimatePresence>
           {showPermMenu && (
             <div className="absolute bottom-full left-0 z-30 mb-2" style={{ width: 240 }}>
               <DropdownPopover>
-                <DropdownHeader title="Permissions" />
+                <DropdownHeader title={t("composer.permissions.header")} />
                 <DropdownRow
                   selected={permissionMode === "default"}
                   onClick={() => { setPermissionMode("default"); setShowPermMenu(false); }}
@@ -1678,8 +1686,8 @@ export function ClaudeInputBar({ threadId, disabled, currentModel, workDir, acti
                       <Shield size={14} />
                     </span>
                   }
-                  title="Default"
-                  meta="Approve each tool call"
+                  title={t("composer.permissions.default")}
+                  meta={t("composer.permissions.approveEach")}
                 />
                 <DropdownRow
                   selected={permissionMode === "full"}
@@ -1689,8 +1697,8 @@ export function ClaudeInputBar({ threadId, disabled, currentModel, workDir, acti
                       <ShieldOff size={14} />
                     </span>
                   }
-                  title="Full permissions"
-                  meta="Skip approval prompts"
+                  title={t("composer.permissions.full")}
+                  meta={t("composer.permissions.skipApprovals")}
                 />
               </DropdownPopover>
             </div>
@@ -1706,7 +1714,10 @@ export function ClaudeInputBar({ threadId, disabled, currentModel, workDir, acti
                 provider: inputBarProvider,
                 model: selectedModel,
               }),
-          ).map((e) => ({ value: e.value, label: e.label }));
+          ).map((e) => ({
+            value: e.value,
+            label: t("composer.reasoning.claude.label." + e.value),
+          }));
           if (effortOptions.length === 0) return null;
           return (
             <EffortSelector
@@ -1730,7 +1741,7 @@ export function ClaudeInputBar({ threadId, disabled, currentModel, workDir, acti
             <button
               onClick={handleBranchMenuOpen}
               className={CBTN}
-              title="Switch branch"
+              title={t("composer.branch.switch")}
             >
               <GitBranchIcon size={15} className="shrink-0" />
               <span>{truncate(currentBranch, 20)}</span>
@@ -1747,7 +1758,7 @@ export function ClaudeInputBar({ threadId, disabled, currentModel, workDir, acti
                 {branchLoading && (
                   <div className="flex items-center gap-2 px-3 py-2 text-xs text-zinc-400">
                     <Loader2 size={12} className="animate-spin" />
-                    Loading branches…
+                    {t("composer.branch.loading")}
                   </div>
                 )}
                 {!branchLoading && (
@@ -1755,7 +1766,7 @@ export function ClaudeInputBar({ threadId, disabled, currentModel, workDir, acti
                     {localBranches.length > 0 && (
                       <>
                         <div className="px-3 py-1 text-[10px] font-medium uppercase tracking-wider text-zinc-500">
-                          Local
+                          {t("composer.branch.local")}
                         </div>
                         {localBranches.map((b) => (
                           <button
@@ -1776,7 +1787,7 @@ export function ClaudeInputBar({ threadId, disabled, currentModel, workDir, acti
                     {remoteBranches.length > 0 && (
                       <>
                         <div className="mt-1 border-t border-white/5 px-3 py-1 text-[10px] font-medium uppercase tracking-wider text-zinc-500">
-                          Remote
+                          {t("composer.branch.remote")}
                         </div>
                         {remoteBranches.map((b) => (
                           <button
@@ -1803,7 +1814,7 @@ export function ClaudeInputBar({ threadId, disabled, currentModel, workDir, acti
                             if (e.key === "Enter") handleCreateBranch();
                             if (e.key === "Escape") { setShowNewBranch(false); setNewBranchName(""); }
                           }}
-                          placeholder="branch-name"
+                          placeholder={t("composer.branch.namePlaceholder")}
                           className="flex-1 rounded bg-white/5 px-2 py-1 text-xs text-zinc-200 placeholder-zinc-600 outline-none focus:ring-1 focus:ring-indigo-500/40"
                         />
                         <button
@@ -1819,7 +1830,7 @@ export function ClaudeInputBar({ threadId, disabled, currentModel, workDir, acti
                         className="flex w-full items-center gap-2 px-3 py-1.5 text-left text-xs text-zinc-400 hover:bg-white/5 hover:text-zinc-300 transition-colors"
                       >
                         <Plus size={12} />
-                        New branch…
+                        {t("composer.branch.new")}
                       </button>
                     )}
                   </>

@@ -3,6 +3,7 @@ import { ChevronRight, Plus, TerminalSquare, X } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import type { Project } from "../../lib/types";
 import type { TerminalSession } from "../../stores/terminalStore";
+import { useT } from "../../i18n";
 
 interface Props {
   project: Project;
@@ -21,6 +22,7 @@ export function TerminalProjectGroup({
   onSelectSession,
   onCloseSession,
 }: Props) {
+  const t = useT();
   const [expanded, setExpanded] = useState(true);
 
   return (
@@ -47,7 +49,7 @@ export function TerminalProjectGroup({
             setExpanded(true);
           }}
           className="rounded-md p-1 text-zinc-500 hover:bg-white/5 hover:text-zinc-300 transition-all opacity-0 group-hover:opacity-100"
-          title="New Terminal"
+          title={t("sidebar.terminal.new")}
         >
           <Plus size={13} />
         </button>
@@ -65,7 +67,7 @@ export function TerminalProjectGroup({
             <div className="ml-3.5 space-y-0.5 pb-2 pr-3">
               {sessions.length === 0 && (
                 <p className="px-3 py-1 text-xs text-zinc-500">
-                  No terminals
+                  {t("sidebar.terminal.none")}
                 </p>
               )}
               {sessions.map((session) => {
@@ -97,7 +99,7 @@ export function TerminalProjectGroup({
                             ? "bg-green-500"
                             : "bg-zinc-600",
                         ].join(" ")}
-                        title={session.status}
+                        title={t(session.status === "running" ? "sidebar.status.running" : session.status === "saved" ? "sidebar.status.saved" : "sidebar.status.exited")}
                       />
                       <span
                         role="button"

@@ -3,16 +3,20 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Download, Zap, WifiOff, Gauge, HardDrive, CheckCircle2, XCircle } from "lucide-react";
 import { useLocalModelStore } from "../../stores/localModelStore";
 import { useSettingsStore } from "../../stores/settingsStore";
+import { localeTag, useT } from "../../i18n";
 
 function formatBytes(bytes: number): string {
-  if (bytes >= 1_000_000_000) return `${(bytes / 1_000_000_000).toFixed(1)} GB`;
-  if (bytes >= 1_000_000) return `${(bytes / 1_000_000).toFixed(0)} MB`;
-  if (bytes >= 1_000) return `${(bytes / 1_000).toFixed(0)} KB`;
-  return `${bytes} B`;
+  const format = (value: number, maximumFractionDigits = 0) =>
+    value.toLocaleString(localeTag(), { useGrouping: false, maximumFractionDigits });
+  if (bytes >= 1_000_000_000) return `${format(bytes / 1_000_000_000, 1)} GB`;
+  if (bytes >= 1_000_000) return `${format(bytes / 1_000_000)} MB`;
+  if (bytes >= 1_000) return `${format(bytes / 1_000)} KB`;
+  return `${format(bytes)} B`;
 }
 
 /** Optional local-model setup, deferred while the main setup wizard is open. */
 export function LocalModelSetupDialog() {
+  const t = useT();
   const status = useLocalModelStore((s) => s.status);
   const downloading = useLocalModelStore((s) => s.downloading);
   const downloadProgress = useLocalModelStore((s) => s.downloadProgress);
@@ -71,21 +75,19 @@ export function LocalModelSetupDialog() {
             </div>
 
             <h2 id="local-model-setup-title" className="mb-2 text-lg font-semibold text-zinc-100">
-              Download Local AI Model
+              {t("localModel.setup.title")}
             </h2>
             <p className="mb-5 text-sm text-zinc-400 leading-relaxed">
-              An optional on-device AI model (~1.1 GB) enables automatic thread naming
-              and command autocomplete. This is a one-time download — no API keys
-              needed after setup.
+              {t("localModel.setup.description")}
             </p>
 
             <div className="mb-6 space-y-2.5">
               {[
-                { icon: <Zap size={14} className="text-amber-400" />, label: "Faster responses" },
-                { icon: <WifiOff size={14} className="text-[color:var(--accent)]" />, label: "Works offline" },
-                { icon: <Gauge size={14} className="text-blue-400" />, label: "No rate limits" },
-              ].map(({ icon, label }) => (
-                <div key={label} className="flex items-center gap-2.5 text-sm text-zinc-300 fx-graphite">
+                { id: "responses", icon: <Zap size={14} className="text-amber-400" />, label: t("localModel.setup.benefit.responses") },
+                { id: "offline", icon: <WifiOff size={14} className="text-[color:var(--accent)]" />, label: t("localModel.setup.benefit.offline") },
+                { id: "limits", icon: <Gauge size={14} className="text-blue-400" />, label: t("localModel.setup.benefit.limits") },
+              ].map(({ id, icon, label }) => (
+                <div key={id} className="flex items-center gap-2.5 text-sm text-zinc-300 fx-graphite">
                   {icon}
                   {label}
                 </div>
@@ -97,13 +99,13 @@ export function LocalModelSetupDialog() {
                 <div className="mb-1.5 flex items-center justify-between text-xs text-zinc-400">
                   <span className="capitalize">
                     {downloadProgress?.stage === "server"
-                      ? "Downloading server..."
+                      ? t("localModel.setup.progress.downloadingServer")
                       : downloading
-                        ? "Downloading model..."
-                        : "Starting download..."}
+                        ? t("localModel.setup.progress.downloadingModel")
+                        : t("localModel.setup.progress.starting")}
                   </span>
                   {progressPercent !== null && (
-                    <span className="tabular-nums">{progressPercent}%</span>
+                    <span className="tabular-nums">{progressPercent.toLocaleString(localeTag())}%</span>
                   )}
                   {downloadProgress && downloadProgress.total_bytes && (
                     <span className="tabular-nums text-zinc-500">
@@ -130,12 +132,12 @@ export function LocalModelSetupDialog() {
             {downloadComplete && (
               <div className="mb-5 flex items-center gap-2 text-sm text-[color:var(--accent)]">
                 <CheckCircle2 size={15} />
-                Download complete!
+                {t("localModel.setup.status.complete")}
               </div>
             )}
 
-            {!downloading && !downloadError && <button type="button" onClick={handleRetry} className="rounded-lg bg-blue-600 px-4 py-2 text-sm text-white fx-accent">Download model</button>}
-            <button type="button" onClick={dismiss} className="ml-3 rounded-lg px-4 py-2 text-sm text-zinc-300 fx-quiet">{downloading ? "Continue in background" : "Maybe later"}</button>
+            {!downloading && !downloadError && <button type="button" onClick={handleRetry} className="rounded-lg bg-blue-600 px-4 py-2 text-sm text-white fx-accent">{t("localModel.setup.action.download")}</button>}
+            <button type="button" onClick={dismiss} className="ml-3 rounded-lg px-4 py-2 text-sm text-zinc-300 fx-quiet">{downloading ? t("localModel.setup.action.continueBackground") : t("localModel.setup.action.later")}</button>
 
             {downloadError && !downloading && (
               <>
@@ -149,7 +151,7 @@ export function LocalModelSetupDialog() {
                   className="flex w-full items-center justify-center gap-2 rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-blue-500 transition-colors fx-accent"
                 >
                   <Download size={15} />
-                  Retry Download
+                  {t("localModel.setup.action.retry")}
                 </button>
               </>
             )}

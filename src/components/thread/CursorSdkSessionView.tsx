@@ -13,6 +13,7 @@ import { useThreadStore } from "../../stores/threadStore";
 import { useUiStore } from "../../stores/uiStore";
 import type { ClaudeChatItem } from "../../lib/types";
 import { restoreLogsToItems } from "./restoreLogsToItems";
+import { tx, useT } from "../../i18n";
 
 /** Old Cursor chats stored 0/0 because we didn't record diffs. Fill once from history. */
 function backfillCursorDiffStats(threadId: string, items: ClaudeChatItem[]): void {
@@ -122,6 +123,7 @@ function parseCursorPermissionUi(
 }
 
 export function CursorSdkSessionView({ sessionId, cwd, model, isNew, compact, hideTopBar }: Props) {
+  const t = useT();
   const handoffRef = useRef(readDraftHandoff(sessionId));
   const handoff = handoffRef.current;
 
@@ -204,16 +206,18 @@ export function CursorSdkSessionView({ sessionId, cwd, model, isNew, compact, hi
       /not signed in|CURSOR_API_KEY|unauthenticated|api key/i.test(error);
     return (
       <div className="flex h-full flex-col items-center justify-center gap-3 p-6 text-center text-zinc-400">
-        <div className="text-sm font-medium text-red-400">Cursor failed to start</div>
+        <div className="text-sm font-medium text-red-400">{t("session.cursor.startFailed")}</div>
         <div className="max-w-md text-xs">{error}</div>
         <div className="mt-2 max-w-sm text-xs text-zinc-500">
           {needsLogin ? (
             <>
-              Open <span className="text-zinc-300">Settings → Accounts</span> and click{" "}
-              <span className="text-zinc-300">Sign in with Cursor</span>, then reopen this chat.
+              {tx("session.cursor.loginHelp", {
+                settings: <span className="text-zinc-300">{t("session.cursor.settingsAccounts")}</span>,
+                signIn: <span className="text-zinc-300">{t("session.cursor.signInWithCursor")}</span>,
+              })}
             </>
           ) : (
-            "Check Settings → Accounts for Cursor sign-in, then try again."
+            t("session.cursor.loginRetry")
           )}
         </div>
       </div>

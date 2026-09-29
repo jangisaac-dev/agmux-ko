@@ -3,6 +3,7 @@ import { X, ArrowUp, Loader2, ChevronDown } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { askAi } from "../../lib/commands";
 import { handleTextFieldCmdArrowNav } from "../../lib/textFieldNav";
+import { useT } from "../../i18n";
 
 interface Props {
   open: boolean;
@@ -43,6 +44,7 @@ export default function TerminalCmdK({
   workDir,
   onInsertCommand,
 }: Props) {
+  const t = useT();
   const [query, setQuery] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -109,7 +111,7 @@ export default function TerminalCmdK({
         setLoading(false);
         onInsertCommand(cleaned);
       } else {
-        showError("No command generated");
+        showError(t("terminal.noCommandGenerated"));
         setLoading(false);
       }
     } catch (err) {
@@ -117,7 +119,7 @@ export default function TerminalCmdK({
       showError(String(err));
       setLoading(false);
     }
-  }, [query, loading, provider, terminalContext, workDir, onInsertCommand, showError]);
+  }, [query, loading, provider, terminalContext, workDir, onInsertCommand, showError, t]);
 
   const handleClose = useCallback(() => {
     abortRef.current = true;
@@ -182,7 +184,7 @@ export default function TerminalCmdK({
                 value={query}
                 onChange={handleInput}
                 onKeyDown={handleKeyDown}
-                placeholder="Command instructions"
+                placeholder={t("terminal.commandInstructions")}
                 disabled={loading}
                 rows={1}
                 className="flex-1 resize-none bg-transparent text-[13px] text-zinc-100 placeholder-zinc-500 outline-none disabled:opacity-50"
@@ -191,7 +193,7 @@ export default function TerminalCmdK({
               <button
                 onClick={handleClose}
                 className="mt-0.5 shrink-0 rounded p-0.5 text-zinc-500 transition-colors hover:bg-white/[0.06] hover:text-zinc-300"
-                aria-label="Close"
+                aria-label={t("terminal.close")}
               >
                 <X size={14} />
               </button>
@@ -242,7 +244,7 @@ export default function TerminalCmdK({
                 onClick={handleSubmit}
                 disabled={!query.trim() || loading}
                 className="flex h-6 w-6 items-center justify-center rounded-full bg-blue-600 text-white transition-colors hover:bg-blue-500 disabled:opacity-30 disabled:hover:bg-blue-600"
-                aria-label={loading ? "Generating" : "Submit"}
+                aria-label={loading ? t("terminal.generating") : t("terminal.submit")}
               >
                 {loading ? (
                   <Loader2 size={13} className="animate-spin" />

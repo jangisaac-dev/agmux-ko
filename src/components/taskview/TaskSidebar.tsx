@@ -17,6 +17,7 @@ import {
   type EffectiveState,
 } from "./taskStateMeta";
 import type { Task, Project } from "../../lib/types";
+import { useT } from "../../i18n";
 
 const COLLAPSED_KEY = "agmux-task-sidebar-collapsed-projects";
 
@@ -53,6 +54,7 @@ interface ProjectBucket {
 }
 
 export function TaskSidebar() {
+  const t = useT();
   const tasksByProject = useTaskViewStore((s) => s.tasks);
   const gitStateMap = useTaskViewStore((s) => s.gitState);
   const allThreads = useThreadStore((s) => s.threads);
@@ -214,7 +216,7 @@ export function TaskSidebar() {
           type="button"
           onClick={() => useUiStore.getState().setAppMode("agent")}
           className="rounded-md p-1.5 text-zinc-500 hover:bg-white/5 hover:text-zinc-300 transition-all duration-200 pointer-events-auto"
-          title="Back to Agent mode (⌘⇧T)"
+          title={t("task.sidebar.backToAgentMode")}
         >
           <ArrowLeft size={14} />
         </button>
@@ -226,7 +228,7 @@ export function TaskSidebar() {
       >
         <div className="flex items-center justify-between">
           <span className="text-[13px] font-medium text-zinc-200 truncate">
-            Tasks
+            {t("task.sidebar.tasks")}
           </span>
           <span className="text-[11px] text-zinc-600 ml-2 flex-shrink-0">
             {totalTasks}
@@ -269,7 +271,7 @@ export function TaskSidebar() {
           }}
         >
           <Plus size={13} />
-          New Task
+          {t("task.sidebar.newTask")}
           <span
             className="ui-kbd"
             style={{
@@ -330,7 +332,7 @@ export function TaskSidebar() {
                     fontSize: 12,
                   }}
                 >
-                  {m.label}
+                  {t(m.labelKey)}
                 </span>
               </div>
             );
@@ -342,10 +344,10 @@ export function TaskSidebar() {
         {projects.length === 0 ? (
           <div className="flex flex-col items-center justify-center px-3 py-10 text-center">
             <p className="text-[13px] font-medium text-zinc-400">
-              No projects yet
+              {t("task.sidebar.noProjectsYet")}
             </p>
             <p className="mt-1 text-[11px] text-zinc-600">
-              Add a project in Agent mode first
+              {t("task.sidebar.addProjectInAgentMode")}
             </p>
           </div>
         ) : (
@@ -376,10 +378,10 @@ export function TaskSidebar() {
               <Plus size={16} className="text-zinc-500" />
             </div>
             <p className="text-[13px] font-medium text-zinc-400">
-              No tasks yet
+              {t("task.sidebar.noTasksYet")}
             </p>
             <p className="mt-1 text-[11px] text-zinc-600">
-              Create one to get started
+              {t("task.sidebar.createOneToGetStarted")}
             </p>
           </div>
         )}
@@ -396,9 +398,9 @@ export function TaskSidebar() {
       <div className="flex shrink-0 items-center justify-between border-t border-white/[0.06] px-3 py-2">
         <button type="button" className="flex items-center gap-2 rounded-md px-2 py-1.5 text-xs text-zinc-400 hover:bg-white/5 hover:text-zinc-200"
           onClick={() => useSettingsStore.getState().openSettings("remote")}>
-          <Smartphone size={14} /> Remote Control
+          <Smartphone size={14} /> {t("task.sidebar.remoteControl")}
         </button>
-        <button type="button" title="Settings" aria-label="Settings" className="rounded-md p-1.5 text-zinc-400 hover:bg-white/5 hover:text-zinc-200"
+        <button type="button" title={t("task.sidebar.settings")} aria-label={t("task.sidebar.settings")} className="rounded-md p-1.5 text-zinc-400 hover:bg-white/5 hover:text-zinc-200"
           onClick={() => useSettingsStore.getState().openSettings()}>
           <Settings size={14} />
         </button>
@@ -426,6 +428,7 @@ function ProjectTaskGroup({
   selectedTaskId,
   onSelect,
 }: ProjectTaskGroupProps) {
+  const t = useT();
   return (
     <div style={{ marginBottom: 6 }} className="group">
       <div
@@ -440,7 +443,7 @@ function ProjectTaskGroup({
           type="button"
           onClick={onToggle}
           className="flex flex-1 items-center gap-1.5 text-left min-w-0"
-          title={collapsed ? `Expand ${project.name}` : `Collapse ${project.name}`}
+          title={t(collapsed ? "task.sidebar.expandProject" : "task.sidebar.collapseProject", { project: project.name })}
         >
           <ChevronRight
             size={12}
@@ -464,7 +467,7 @@ function ProjectTaskGroup({
             onNewTask();
           }}
           className="rounded-md p-1 text-zinc-500 hover:bg-white/5 hover:text-zinc-300 transition-all opacity-0 group-hover:opacity-100"
-          title={`New task in ${project.name}`}
+          title={t("task.sidebar.newTaskInProject", { project: project.name })}
         >
           <Plus size={13} />
         </button>
@@ -497,7 +500,7 @@ function ProjectTaskGroup({
             fontStyle: "italic",
           }}
         >
-          No tasks
+          {t("task.sidebar.noTasks")}
         </div>
       )}
     </div>

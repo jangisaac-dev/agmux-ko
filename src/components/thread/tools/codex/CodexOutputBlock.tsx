@@ -1,4 +1,5 @@
 import { memo } from "react";
+import { useT } from "../../../../i18n";
 import { CodexTextPreview } from "./outputPreview";
 
 export interface CodexOutputBlockProps {
@@ -15,6 +16,7 @@ export const CodexOutputBlock = memo(function CodexOutputBlock({
   body,
   isError = false,
 }: CodexOutputBlockProps) {
+  const t = useT();
   return (
     <div
       data-testid="codex-output"
@@ -25,10 +27,10 @@ export const CodexOutputBlock = memo(function CodexOutputBlock({
         <span className="min-w-0 truncate" title={title}>
           {title}
         </span>
-        {isError && <span className="ml-auto shrink-0 text-red-400">error</span>}
+        {isError && <span className="ml-auto shrink-0 text-red-400">{t("tools.status.error.lowercase")}</span>}
       </div>
       <div className="max-h-[320px] overflow-auto whitespace-pre-wrap px-3 py-2 text-[var(--text-secondary)]">
-        {body.trim() ? <CodexTextPreview text={body} /> : <span className="opacity-50">no output</span>}
+        {body.trim() ? <CodexTextPreview text={body} /> : <span className="opacity-50">{t("tools.output.noOutput.lowercase")}</span>}
       </div>
     </div>
   );

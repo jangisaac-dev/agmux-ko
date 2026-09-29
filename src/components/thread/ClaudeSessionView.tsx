@@ -28,6 +28,7 @@ import { requestTerminalLayoutRefresh } from "../../lib/terminalRefresh";
 
 import { useThreadStore } from "../../stores/threadStore";
 import type { Thread, InteractionMode } from "../../lib/types";
+import { useT } from "../../i18n";
 
 interface Props {
   sessionId: string;
@@ -100,6 +101,7 @@ export function ClaudeSessionView({ sessionId, cwd, isNew, onToggleDangerouslySk
 }
 
 function ClaudeSessionViewPty({ sessionId, cwd, isNew, onToggleDangerouslySkipPermissions, dangerouslySkipPermissions = false, compact = false }: Props) {
+  const t = useT();
   const sessionUiKey = `claude:${sessionId}`;
   const claudeAutoMode = useSettingsStore((s) => s.settings.claudeAutoMode);
   const terminalOpen = useUiStore((s) => s.sessionTerminalOpenByKey[sessionUiKey] ?? false);
@@ -649,7 +651,7 @@ function ClaudeSessionViewPty({ sessionId, cwd, isNew, onToggleDangerouslySkipPe
       setReloading((prev) => {
         if (prev) {
           console.error("[ClaudeSessionView] Reload timed out — clearing overlay");
-          setSpawnError("Session restart timed out. Try again.");
+          setSpawnError(`${t("session.claude.restartTimedOut")} ${t("session.claude.restartTimedOutTryAgain")}`);
         }
         return false;
       });
@@ -668,7 +670,7 @@ function ClaudeSessionViewPty({ sessionId, cwd, isNew, onToggleDangerouslySkipPe
     // Set the flag — the spawn effect re-runs because it depends on this state
     setLocalDangerouslySkipPermissions(wantSkip);
     onToggleDangerouslySkipPermissions?.();
-  }, [sessionId, isProcessing, reloading, localDangerouslySkipPermissions, onToggleDangerouslySkipPermissions]);
+  }, [sessionId, isProcessing, reloading, localDangerouslySkipPermissions, onToggleDangerouslySkipPermissions, t]);
 
   const handleToggleDangerouslySkipPermissions = useCallback(() => {
     handleSetPermissionMode(localDangerouslySkipPermissions ? "default" : "full");
@@ -873,7 +875,9 @@ function ClaudeSessionViewPty({ sessionId, cwd, isNew, onToggleDangerouslySkipPe
         <div className="flat-opaque-overlay absolute inset-0 z-30 flex flex-col items-center justify-center bg-zinc-950/80 backdrop-blur-sm">
           <Loader2 size={24} className="mb-3 animate-spin text-blue-500" />
           <p className="text-sm text-zinc-300">
-            Restarting with {localDangerouslySkipPermissions ? "full" : "standard"} permissions...
+            {localDangerouslySkipPermissions
+              ? t("session.claude.restartingFullPermissions")
+              : t("session.claude.restartingStandardPermissions")}
           </p>
         </div>
       )}
@@ -887,7 +891,7 @@ function ClaudeSessionViewPty({ sessionId, cwd, isNew, onToggleDangerouslySkipPe
             <div className="flex items-start gap-2 border-b border-red-500/30 bg-red-950/20 px-4 py-3">
               <AlertTriangle size={14} className="mt-0.5 shrink-0 text-red-400" />
               <div className="flex-1">
-                <p className="text-sm font-medium text-red-400">Failed to resume</p>
+                <p className="text-sm font-medium text-red-400">{t("session.claude.resumeFailed")}</p>
                 <p className="mt-0.5 text-xs text-red-300/70">{spawnError}</p>
               </div>
               <button
@@ -904,14 +908,12 @@ function ClaudeSessionViewPty({ sessionId, cwd, isNew, onToggleDangerouslySkipPe
             <div className="flex items-start gap-2 border-b border-amber-500/30 bg-amber-950/20 px-4 py-2.5">
               <Languages size={14} className="mt-0.5 shrink-0 text-amber-400" />
               <div className="flex-1 text-xs text-amber-200/90">
-                Non-Latin script detected. Terminal mode may misalign some
-                characters. For clearer text, start a new Claude chat from the
-                New menu instead of a terminal session.
+                {t("session.claude.nonLatinScriptTip")} {t("session.claude.nonLatinScriptWarning")} {t("session.claude.nonLatinScriptSuggestion")}
               </div>
               <button
                 onClick={dismissComplexScriptTip}
                 className="shrink-0 rounded p-1 text-amber-400 hover:bg-amber-500/10"
-                title="Don't show again"
+                title={t("session.claude.dismissTip")}
               >
                 <X size={12} />
               </button>
@@ -923,7 +925,7 @@ function ClaudeSessionViewPty({ sessionId, cwd, isNew, onToggleDangerouslySkipPe
             <div className="min-w-0 flex-1 overflow-hidden">
               {terminalUnloaded ? (
                 <div className="flex h-full items-center justify-center bg-[var(--terminal-surface,var(--agent-terminal-surface))]">
-                  <p className="text-xs text-zinc-500">Terminal unloaded to save memory</p>
+                  <p className="text-xs text-zinc-500">{t("session.claude.terminalUnloaded")}</p>
                 </div>
               ) : (
                 <ClaudeTerminalView

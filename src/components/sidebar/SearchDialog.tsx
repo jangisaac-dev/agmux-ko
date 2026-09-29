@@ -7,6 +7,7 @@ import { useUiStore } from "../../stores/uiStore";
 import { searchThreads } from "../../lib/commands";
 import { cleanSearchSnippet } from "../../lib/messageFilters";
 import type { ThreadSearchResult } from "../../lib/types";
+import { tx, useT } from "../../i18n";
 
 interface DisplayResult {
   id: string;
@@ -38,6 +39,7 @@ interface Props {
 }
 
 export function SearchDialog({ open, onClose }: Props) {
+  const t = useT();
   const [query, setQuery] = useState("");
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [backendResults, setBackendResults] = useState<ThreadSearchResult[]>([]);
@@ -270,7 +272,7 @@ export function SearchDialog({ open, onClose }: Props) {
               type="text"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              placeholder="Search sessions, messages, and projects…"
+              placeholder={t("search.input.placeholder")}
               className="flex-1 bg-transparent text-sm text-[var(--text-primary)] placeholder:text-[var(--text-muted)] outline-none"
             />
             {searching && (
@@ -290,9 +292,9 @@ export function SearchDialog({ open, onClose }: Props) {
               <div className="px-4 py-8 text-center text-xs text-[var(--text-muted)]">
                 {query
                   ? searching
-                    ? "Searching messages…"
-                    : "No results found"
-                  : "No sessions yet"}
+                    ? t("search.results.searchingMessages")
+                    : t("search.results.noneFound")
+                  : t("search.results.noSessions")}
               </div>
             ) : (
               results.map((item, i) => (
@@ -314,7 +316,7 @@ export function SearchDialog({ open, onClose }: Props) {
                       </span>
                       {item.type === "content" && (
                         <span className="ui-chip sm fx-chip-q shrink-0 rounded border border-white/10 bg-white/[0.04] px-1.5 py-0.5 text-[9px] text-[var(--text-muted)]">
-                          message
+                          {t("search.result.message")}
                         </span>
                       )}
                     </div>
@@ -338,20 +340,23 @@ export function SearchDialog({ open, onClose }: Props) {
           <div className="flex items-center justify-between border-t border-white/[0.06] px-4 py-2">
             <div className="flex items-center gap-3 text-[10px] text-[var(--text-muted)]">
               <span>
-                <kbd className="ui-kbd rounded border border-white/10 bg-white/[0.04] px-1 py-0.5 text-[10px]">&uarr;</kbd>
-                <kbd className="ui-kbd ml-0.5 rounded border border-white/10 bg-white/[0.04] px-1 py-0.5 text-[10px]">&darr;</kbd>
-                {" "}navigate
+                {tx("search.footer.navigate", {
+                  up: <kbd className="ui-kbd rounded border border-white/10 bg-white/[0.04] px-1 py-0.5 text-[10px]">&uarr;</kbd>,
+                  down: <kbd className="ui-kbd ml-0.5 rounded border border-white/10 bg-white/[0.04] px-1 py-0.5 text-[10px]">&darr;</kbd>,
+                })}
               </span>
               <span>
-                <kbd className="ui-kbd rounded border border-white/10 bg-white/[0.04] px-1 py-0.5 text-[10px]">&crarr;</kbd>
-                {" "}open
+                {tx("search.footer.open", {
+                  enter: <kbd className="ui-kbd rounded border border-white/10 bg-white/[0.04] px-1 py-0.5 text-[10px]">&crarr;</kbd>,
+                })}
               </span>
               <span>
-                <kbd className="ui-kbd rounded border border-white/10 bg-white/[0.04] px-1 py-0.5 text-[10px]">esc</kbd>
-                {" "}close
+                {tx("search.footer.close", {
+                  esc: <kbd className="ui-kbd rounded border border-white/10 bg-white/[0.04] px-1 py-0.5 text-[10px]">esc</kbd>,
+                })}
               </span>
               <span className="hidden sm:inline text-[var(--text-muted)]/80">
-                Searches names, messages, journal
+                {t("search.footer.scope")}
               </span>
             </div>
           </div>

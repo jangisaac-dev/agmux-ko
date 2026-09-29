@@ -4,9 +4,10 @@ import { ChevronRight, Focus, Plus } from "lucide-react";
 import { useSettingsStore } from "../../stores/settingsStore";
 import { useLocalModelStore } from "../../stores/localModelStore";
 import { useUiStore } from "../../stores/uiStore";
-import { DEFAULT_FOCUS_THREADS_VISIBLE, DEFAULT_FOCUS_WINDOW_MINUTES, formatFocusWindow } from "../../lib/focusView";
+import { DEFAULT_FOCUS_THREADS_VISIBLE, DEFAULT_FOCUS_WINDOW_MINUTES } from "../../lib/focusView";
 import { GROK_MODELS, getClaudeModelDisplayName, prettifyCodexModelName } from "../../lib/types";
 import { ProviderIcon, StatusDot, type SidebarProviderIcon, type StatusDotState } from "./ProjectGroup";
+import { useT } from "../../i18n";
 
 /** Let the app settle (and What's New claim the screen) before offering Focus. */
 export const FOCUS_INTRO_DELAY_MS = 2500;
@@ -15,22 +16,28 @@ const claudeModel = (alias: string) => getClaudeModelDisplayName(alias).replace(
 
 interface PreviewRow {
   provider: SidebarProviderIcon;
-  title: string;
-  meta: string;
+  titleKey: string;
+  project: string;
+  view: "terminal" | "chat";
+  model: string;
+  age: "now" | "minute";
+  ageCount?: number;
   status: StatusDotState;
   diff?: [number, number];
 }
 
 // Same pieces a real Focus row shows: "{project} · {Terminal|Chat} · {model} · {age}".
 const PREVIEW_ROWS: PreviewRow[] = [
-  { provider: "claude", title: "Fix login redirect loop", meta: `web-app · Terminal · ${claudeModel("opus")} · now`, status: "working", diff: [42, 7] },
-  { provider: "codex", title: "Add CSV export to reports", meta: `api · Chat · ${prettifyCodexModelName("gpt-5.5")} · 1m`, status: "needs_attention" },
-  { provider: "grok", title: "Speed up search indexing", meta: `api · Terminal · ${GROK_MODELS[0].name} · 4m`, status: "done_unread", diff: [118, 36] },
-  { provider: "claude", title: "Update onboarding copy", meta: `docs · Chat · ${claudeModel("sonnet")} · 8m`, status: "idle" },
+  { provider: "claude", titleKey: "setup.focus.preview.loginRedirectLoop", project: "web-app", view: "terminal", model: claudeModel("opus"), age: "now", status: "working", diff: [42, 7] },
+  { provider: "codex", titleKey: "setup.focus.preview.csvExport", project: "api", view: "chat", model: prettifyCodexModelName("gpt-5.5"), age: "minute", ageCount: 1, status: "needs_attention" },
+  { provider: "grok", titleKey: "setup.focus.preview.searchIndexing", project: "api", view: "terminal", model: GROK_MODELS[0].name, age: "minute", ageCount: 4, status: "done_unread", diff: [118, 36] },
+  { provider: "claude", titleKey: "setup.focus.preview.onboardingCopy", project: "docs", view: "chat", model: claudeModel("sonnet"), age: "minute", ageCount: 8, status: "idle" },
 ];
 
 /** Static copy of the sidebar Focus group, built from the real sidebar classes and row parts. */
 function FocusPreview() {
+  const t = useT();
+
   return (
     <div
       data-testid="focus-intro-preview"
@@ -42,18 +49,27 @@ function FocusPreview() {
           <div className="flex min-w-0 flex-1 items-center gap-1.5">
             <ChevronRight size={13} className="chev" />
             <Focus size={14} className="picn" />
-            <span className="pnm">Focus</span>
+            <span className="pnm">{t("setup.focus.preview.focus")}</span>
             <span className="pcount">{PREVIEW_ROWS.length}</span>
           </div>
           <span className="padd"><Plus size={13} /></span>
         </div>
         <div className="pg-body">
           {PREVIEW_ROWS.map((row) => (
-            <div key={row.title} className="sb-row">
+            <div key={row.titleKey} className="sb-row">
               <div className="av"><ProviderIcon provider={row.provider} size={14} /></div>
               <div className="min-w-0 flex-1">
-                <div className="flex items-center gap-1.5"><span className="sb-ttl">{row.title}</span></div>
-                <div className="sb-mt">{row.meta}</div>
+                <div className="flex items-center gap-1.5"><span className="sb-ttl">{t(row.titleKey)}</span></div>
+                <div className="sb-mt">
+                  {t("setup.focus.preview.meta", {
+                    project: row.project,
+                    view: t(`setup.focus.preview.view.${row.view}`),
+                    model: row.model,
+                    age: row.age === "now"
+                      ? t("setup.focus.preview.age.now")
+                      : t("setup.focus.preview.age.minutes", { count: row.ageCount ?? 0 }),
+                  })}
+                </div>
               </div>
               {row.diff && (
                 <span className="ui-diff shrink-0 leading-none">
@@ -67,7 +83,7 @@ function FocusPreview() {
           ))}
         </div>
       </div>
-      <div className="sb-thh"><span className="lbl">Projects</span></div>
+      <div className="sb-thh"><span className="lbl">{t("setup.focus.preview.projects")}</span></div>
     </div>
   );
 }
@@ -77,6 +93,7 @@ function FocusPreview() {
  * wizard, What's New and the local-model offer so popups never stack.
  */
 export function FocusIntroDialog() {
+  const t = useT();
   const seen = useSettingsStore((s) => s.settings.focusIntroSeen ?? false);
   const focusEnabled = useSettingsStore((s) => s.settings.focusEnabled ?? false);
   const setupDone = useSettingsStore((s) => s.settings.setupWizardCompleted);
@@ -133,26 +150,23 @@ export function FocusIntroDialog() {
             style={{ backdropFilter: "blur(24px)" }}
           >
             <h2 id="focus-intro-title" className="mb-2 text-lg font-semibold text-zinc-100">
-              Keep what you're working on in one place
+              {t("setup.focus.title")}
             </h2>
             <p className="mb-5 text-sm leading-relaxed text-zinc-400">
-              Focus adds a group to the top of the sidebar with the threads you're actively working
-              on, from every project: ones that are running, or were active in the last{" "}
-              {formatFocusWindow(DEFAULT_FOCUS_WINDOW_MINUTES)}.
+              {t("setup.focus.description", { window: t("sidebar.focus.window", { count: DEFAULT_FOCUS_WINDOW_MINUTES }) })}
             </p>
 
             <FocusPreview />
 
             <p className="mt-3 mb-6 text-xs leading-relaxed text-zinc-500">
-              Shows {DEFAULT_FOCUS_THREADS_VISIBLE} threads before "Show more" — right-click Focus to
-              change that. You can turn it off or change the time in Settings.
+              {t("setup.focus.threadCount", { count: DEFAULT_FOCUS_THREADS_VISIBLE })}
             </p>
 
             <button type="button" onClick={() => answer(true)} className="rounded-lg bg-blue-600 px-4 py-2 text-sm text-white fx-accent">
-              Turn on Focus
+              {t("setup.focus.turnOn")}
             </button>
             <button type="button" onClick={() => answer(false)} className="ml-3 rounded-lg px-4 py-2 text-sm text-zinc-300 fx-quiet">
-              Not now
+              {t("setup.focus.notNow")}
             </button>
           </motion.div>
         </motion.div>

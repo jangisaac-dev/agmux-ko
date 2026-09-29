@@ -2,8 +2,10 @@ import { createPortal } from "react-dom";
 import { AnimatePresence, motion } from "framer-motion";
 import { Briefcase } from "lucide-react";
 import { useUiStore } from "../../stores/uiStore";
+import { useT } from "../../i18n";
 
 export function CoworkLoadingOverlay() {
+  const t = useT();
   const open = useUiStore((s) => s.coworkLoading);
   return createPortal(
     <AnimatePresence>
@@ -20,7 +22,7 @@ export function CoworkLoadingOverlay() {
             <span className="cowork-switch-glow" aria-hidden />
             <Briefcase size={28} strokeWidth={1.5} />
           </div>
-          <div className="cowork-switch-label">Opening Cowork</div>
+          <div className="cowork-switch-label">{t("layout.cowork.opening")}</div>
         </motion.div>
       )}
     </AnimatePresence>,

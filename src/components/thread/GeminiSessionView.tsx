@@ -16,6 +16,7 @@ import {
 import { applyGeminiEffort, geminiEffortFromSlug } from "../../lib/types";
 import { useThreadStore } from "../../stores/threadStore";
 import { useUiStore } from "../../stores/uiStore";
+import { useT } from "../../i18n";
 
 interface Props {
   sessionId: string;
@@ -30,6 +31,7 @@ function clampGeminiEffort(effort: string | null | undefined): "low" | "medium" 
 }
 
 export function GeminiSessionView({ sessionId, cwd, isNew, compact, hideTopBar }: Props) {
+  const t = useT();
   const [acpSessionId, setAcpSessionId] = useState<string | null>(() => {
     const thread = Object.values(useThreadStore.getState().threads ?? {})
       .flat()
@@ -161,7 +163,7 @@ export function GeminiSessionView({ sessionId, cwd, isNew, compact, hideTopBar }
     const needsSilicon = /Apple Silicon/i.test(error);
     return (
       <div className="flex h-full flex-col items-center justify-center gap-3 p-6 text-center text-zinc-400">
-        <div className="text-sm font-medium text-red-400">Gemini chat failed to start</div>
+        <div className="text-sm font-medium text-red-400">{t("session.gemini.startFailed")}</div>
         <div className="max-w-md text-xs">{error}</div>
         {needsSilicon ? null : (
           <button
@@ -183,7 +185,7 @@ export function GeminiSessionView({ sessionId, cwd, isNew, compact, hideTopBar }
                 .finally(() => setSigningIn(false));
             }}
           >
-            Sign in with Google
+            {t("session.gemini.signInWithGoogle")}
           </button>
         )}
         {auth?.authUrl ? (
@@ -204,10 +206,9 @@ export function GeminiSessionView({ sessionId, cwd, isNew, compact, hideTopBar }
           className="flat-opaque-overlay absolute inset-0 z-30 flex flex-col items-center justify-center gap-3 bg-zinc-950/85 p-6 text-center backdrop-blur-sm"
           data-testid="gemini-google-signin"
         >
-          <div className="text-sm font-medium text-zinc-100">Sign in with Google</div>
+          <div className="text-sm font-medium text-zinc-100">{t("session.gemini.signInWithGoogle")}</div>
           <div className="max-w-sm text-xs leading-relaxed text-zinc-400">
-            A browser window opened for Google sign-in. Finish there — this chat
-            starts automatically when you are done.
+            {t("session.gemini.signInHelp")} {t("session.gemini.signInHelpFinish")}
           </div>
           <button
             type="button"
@@ -218,7 +219,7 @@ export function GeminiSessionView({ sessionId, cwd, isNew, compact, hideTopBar }
                 .catch(console.error);
             }}
           >
-            Open sign-in again
+            {t("session.gemini.openSignInAgain")}
           </button>
         </div>
       )}

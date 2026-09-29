@@ -4,6 +4,7 @@ import { useThreadStore } from "../../stores/threadStore";
 import { useUiStore } from "../../stores/uiStore";
 import { useProjectStore } from "../../stores/projectStore";
 import type { Thread, ThreadStatus } from "../../lib/types";
+import { useT } from "../../i18n";
 
 const statusColors: Record<ThreadStatus, string> = {
   Idle: "bg-zinc-500",
@@ -13,6 +14,7 @@ const statusColors: Record<ThreadStatus, string> = {
 };
 
 export function ArchivedThreadsPanel() {
+  const t = useT();
   const projects = useProjectStore((s) => s.projects);
   const archivedThreads = useThreadStore((s) => s.archivedThreads);
   const fetchArchivedThreads = useThreadStore((s) => s.fetchArchivedThreads);
@@ -117,7 +119,7 @@ export function ArchivedThreadsPanel() {
         >
           {expanded ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
           <Archive size={12} />
-          Archived
+          {t("sidebar.archive.heading")}
           <span className="n">{allArchived.length}</span>
         </button>
         {deleteAllConfirm ? (
@@ -126,15 +128,15 @@ export function ArchivedThreadsPanel() {
               onClick={handleDeleteAll}
               disabled={deletingAll}
               className="rounded px-1.5 py-0.5 text-[10px] font-medium bg-red-600/80 text-white hover:bg-red-500 disabled:opacity-50"
-              title="Permanently delete all archived threads"
+              title={t("sidebar.archive.permanentlyDeleteAll")}
             >
-              {deletingAll ? "Deleting…" : `Delete all (${allArchived.length})`}
+              {deletingAll ? t("sidebar.archive.deleting") : t("sidebar.archive.deleteAll", { count: allArchived.length })}
             </button>
             <button
               onClick={() => setDeleteAllConfirm(false)}
               disabled={deletingAll}
               className="rounded p-0.5 text-zinc-500 hover:text-zinc-300 disabled:opacity-50"
-              title="Cancel"
+              title={t("common.cancel")}
             >
               <X size={10} />
             </button>
@@ -143,7 +145,7 @@ export function ArchivedThreadsPanel() {
           <button
             onClick={() => setDeleteAllConfirm(true)}
             className="rounded p-1 text-zinc-500 opacity-0 group-hover/header:opacity-100 hover:bg-white/5 hover:text-red-400 transition-opacity"
-            title="Delete all archived threads"
+            title={t("sidebar.archive.deleteAllTitle")}
           >
             <Trash2 size={12} />
           </button>
@@ -163,7 +165,7 @@ export function ArchivedThreadsPanel() {
                   <button
                     onClick={() => handleView(thread)}
                     className="rounded p-1 text-zinc-500 hover:bg-white/5 hover:text-zinc-300"
-                    title="Restore and view"
+                    title={t("sidebar.archive.restoreAndView")}
                   >
                     <RotateCcw size={12} />
                   </button>
@@ -173,7 +175,7 @@ export function ArchivedThreadsPanel() {
                         onClick={() => handleRestore(thread.projectId, thread.id)}
                         className="rounded px-1.5 py-0.5 text-[10px] font-medium bg-blue-600/80 text-white hover:bg-blue-500"
                       >
-                        Restore
+                        {t("sidebar.archive.restore")}
                       </button>
                       <button
                         onClick={() => setRestoreConfirmId(null)}
@@ -189,7 +191,7 @@ export function ArchivedThreadsPanel() {
                         setDeleteConfirmId(null);
                       }}
                       className="rounded p-1 text-zinc-500 hover:bg-white/5 hover:text-blue-400"
-                      title="Restore thread"
+                      title={t("sidebar.archive.restoreThread")}
                     >
                       <RotateCcw size={11} />
                     </button>
@@ -200,7 +202,7 @@ export function ArchivedThreadsPanel() {
                         onClick={() => handleDelete(thread.projectId, thread.id)}
                         className="rounded px-1.5 py-0.5 text-[10px] font-medium bg-red-600/80 text-white hover:bg-red-500"
                       >
-                        Delete
+                        {t("common.delete")}
                       </button>
                       <button
                         onClick={() => setDeleteConfirmId(null)}
@@ -216,7 +218,7 @@ export function ArchivedThreadsPanel() {
                         setRestoreConfirmId(null);
                       }}
                       className="rounded p-1 text-zinc-500 hover:bg-white/5 hover:text-red-400"
-                      title="Delete permanently"
+                      title={t("sidebar.archive.deletePermanently")}
                     >
                       <Trash2 size={11} />
                     </button>

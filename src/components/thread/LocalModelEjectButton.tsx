@@ -3,6 +3,7 @@ import { Unplug, Loader2 } from "lucide-react";
 import { mlxEjectModel } from "../../lib/mlx";
 import { formatError } from "../../lib/formatError";
 import { CBTN } from "./composerChrome";
+import { useT } from "../../i18n";
 
 /** True when this session is driving a local model through the agmux gateway
  *  (OpenCode `local/<id>` slug, or the legacy MLX provider). */
@@ -31,6 +32,7 @@ export function LocalModelEjectButton({
   model?: string | null;
   className?: string;
 }) {
+  const t = useT();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -47,7 +49,7 @@ export function LocalModelEjectButton({
     } finally {
       setBusy(false);
     }
-  }, [busy]);
+  }, [busy, t]);
 
   if (!visible) return null;
 
@@ -59,18 +61,18 @@ export function LocalModelEjectButton({
       className={className ?? CBTN}
       title={
         error
-          ? `Eject failed: ${error}`
-          : "Unload the local model from memory. The next message will load it again."
+          ? t("models.eject.failed", { error })
+          : t("models.eject.description")
       }
       data-testid="local-model-eject"
-      aria-label="Eject local model"
+      aria-label={t("models.eject.ariaLabel")}
     >
       {busy ? (
         <Loader2 size={14} className="shrink-0 animate-spin" />
       ) : (
         <Unplug size={14} className="shrink-0" />
       )}
-      <span>Eject</span>
+      <span>{t("models.eject.button")}</span>
     </button>
   );
 }

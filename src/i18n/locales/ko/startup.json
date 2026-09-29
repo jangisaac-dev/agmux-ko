@@ -1,0 +1,20 @@
+{
+  "startup.opening": "agmux 여는 중…",
+  "startup.back": "뒤로",
+  "startup.title.failed": "agmux에서 데이터를 열 수 없습니다",
+  "startup.dataNotReset": "데이터는 초기화되지 않았습니다. 앱을 다시 시작하거나, 저장된 데이터베이스를 복원하거나, 지원팀에 문의할 수 있습니다.",
+  "startup.dataFolder": "데이터 폴더",
+  "startup.restartApp": "앱 재시작",
+  "startup.contactSupport": "지원팀 문의",
+  "startup.openDataFolder": "데이터 폴더 열기",
+  "startup.savedDatabase": "저장된 데이터베이스",
+  "startup.restore.description.snapshot": "복원하면 앱 기록이 이 스냅샷 시점으로 되돌아갑니다.",
+  "startup.restore.description.backup": "현재 데이터베이스를 백업 폴더에 먼저 복사합니다.",
+  "startup.restore.description.providerFiles": "제공자 대화 파일은 별개입니다.",
+  "startup.restore.confirm": "저장된 이 데이터베이스를 복원합니다.",
+  "startup.restore.restoring": "복원하는 중…",
+  "startup.restore.restoreDatabase": "데이터베이스 복원",
+  "startup.restore.restored": "데이터베이스를 복원했습니다. 앱을 다시 시작하여 열어보세요.",
+  "startup.noBackup": "사용 가능한 자동 데이터베이스 백업이 없습니다. 데이터 파일을 변경하기 전에 지원팀에 문의하세요.",
+  "startup.support.startupFailed": "시작할 수 없습니다: {{error}}"
+}

@@ -12,6 +12,7 @@ import {
   openMarkdownHref,
 } from "../../lib/markdownLinks";
 import { useWorkDir } from "./WorkDirContext";
+import { useT } from "../../i18n";
 
 function fallbackSessionWorkDir(): string {
   const ui = useUiStore.getState();
@@ -82,6 +83,7 @@ function closeOpenMarkers(text: string): string {
 }
 
 const CopyButton = memo(function CopyButton({ text }: { text: string }) {
+  const t = useT();
   const [copied, setCopied] = useState(false);
 
   const handleCopy = useCallback(
@@ -100,18 +102,18 @@ const CopyButton = memo(function CopyButton({ text }: { text: string }) {
       type="button"
       onClick={handleCopy}
       className="md-copy-btn inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[10.5px] font-medium tracking-wide transition-colors"
-      title="Copy"
-      aria-label={copied ? "Copied" : "Copy code"}
+      title={t("thread.markdown.copy")}
+      aria-label={copied ? t("thread.markdown.copied") : t("thread.markdown.copyCode")}
     >
       {copied ? (
         <>
           <Check size={11} className="text-[color:var(--accent)]" />
-          <span className="text-[color:var(--accent)]">Copied</span>
+          <span className="text-[color:var(--accent)]">{t("thread.markdown.copied")}</span>
         </>
       ) : (
         <>
           <Copy size={11} />
-          <span>Copy</span>
+          <span>{t("thread.markdown.copy")}</span>
         </>
       )}
     </button>
@@ -130,8 +132,10 @@ const CodeBlock = memo(function CodeBlock({
   lang?: string;
   code: string;
 }) {
+  const t = useT();
   const shell = isShellLang(lang);
-  const label = lang || (shell ? "bash" : "code");
+  const label = lang || (shell ? "bash" : t("thread.markdown.codeLanguage"));
+  const dataLang = lang || (shell ? "bash" : "code");
 
   return (
     <div
@@ -140,7 +144,7 @@ const CodeBlock = memo(function CodeBlock({
       // thrash the code panel's paint/scroll metrics.
       style={{ contain: "layout style" }}
       data-testid="md-code"
-      data-lang={label}
+      data-lang={dataLang}
     >
       <div className="md-code-head flex items-center justify-between gap-2 px-3 py-[7px]">
         <span className="inline-flex min-w-0 items-center gap-1.5 text-[10.5px] font-medium uppercase tracking-[0.08em] text-[var(--text-muted)]">

@@ -17,6 +17,7 @@ import { deriveEffectiveState, diffTotals, relativeTime } from "./taskStateMeta"
 import { deleteTask, terminateTaskThreads } from "../../lib/taskCommands";
 import { gitWorktreeStatus, openTerminal } from "../../lib/commands";
 import { isThreadMidTurn, isThreadAwaitingInput } from "../../lib/taskAgentActivity";
+import { useT } from "../../i18n";
 
 interface TaskSidebarItemProps {
   task: Task;
@@ -34,6 +35,7 @@ export function TaskSidebarItem({
   isSelected,
   onSelect,
 }: TaskSidebarItemProps) {
+  const t = useT();
   const gitState = useTaskViewStore((s) => s.gitState[task.id]);
   const removeTaskFromStore = useTaskViewStore((s) => s.removeTaskFromStore);
   const allThreads = useThreadStore((s) => s.threads);
@@ -108,7 +110,7 @@ export function TaskSidebarItem({
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       console.error("Failed to hide task:", err);
-      setActionError(`Couldn't hide task: ${msg}`);
+      setActionError(t("task.sidebar.error.hideTask", { message: msg }));
     } finally {
       setBusy(false);
     }
@@ -132,7 +134,7 @@ export function TaskSidebarItem({
       // skip the safety dialog and go straight to a non-force delete that may
       // half-succeed.
       const msg = err instanceof Error ? err.message : String(err);
-      setActionError(`Couldn't read worktree status: ${msg}. Proceeding anyway.`);
+      setActionError(t("task.sidebar.error.readWorktreeStatus", { message: msg }));
     }
     setBusy(true);
     try {
@@ -147,7 +149,7 @@ export function TaskSidebarItem({
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       console.error("Failed to delete task:", err);
-      setActionError(`Delete failed: ${msg}`);
+      setActionError(t("task.sidebar.error.deleteTask", { message: msg }));
     } finally {
       setBusy(false);
     }
@@ -169,7 +171,7 @@ export function TaskSidebarItem({
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       console.error("Failed to force delete task:", err);
-      setActionError(`Force delete failed: ${msg}`);
+      setActionError(t("task.sidebar.error.forceDeleteTask", { message: msg }));
     } finally {
       setBusy(false);
     }
@@ -241,7 +243,7 @@ export function TaskSidebarItem({
           </div>
           {agentCount > 0 && (
             <div
-              title={`${agentCount} agent${agentCount > 1 ? "s" : ""}`}
+              title={t("task.agent.count", { count: agentCount })}
               className="task-agent-chip"
               style={{
                 display: "flex",
@@ -327,7 +329,7 @@ export function TaskSidebarItem({
                 border: "none",
                 padding: 0,
               }}
-              aria-label="Dismiss"
+              aria-label={t("task.common.dismiss")}
             >
               ✕
             </button>
@@ -349,11 +351,10 @@ export function TaskSidebarItem({
                 fontWeight: 500,
                 letterSpacing: 0,
               }}
-              title={`${attentionCount} agent${attentionCount > 1 ? "s" : ""} awaiting approval`}
+              title={t("task.agent.awaitingApproval", { count: attentionCount })}
             >
               <AlertCircle size={9} className="pulse-dot" />
-              {attentionCount} agent{attentionCount > 1 ? "s" : ""} need
-              {attentionCount > 1 ? "" : "s"} attention
+              {t("task.agent.needsAttention", { count: attentionCount })}
             </span>
           ) : (
             <StatePill state={state} />
@@ -384,19 +385,19 @@ export function TaskSidebarItem({
           <button
             onClick={handleHide}
             className="flex w-full items-center gap-2.5 px-3 py-1.5 text-xs text-zinc-300 hover:bg-white/8 hover:text-zinc-100 transition-colors"
-            title="Removes the task from agmux but leaves the worktree on disk. To reuse the branch later, create a new task with the same branch name (agmux will detect the existing worktree) or remove it manually with `git worktree remove`."
+            title={t("task.sidebar.hideTaskTooltip")}
           >
             <EyeOff size={12} />
-            Hide (keep worktree)
+            {t("task.sidebar.hideKeepWorktree")}
           </button>
           <div className="my-1 border-t border-white/6" />
           <button
             onClick={handleDelete}
             className="flex w-full items-center gap-2.5 px-3 py-1.5 text-xs text-red-400 hover:bg-red-500/10 hover:text-red-300 transition-colors"
-            title="Delete task and remove the git worktree"
+            title={t("task.sidebar.deleteTaskTooltip")}
           >
             <Trash2 size={12} />
-            Delete Task &amp; Worktree
+            {t("task.sidebar.deleteTaskAndWorktree")}
           </button>
         </div>
       )}
@@ -409,11 +410,10 @@ export function TaskSidebarItem({
           />
           <div className="relative w-96 rounded-2xl border border-white/[0.08] bg-zinc-900/90 p-5 shadow-2xl shadow-black/40 backdrop-blur-xl">
             <h3 className="mb-1 text-sm font-semibold text-amber-400">
-              Worktree has uncommitted changes
+              {t("task.sidebar.dirtyWorktree.title")}
             </h3>
             <p className="mb-3 text-xs text-zinc-400">
-              Commit, stash, or discard these changes before deleting — or force
-              delete to discard them permanently.
+              {t("task.sidebar.dirtyWorktree.description")}
             </p>
             <div className="mb-4 max-h-40 overflow-y-auto rounded-lg border border-white/[0.04] bg-white/[0.02] p-2">
               {dirtyFiles.map((f, i) => (
@@ -430,19 +430,19 @@ export function TaskSidebarItem({
                 }}
                 className="rounded-lg border border-white/[0.06] bg-white/[0.04] px-3 py-1.5 text-xs text-zinc-300 hover:bg-white/[0.08]"
               >
-                Open in Terminal
+                {t("task.sidebar.dirtyWorktree.openTerminal")}
               </button>
               <button
                 onClick={() => setShowDirtyDialog(false)}
                 className="rounded-lg px-3 py-1.5 text-xs text-zinc-400 hover:text-zinc-100"
               >
-                Cancel
+                {t("task.common.cancel")}
               </button>
               <button
                 onClick={handleForceDelete}
                 className="rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-1.5 text-xs text-red-300 hover:bg-red-500/20"
               >
-                Force Delete
+                {t("task.sidebar.dirtyWorktree.forceDelete")}
               </button>
             </div>
           </div>

@@ -7,6 +7,7 @@ import { useTaskViewStore } from "../../stores/taskViewStore";
 import { FileTree } from "../editor/FileTree";
 import { EditorTabs } from "../editor/EditorTabs";
 import { ResizeHandle } from "./ResizeHandle";
+import { useT } from "../../i18n";
 
 // CodeEditor pulls in CodeMirror core + all 13 language modes; defer it out of
 // the startup bundle until a file tab is actually opened.
@@ -33,6 +34,7 @@ export function EditorPanel() {
 }
 
 function EditorPanelContent() {
+  const t = useT();
   const editorPanelOpen = useUiStore((s) => s.editorPanelOpen);
   const fileTreeVisible = useUiStore((s) => s.fileTreeVisible);
   const selectedThreadId = useUiStore((s) => s.selectedThreadId);
@@ -204,7 +206,7 @@ function EditorPanelContent() {
           </div>
         ) : (
           <div className="flex flex-1 items-center justify-center text-sm text-zinc-500 sidebar-bg">
-            Open a project or session to browse files
+            {t("editor.panel.empty")}
           </div>
         )}
       </div>

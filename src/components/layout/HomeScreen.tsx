@@ -14,6 +14,7 @@ import {
   Sparkles,
   Zap,
 } from "lucide-react";
+import { t as translate, tx, useT } from "../../i18n";
 import { NewProjectDialog } from "../sidebar/NewProjectDialog";
 import { CloneRepoDialog } from "../sidebar/CloneRepoDialog";
 import { useProjectStore } from "../../stores/projectStore";
@@ -82,51 +83,51 @@ import {
 // imported from `./homeScreenRows` — kept here as a thin wrapper module.
 
 const VERBS = [
-  "building",
-  "shipping",
-  "creating",
-  "hacking",
-  "coding",
-  "crafting",
-  "launching",
-  "deploying",
-  "prototyping",
-  "iterating",
-  "designing",
-  "refactoring",
-  "committing",
-  "pushing",
+  "build",
+  "ship",
+  "create",
+  "hack",
+  "code",
+  "craft",
+  "launch",
+  "deploy",
+  "prototype",
+  "iterate",
+  "design",
+  "refactor",
+  "commit",
+  "push",
 ];
 
-const DAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+const DAYS = ["sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"] as const;
 
 function pickVerb(): string {
   return VERBS[Math.floor(Math.random() * VERBS.length)];
 }
 
-function formatClock(d: Date): string {
+function formatClock(d: Date, t: typeof translate): string {
   const h = d.getHours();
   const m = d.getMinutes();
-  const ampm = h >= 12 ? "PM" : "AM";
+  const ampm = t(h >= 12 ? "home.clock.pm" : "home.clock.am");
   const h12 = ((h + 11) % 12) + 1;
-  return `${DAYS[d.getDay()]} · ${h12}:${String(m).padStart(2, "0")} ${ampm}`;
+  return `${t(`home.clock.day.${DAYS[d.getDay()]}`)} · ${h12}:${String(m).padStart(2, "0")} ${ampm}`;
 }
 
-function formatRelative(iso: string | null | undefined): string {
+function formatRelative(iso: string | null | undefined, t: typeof translate): string {
   if (!iso) return "—";
-  const t = Date.parse(iso);
-  if (Number.isNaN(t)) return "—";
-  const diff = Date.now() - t;
-  if (diff < 0) return "just now";
+  const timestamp = Date.parse(iso);
+  if (Number.isNaN(timestamp)) return "—";
+  const diff = Date.now() - timestamp;
+  if (diff < 0) return t("home.time.justNow");
   const mins = Math.floor(diff / 60_000);
-  if (mins < 1) return "just now";
-  if (mins < 60) return `${mins}m ago`;
+  if (mins < 1) return t("home.time.justNow");
+  if (mins < 60) return t("home.time.minutesAgo", { count: mins });
   const hrs = Math.floor(mins / 60);
-  if (hrs < 24) return `${hrs}h ago`;
+  if (hrs < 24) return t("home.time.hoursAgo", { count: hrs });
   const days = Math.floor(hrs / 24);
-  if (days === 1) return "yesterday";
-  if (days < 7) return `${days}d ago`;
-  return new Date(t).toLocaleDateString(undefined, { month: "short", day: "numeric" });
+  if (days === 1) return t("home.time.yesterday");
+  if (days < 7) return t("home.time.daysAgo", { count: days });
+  return new Date(timestamp).toLocaleDateString(undefined, { month: "short", day: "numeric" });
 }
 
 function projectInitials(name: string): string {
@@ -176,11 +177,12 @@ const PROVIDER_AVATAR: Record<Provider, { icon: string | null; bg: string; lette
 const EMPTY_THREADS: Thread[] = [];
 
 export function HomeScreen() {
+  const t = useT();
   const [showNewProject, setShowNewProject] = useState(false);
   const [showCloneRepo, setShowCloneRepo] = useState(false);
   const verb = useMemo(pickVerb, []);
   const tip = useMemo(pickDidYouKnowTip, []);
-  const tipSegments = useMemo(() => parseTip(tip), [tip]);
+  const tipSegments = useMemo(() => parseTip(translate(tip)), [tip, t]);
   const dialogOpen = useDialogOpen();
 
   const projects = useProjectStore((s) => s.projects);
@@ -236,7 +238,7 @@ export function HomeScreen() {
     const id = window.setInterval(() => setClockTick(new Date()), 30_000);
     return () => window.clearInterval(id);
   }, []);
-  const clock = useMemo(() => formatClock(clockTick), [clockTick]);
+  const clock = useMemo(() => formatClock(clockTick, t), [clockTick, t]);
 
   // Measure the scrollable area so we can pick how many rows fit without
   // leaving dead space at the bottom. Re-runs on resize via ResizeObserver.
@@ -681,26 +683,21 @@ export function HomeScreen() {
     row.open();
   }, []);
 
-  const greetingName = (userName ?? "there").trim() || "there";
+  const defaultGreetingName = t("home.greeting.defaultName");
+  const greetingName = (userName ?? defaultGreetingName).trim() || defaultGreetingName;
 
   const subtleCounts: string[] = [];
   if (runningCount > 0) {
-    subtleCounts.push(
-      `${runningCount} running session${runningCount === 1 ? "" : "s"}`
-    );
+    subtleCounts.push(t("home.summary.runningSessions", { count: runningCount }));
   }
   if (pendingApprovalCount > 0) {
-    subtleCounts.push(
-      `${pendingApprovalCount} pending approval${pendingApprovalCount === 1 ? "" : "s"}`
-    );
+    subtleCounts.push(t("home.summary.pendingApprovals", { count: pendingApprovalCount }));
   }
   if (recentProjects.length > 0) {
-    subtleCounts.push(
-      `${recentProjects.length} recent project${recentProjects.length === 1 ? "" : "s"}`
-    );
+    subtleCounts.push(t("home.summary.recentProjects", { count: recentProjects.length }));
   }
   const subtleLine =
-    subtleCounts.length > 0 ? subtleCounts.join(", ") : "Pick a project below to get started.";
+    subtleCounts.length > 0 ? subtleCounts.join(", ") : t("home.summary.getStarted");
 
   return (
     <div className="home-screen-root relative flex min-h-0 flex-1 flex-col overflow-hidden">
@@ -751,13 +748,15 @@ export function HomeScreen() {
                 {clock}
               </span>
               <h1 className="ui-title-xl text-zinc-100">
-                Welcome back, {greetingName}.{" "}
+                {t("home.greeting.welcomeBack", { name: greetingName })}{" "}
                 <span className="font-medium text-zinc-400">
-                  Let's get{" "}
-                  <span className="font-semibold fx-ink-2" style={{ color: "var(--accent)" }}>
-                    {verb}
-                  </span>{" "}
-                  today.
+                  {tx("home.greeting.getStarted", {
+                    verb: (
+                      <span className="font-semibold fx-ink-2" style={{ color: "var(--accent)" }}>
+                        {t(`home.greeting.verb.${verb}`)}
+                      </span>
+                    ),
+                  })}
                 </span>
               </h1>
               <p className="text-[13px] leading-snug text-zinc-400">{subtleLine}</p>
@@ -768,7 +767,7 @@ export function HomeScreen() {
               className="cmdk min-w-[240px] transition-colors duration-150 hover:text-[color:var(--text-primary)]"
             >
               <Search size={14} strokeWidth={1.5} />
-              <span>Jump to project or command</span>
+              <span>{t("home.search")}</span>
               <span className="ml-auto flex gap-[3px]">
                 <Kbd>⌘</Kbd>
                 <Kbd>K</Kbd>
@@ -781,33 +780,33 @@ export function HomeScreen() {
             <ActionTile
               primary
               icon={<FolderPlus size={18} strokeWidth={1.5} />}
-              title="New Project"
+              title={t("home.actions.newProject.title")}
               shortcut="⌘N"
-              desc="Add an existing folder as a project."
+              desc={t("home.actions.newProject.description")}
               onClick={() => setShowNewProject(true)}
             />
             <ActionTile
               icon={<GitBranch size={18} strokeWidth={1.5} />}
-              title="Clone Repository"
+              title={t("home.actions.cloneRepository.title")}
               shortcut="⌘⇧C"
-              desc="From GitHub, GitLab, or any Git remote."
+              desc={t("home.actions.cloneRepository.description")}
               onClick={() => setShowCloneRepo(true)}
             />
             <ActionTile
               icon={<FolderOpen size={18} strokeWidth={1.5} />}
-              title="Open Existing"
+              title={t("home.actions.openExisting.title")}
               shortcut="⌘O"
-              desc="Browse for a folder on your machine."
+              desc={t("home.actions.openExisting.description")}
               onClick={handleOpenExisting}
             />
             <ActionTile
               icon={<MessageSquarePlus size={18} strokeWidth={1.5} />}
-              title="New Session"
+              title={t("home.actions.newSession.title")}
               shortcut="⌘T"
               desc={
                 recentProjects.length > 0
-                  ? `Start a thread in ${recentProjects[0].project.name}.`
-                  : "Start a thread in any project."
+                  ? t("home.actions.newSession.projectDescription", { project: recentProjects[0].project.name })
+                  : t("home.actions.newSession.description")
               }
               onClick={handleNewSession}
             />
@@ -821,15 +820,15 @@ export function HomeScreen() {
               <Card>
                 <CardHead
                   icon={<Folders size={13} strokeWidth={1.5} className="text-zinc-500" />}
-                  eyebrow="Recent Projects"
+                  eyebrow={t("home.sections.recentProjects")}
                   count={recentProjects.length}
                 />
                 <div className="p-1">
                   {visibleRecentProjects.length === 0 ? (
                     <EmptyState
                       icon={Folders}
-                      headline="No projects yet"
-                      body="Add a folder as a project and its recent sessions collect here."
+                      headline={t("home.empty.projects.title")}
+                      body={t("home.empty.projects.body")}
                     />
                   ) : (
                     visibleRecentProjects.map((row, idx) => (
@@ -855,15 +854,15 @@ export function HomeScreen() {
               <Card>
                 <CardHead
                   icon={<Activity size={13} strokeWidth={1.5} className="text-zinc-500" />}
-                  eyebrow={hasLiveActivity ? "Active sessions" : "Recent threads"}
+                  eyebrow={t(hasLiveActivity ? "home.sections.activeSessions" : "home.sections.recentThreads")}
                   count={sessionRows.length}
                 />
                 <div>
                   {sessionRows.length === 0 ? (
                     <EmptyState
                       icon={Activity}
-                      headline="No threads yet"
-                      body="Start a session and it stays here so you can pick the work back up."
+                      headline={t("home.empty.threads.title")}
+                      body={t("home.empty.threads.body")}
                     />
                   ) : (
                     sessionRows.map((row) => (
@@ -881,19 +880,19 @@ export function HomeScreen() {
               <Card>
                 <CardHead
                   icon={<LayoutGrid size={13} strokeWidth={1.5} className="text-zinc-500" />}
-                  eyebrow="Start In"
+                  eyebrow={t("home.sections.startIn")}
                 />
                 <div className="p-1.5">
                   <ModeRow
                     icon={<MessageSquare size={14} strokeWidth={1.5} />}
-                    label="Agent mode"
-                    badge="default"
+                    label={t("home.modes.agent")}
+                    badge={t("home.modes.default")}
                     shortcut="⌘⇧A"
                     onClick={() => setAppMode("agent")}
                   />
                   <ModeRow
                     icon={<Briefcase size={14} strokeWidth={1.5} />}
-                    label="Cowork mode"
+                    label={t("home.modes.cowork")}
                     onClick={() => {
                       void import("../../lib/coworkMode").then((m) => m.setCoworkAppMode(true));
                     }}
@@ -901,7 +900,7 @@ export function HomeScreen() {
                   {taskViewAllowed && (
                     <ModeRow
                       icon={<GitFork size={14} strokeWidth={1.5} />}
-                      label="Task mode"
+                      label={t("home.modes.task")}
                       shortcut="⌘⇧T"
                       onClick={() => setAppMode("task")}
                     />
@@ -916,7 +915,7 @@ export function HomeScreen() {
                     <Sparkles size={14} strokeWidth={1.5} />
                   </div>
                   <div className="text-[12.5px] leading-relaxed text-[var(--text-secondary)]">
-                    <strong className="font-semibold text-[var(--text-primary)]">Did you know?</strong>{" "}
+                    <strong className="font-semibold text-[var(--text-primary)]">{t("home.tip.didYouKnow")}</strong>{" "}
                     {tipSegments.map((seg, i) =>
                       seg.kind === "code" ? (
                         <Code key={i}>{seg.value}</Code>
@@ -935,16 +934,22 @@ export function HomeScreen() {
               row of truthful zeros reads as a dead app and teaches nothing. */}
           {showStats && (
             <section className="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-3">
-              <Stat label="This week" value={String(sessionsThisWeek)} unit="sessions" />
               <Stat
-                label="Recent projects"
-                value={String(recentProjects.length)}
-                unit="tracked"
+                label={t("home.stats.thisWeek")}
+                value={String(sessionsThisWeek)}
+                unit={t("home.stats.sessions", { count: sessionsThisWeek })}
               />
               <Stat
-                label="Running now"
+                label={t("home.stats.recentProjects")}
+                value={String(recentProjects.length)}
+                unit={t("home.stats.tracked")}
+              />
+              <Stat
+                label={t("home.stats.runningNow")}
                 value={String(runningCount)}
-                unit={pendingApprovalCount > 0 ? `· ${pendingApprovalCount} need approval` : "live"}
+                unit={pendingApprovalCount > 0
+                  ? t("home.stats.pendingApprovalUnit", { count: pendingApprovalCount })
+                  : t("home.stats.live")}
                 accent={pendingApprovalCount > 0}
               />
             </section>
@@ -1056,6 +1061,7 @@ function ProjectRow({
   active: boolean;
   onClick: () => void;
 }) {
+  const t = useT();
   return (
     <button
       type="button"
@@ -1069,7 +1075,7 @@ function ProjectRow({
           <span className="truncate">{project.name}</span>
           {active && (
             <span className="app-chip px-2 py-[2px] text-[9px]" data-tone="accent">
-              recent
+              {t("home.project.recent")}
             </span>
           )}
         </div>
@@ -1077,16 +1083,17 @@ function ProjectRow({
       </div>
       <div className="br">
         <GitBranch size={10} strokeWidth={1.5} />
-        {threadCount} thread{threadCount === 1 ? "" : "s"}
+        {t("home.project.threadCount", { count: threadCount })}
       </div>
       <div className="tm">
-        {formatRelative(lastActiveIso ?? project.created_at)}
+        {formatRelative(lastActiveIso ?? project.created_at, t)}
       </div>
     </button>
   );
 }
 
 function RunningRowItem({ row, onClick }: { row: SessionRow; onClick: () => void }) {
+  const t = useT();
   const provider = PROVIDER_AVATAR[row.provider];
   const tone =
     row.state === "running"
@@ -1096,12 +1103,12 @@ function RunningRowItem({ row, onClick }: { row: SessionRow; onClick: () => void
         : "muted";
   const label =
     row.state === "running"
-      ? "running"
+      ? t("home.session.status.running")
       : row.state === "waiting"
-        ? "approve"
+        ? t("home.session.status.approve")
         : row.state === "recent"
-          ? formatRelative(row.lastActiveIso)
-          : "idle";
+          ? formatRelative(row.lastActiveIso, t)
+          : t("home.session.status.idle");
   const showDot = row.state === "running" || row.state === "waiting";
   const isRecent = row.state === "recent";
 
@@ -1208,6 +1215,7 @@ function snapshotPaceCache(): Record<PaceProvider, ProviderPaceState> {
 }
 
 function ProviderUsageCard() {
+  const t = useT();
   const { data: accountData, error: accountError } = useAccountUsage();
   const openSettings = useSettingsStore((s) => s.openSettings);
   const availabilityError = accountError ?? accountData?.teamError ?? accountData?.teams.find((team) => team.error)?.error;
@@ -1250,8 +1258,8 @@ function ProviderUsageCard() {
     <Card className="flex grow shrink-0 flex-col">
       <CardHead
         icon={<Zap size={13} strokeWidth={1.5} className="text-zinc-500" />}
-        eyebrow="Provider Usage"
-        link="Accounts"
+        eyebrow={t("home.usage.providerUsage")}
+        link={t("home.usage.accounts")}
         onLinkClick={() => openSettings("agentAccounts")}
       />
       {availabilityError && (
@@ -1270,8 +1278,8 @@ function ProviderUsageCard() {
           extras={[
             { label: "Sonnet", key: "sonnet" },
             { label: "Opus", key: "opus" },
-            { label: "Designs", key: "design" },
-            { label: "Routines", key: "routines" },
+            { label: t("home.usage.window.designs"), key: "design" },
+            { label: t("home.usage.window.routines"), key: "routines" },
           ]}
         />
         <ProviderUsageSection
@@ -1322,6 +1330,7 @@ function ProviderUsageSection({
   teams?: AccountTeam[];
   accountsStale?: boolean;
 }) {
+  const t = useT();
   if (accounts?.length) {
     return (
       <div className="app-session-row px-4 py-3.5">
@@ -1350,10 +1359,10 @@ function ProviderUsageSection({
   if (state.rateLimited) {
     statusNode = (
       <span className="app-chip ml-auto px-2 py-[2px] text-[9.5px] uppercase" data-tone="warn" title={state.error ?? undefined}>
-        rate-limited
+        {t("home.usage.status.rateLimited")}
         {stale && state.dataAt > 0 && (
           <span className="font-normal normal-case opacity-70">
-            · {formatRelative(new Date(state.dataAt).toISOString())}
+            · {formatRelative(new Date(state.dataAt).toISOString(), t)}
           </span>
         )}
       </span>
@@ -1364,13 +1373,13 @@ function ProviderUsageSection({
         className="ml-auto ui-meta text-[10px] text-[var(--text-muted)]"
         title={state.error ?? undefined}
       >
-        stale · {formatRelative(new Date(state.dataAt).toISOString())}
+        {t("home.usage.status.stale", { time: formatRelative(new Date(state.dataAt).toISOString(), t) })}
       </span>
     );
   } else if (!hasData) {
     statusNode = (
       <span className="ml-auto ui-meta text-[10px] text-[var(--text-muted)]">
-        {hasEverFetched ? "unavailable" : "loading…"}
+        {hasEverFetched ? t("home.usage.status.unavailable") : t("home.usage.status.loading")}
       </span>
     );
   }
@@ -1379,8 +1388,16 @@ function ProviderUsageSection({
   // Grok is credits-only. Claude still prefers both rows when data exists.
   const showSession = !creditsOnly && Boolean(session);
   const showWeekly = Boolean(weekly) || (!creditsOnly && !showSession && !hasData);
-  const sessionLabel = usageWindowLabel(session, "5-hour");
-  const weeklyLabel = creditsOnly ? grokCreditsLabel(weekly) : usageWindowLabel(weekly, "Weekly");
+  const sessionFallback = session?.windowMinutes == null || session.windowMinutes <= 0;
+  const sessionLabel = sessionFallback
+    ? t("home.usage.window.fiveHour")
+    : localizeUsageWindowLabel(usageWindowLabel(session, ""), t);
+  const weeklyFallback = weekly?.windowMinutes == null || weekly.windowMinutes <= 0;
+  const weeklyLabel = creditsOnly
+    ? localizeUsageWindowLabel(grokCreditsLabel(weekly), t)
+    : weeklyFallback
+      ? t("home.usage.window.weekly")
+      : localizeUsageWindowLabel(usageWindowLabel(weekly, ""), t);
 
   return (
     <div className="app-session-row px-4 py-3.5">
@@ -1422,6 +1439,7 @@ function UsageBar({
   className?: string;
   dimmed?: boolean;
 }) {
+  const t = useT();
   const hasData = Boolean(w);
   const pct = w ? Math.min(100, Math.max(0, w.utilization)) : 0;
   const expected = w ? Math.min(100, Math.max(0, w.expectedUtilization)) : 0;
@@ -1440,15 +1458,15 @@ function UsageBar({
         <span className="ml-auto flex items-center gap-1.5 ui-meta text-[12px]">
           {hasData ? (
             <>
-              <span style={{ color }}>{paceLabelWithDelta(w!)}</span>
+              <span style={{ color }}>{paceLabelWithDelta(w!, t)}</span>
               {w!.resetsAt && (
                 <span className="text-zinc-600">
-                  · resets {formatResetCountdown(w!.resetsAt)}
+                  {t("home.usage.resetLabel", { time: formatResetCountdown(w!.resetsAt, t) })}
                 </span>
               )}
             </>
           ) : (
-            <span className="text-zinc-600">no window</span>
+            <span className="text-zinc-600">{t("home.usage.noWindow")}</span>
           )}
         </span>
       </div>
@@ -1468,7 +1486,7 @@ function UsageBar({
   );
 }
 
-function paceLabelWithDelta(w: PaceWindow): string {
+function paceLabelWithDelta(w: PaceWindow, t: typeof translate): string {
   // Backend only includes the delta number for "ahead"/"well over". Recompute
   // here off the raw delta so "behind" also surfaces the amount — and keep all
   // four states consistent.
@@ -1476,13 +1494,13 @@ function paceLabelWithDelta(w: PaceWindow): string {
   const rounded = pct < 1 ? pct.toFixed(1) : Math.round(pct).toString();
   switch (w.paceStatus) {
     case "behind":
-      return `Behind pace by ${rounded}%`;
+      return t("home.usage.pace.behind", { percent: rounded });
     case "on_track":
-      return "On track";
+      return t("home.usage.pace.onTrack");
     case "ahead":
-      return `Ahead of pace by ${rounded}%`;
+      return t("home.usage.pace.ahead", { percent: rounded });
     case "well_over":
-      return `Well over pace by ${rounded}%`;
+      return t("home.usage.pace.wellOver", { percent: rounded });
     default:
       return w.paceLabel;
   }
@@ -1512,20 +1530,35 @@ function parseResetMs(value: string): number | null {
   return Number.isNaN(d) ? null : d;
 }
 
-function formatResetCountdown(value: string): string {
-  const t = parseResetMs(value);
-  if (t == null) return "—";
-  const diff = t - Date.now();
-  if (diff <= 0) return "soon";
+function formatResetCountdown(value: string, t: typeof translate): string {
+  const timestamp = parseResetMs(value);
+  if (timestamp == null) return "—";
+  const diff = timestamp - Date.now();
+  if (diff <= 0) return t("home.usage.reset.soon");
   const mins = Math.floor(diff / 60_000);
-  if (mins < 1) return "<1m";
-  if (mins < 60) return `in ${mins}m`;
+  if (mins < 1) return t("home.usage.reset.lessThanMinute");
+  if (mins < 60) return t("home.usage.reset.inMinutes", { count: mins });
   const hrs = Math.floor(mins / 60);
   const remMins = mins % 60;
-  if (hrs < 24) return remMins === 0 ? `in ${hrs}h` : `in ${hrs}h ${remMins}m`;
+  if (hrs < 24) {
+    return remMins === 0
+      ? t("home.usage.reset.inHours", { count: hrs })
+      : t("home.usage.reset.inHoursMinutes", { count: hrs, hours: hrs, minutes: remMins });
+  }
   const days = Math.floor(hrs / 24);
   const remHrs = hrs % 24;
-  return remHrs === 0 ? `in ${days}d` : `in ${days}d ${remHrs}h`;
+  return remHrs === 0
+    ? t("home.usage.reset.inDays", { count: days })
+    : t("home.usage.reset.inDaysHours", { count: days, days, hours: remHrs });
+}
+
+function localizeUsageWindowLabel(label: string, t: typeof translate): string {
+  const duration = label.match(/^(\d+)(m|-hour|-day)$/);
+  if (duration) {
+    const unit = duration[2] === "m" ? "minutes" : duration[2] === "-hour" ? "hours" : "days";
+    return t(`home.usage.window.${unit}`, { count: Number(duration[1]) });
+  }
+  return t(`home.usage.window.${label.toLowerCase()}`);
 }
 
 function Stat({
@@ -1539,6 +1572,7 @@ function Stat({
   unit: string;
   accent?: boolean;
 }) {
+  const t = useT();
   return (
     <div className="app-card home-stat px-4 py-3.5">
       <div
@@ -1555,7 +1589,7 @@ function Stat({
       </div>
       {accent && (
         <div className="mt-0.5 ui-meta text-[12px]" style={{ color: "var(--status-blue)" }}>
-          tap a row to attend
+          {t("home.stats.tapRowToAttend")}
         </div>
       )}
     </div>

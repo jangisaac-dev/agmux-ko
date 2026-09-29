@@ -6,6 +6,7 @@ import { useUiStore } from "../../stores/uiStore";
 import { useEditorStore } from "../../stores/editorStore";
 import { useFileWatcher } from "../../hooks/useFileWatcher";
 import { syncPollingToAppForeground } from "../../lib/appVisibility";
+import { tx, useT } from "../../i18n";
 import { FileTreeContextMenu } from "./FileTreeContextMenu";
 import { GitStatusIndicator } from "./GitStatusIndicator";
 import type { FileEntry } from "../../lib/types";
@@ -300,6 +301,7 @@ export function FileTree({
   onAskClaude,
   hideHeader,
 }: Props) {
+  const t = useT();
   const [entries, setEntries] = useState<FileEntry[]>([]);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [loaded, setLoaded] = useState(false);
@@ -492,7 +494,7 @@ export function FileTree({
             className="ui-eyebrow fx-graphite text-[color:var(--accent)]"
             style={{ flexShrink: 0 }}
           >
-            Files
+            {t("editor.fileTree.files")}
           </div>
           <span style={{ color: "var(--text-muted, #52525b)", flexShrink: 0 }}>·</span>
           <span
@@ -519,7 +521,7 @@ export function FileTree({
                 flexShrink: 0,
               }}
             >
-              {changedCount} changed
+              {t("editor.fileTree.changed", { count: changedCount })}
             </span>
           )}
         </div>
@@ -550,7 +552,7 @@ export function FileTree({
           <input
             value={filter}
             onChange={(e) => setFilter(e.target.value)}
-            placeholder="Filter…"
+            placeholder={t("editor.fileTree.filter")}
             style={{
               flex: 1,
               border: "none",
@@ -603,7 +605,7 @@ export function FileTree({
                 <span style={{ color: "var(--accent)", fontSize: 9 }}>✓</span>
               )}
             </span>
-            Changed only
+            {t("editor.fileTree.changedOnly")}
           </div>
         )}
       </div>
@@ -612,19 +614,19 @@ export function FileTree({
       <div className="flex-1 overflow-y-auto" style={{ padding: "4px 0" }}>
         {loadError && (
           <div className="px-3 py-4 text-[11px] text-red-400/80">
-            <div className="font-medium mb-1">Failed to load files</div>
+            <div className="font-medium mb-1">{t("editor.fileTree.loadFailed")}</div>
             <div className="text-red-300/60 break-all">{loadError}</div>
             <div className="mt-2 text-zinc-500 break-all">
-              Path: {rootPath}
+              {t("editor.fileTree.path")}: {rootPath}
             </div>
           </div>
         )}
         {!loadError && !loaded && (
-          <div className="px-3 py-4 text-[11px] text-zinc-500">Loading…</div>
+          <div className="px-3 py-4 text-[11px] text-zinc-500">{t("editor.fileTree.loading")}</div>
         )}
         {!loadError && loaded && entries.length === 0 && (
           <div className="px-3 py-4 text-[11px] text-zinc-500">
-            <div>Directory is empty</div>
+            <div>{t("editor.fileTree.empty")}</div>
             <div className="mt-2 text-zinc-600 break-all">{rootPath}</div>
           </div>
         )}
@@ -701,6 +703,7 @@ function RenameDialog({
   onCancel,
   onConfirm,
 }: RenameDialogProps) {
+  const t = useT();
   const [value, setValue] = useState(initialName);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -736,7 +739,7 @@ function RenameDialog({
         >
           <Pencil size={13} style={{ color: "var(--status-blue)", flexShrink: 0 }} />
           <div className="ui-eyebrow">
-            Rename {isDirectory ? "Folder" : "File"}
+            {t(isDirectory ? "editor.fileTree.renameFolder" : "editor.fileTree.renameFile")}
           </div>
         </div>
         <div style={{ padding: "4px 14px 10px" }}>
@@ -782,14 +785,14 @@ function RenameDialog({
         </div>
         <DialogActions>
           <DialogButton onClick={onCancel} disabled={busy}>
-            Cancel
+            {t("editor.fileTree.cancel")}
           </DialogButton>
           <DialogButton
             type="submit"
             primary
             disabled={busy || !value.trim() || value.trim() === initialName}
           >
-            {busy ? "Renaming…" : "Rename"}
+            {busy ? t("editor.fileTree.renaming") : t("editor.fileTree.rename")}
           </DialogButton>
         </DialogActions>
       </form>
@@ -815,6 +818,7 @@ function DeleteDialog({
   onCancel,
   onConfirm,
 }: DeleteDialogProps) {
+  const t = useT();
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
       if (e.key === "Escape") onCancel();
@@ -835,7 +839,7 @@ function DeleteDialog({
       >
         <Trash2 size={13} style={{ color: "var(--status-red)", flexShrink: 0 }} />
         <div className="ui-eyebrow">
-          Delete {isDirectory ? "Folder" : "File"}
+          {t(isDirectory ? "editor.fileTree.deleteFolder" : "editor.fileTree.deleteFile")}
         </div>
       </div>
       <div style={{ padding: "4px 14px 10px" }}>
@@ -847,20 +851,25 @@ function DeleteDialog({
             lineHeight: 1.5,
           }}
         >
-          Permanently delete{" "}
-          <span
-            style={{
-              fontFamily: "var(--font-mono)",
-              color: "var(--text-primary)",
-              background: "var(--surface-2)",
-              padding: "1px 5px",
-              borderRadius: 4,
-              wordBreak: "break-all",
-            }}
-          >
-            {relativePath}
-          </span>
-          {isDirectory && " and everything inside it"}?
+          {tx(
+            isDirectory ? "editor.fileTree.deletePromptFolder" : "editor.fileTree.deletePromptFile",
+            {
+              path: (
+                <span
+                  style={{
+                    fontFamily: "var(--font-mono)",
+                    color: "var(--text-primary)",
+                    background: "var(--surface-2)",
+                    padding: "1px 5px",
+                    borderRadius: 4,
+                    wordBreak: "break-all",
+                  }}
+                >
+                  {relativePath}
+                </span>
+              ),
+            },
+          )}
         </div>
         <div
           style={{
@@ -870,7 +879,7 @@ function DeleteDialog({
             color: "var(--text-tertiary)",
           }}
         >
-          This cannot be undone.
+          {t("editor.fileTree.deleteCannotUndo")}
         </div>
         {error && (
           <div
@@ -888,10 +897,10 @@ function DeleteDialog({
       </div>
       <DialogActions>
         <DialogButton onClick={onCancel} disabled={busy}>
-          Cancel
+          {t("editor.fileTree.cancel")}
         </DialogButton>
         <DialogButton onClick={onConfirm} danger disabled={busy}>
-          {busy ? "Deleting…" : "Delete"}
+          {busy ? t("editor.fileTree.deleting") : t("editor.fileTree.delete")}
         </DialogButton>
       </DialogActions>
     </DialogShell>

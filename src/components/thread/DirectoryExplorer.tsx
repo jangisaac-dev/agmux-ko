@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { Folder, File, ChevronUp, Search } from "lucide-react";
 import { listDirectory, sendPtyLine } from "../../lib/commands";
+import { useT } from "../../i18n";
 
 interface FileEntry {
   name: string;
@@ -42,6 +43,7 @@ export function DirectoryExplorer({
   onClose,
   onCdExecuted,
 }: Props) {
+  const t = useT();
   const [browsePath, setBrowsePath] = useState(currentPath);
   const [entries, setEntries] = useState<FileEntry[]>([]);
   const [search, setSearch] = useState("");
@@ -152,7 +154,7 @@ export function DirectoryExplorer({
           type="text"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          placeholder="Search directories..."
+          placeholder={t("thread.directory.searchPlaceholder")}
           className="flex-1 bg-transparent font-mono text-xs text-zinc-300 placeholder-zinc-600 outline-none"
         />
       </div>
@@ -166,15 +168,15 @@ export function DirectoryExplorer({
           className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-zinc-400 transition-colors hover:bg-zinc-800/60"
         >
           <ChevronUp size={14} className="shrink-0 text-zinc-500" />
-          <span className="font-mono text-xs">.. (Parent Directory)</span>
+          <span className="font-mono text-xs">{t("thread.directory.parentDirectory")}</span>
         </button>
 
         {loading && (
-          <p className="px-3 py-2 text-xs text-zinc-500">Loading...</p>
+          <p className="px-3 py-2 text-xs text-zinc-500">{t("thread.directory.loading")}</p>
         )}
 
         {!loading && sorted.length === 0 && (
-          <p className="px-3 py-2 text-xs text-zinc-500">No items found</p>
+          <p className="px-3 py-2 text-xs text-zinc-500">{t("thread.directory.noItems")}</p>
         )}
 
         {!loading &&
@@ -193,7 +195,7 @@ export function DirectoryExplorer({
                   e.preventDefault();
                   if (entry.is_dir) handleNavigate(fullPath);
                 }}
-                title={entry.is_dir ? "Click to cd here · Right-click to browse" : entry.name}
+                title={entry.is_dir ? t("thread.directory.enterOrBrowse") : entry.name}
                 className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm transition-colors hover:bg-zinc-800/60"
               >
                 {entry.is_dir ? (

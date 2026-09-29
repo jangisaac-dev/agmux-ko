@@ -27,6 +27,7 @@ import { useSettingsStore } from "./stores/settingsStore";
 import { useProjectStore } from "./stores/projectStore";
 import { useSplitViewStore } from "./stores/splitViewStore";
 import { useTaskViewStore } from "./stores/taskViewStore";
+import { useT } from "./i18n";
 import { useThreadDiffUpdates } from "./hooks/useThreadDiffUpdates";
 import { useKeepAwake } from "./hooks/useKeepAwake";
 import { runQuickOpenAction, isQuickOpenAction } from "./lib/quickOpen";
@@ -54,6 +55,7 @@ function dismissSplash() {
 }
 
 function App() {
+  const t = useT();
   useDebugHeartbeat();
   useThreadDiffUpdates();
   useKeepAwake();
@@ -547,14 +549,14 @@ function App() {
       <ApprovalToast />
       <AgentCompleteToastLayer />
       {accountNotices.notifications.length > 0 && (
-        <div className="pointer-events-none fixed bottom-5 left-1/2 z-[60] flex w-[min(420px,calc(100vw-32px))] -translate-x-1/2 flex-col gap-2" aria-label="Account notifications">
+        <div className="pointer-events-none fixed bottom-5 left-1/2 z-[60] flex w-[min(420px,calc(100vw-32px))] -translate-x-1/2 flex-col gap-2" aria-label={t("app.accountNotifications")}>
           {accountNotices.notifications.map(notice => (
             <div key={notice.key} role={notice.status === "ready" ? "status" : "alert"} className="pointer-events-auto rounded-2xl border border-[var(--glass-border)] bg-[var(--surface-popover)] p-4 text-[var(--text-primary)] shadow-xl">
-              <p className="text-xs font-semibold">{notice.provider === "claude" ? "Claude" : notice.provider === "codex" ? "Codex" : "Grok"} account</p>
+              <p className="text-xs font-semibold">{t("app.accountNotice.title", { provider: notice.provider === "claude" ? "Claude" : notice.provider === "codex" ? "Codex" : "Grok" })}</p>
               <p className="mt-1 text-sm leading-relaxed text-[var(--text-secondary)]">{notice.message}</p>
               <div className="mt-3 flex gap-2">
-                <button className="min-h-10 rounded-lg bg-[var(--accent-dim)] px-3 text-xs font-medium text-[var(--accent)] focus-visible:outline-2 focus-visible:outline-[var(--accent)]" onClick={() => { useSettingsStore.getState().openSettings("agentAccounts"); accountNotices.dismiss(notice.key); }}>Open Accounts</button>
-                <button className="min-h-10 rounded-lg px-3 text-xs text-[var(--text-tertiary)] transition-colors hover:bg-[var(--surface-hover)] focus-visible:outline-2 focus-visible:outline-[var(--accent)]" onClick={() => accountNotices.dismiss(notice.key)}>Dismiss</button>
+                <button className="min-h-10 rounded-lg bg-[var(--accent-dim)] px-3 text-xs font-medium text-[var(--accent)] focus-visible:outline-2 focus-visible:outline-[var(--accent)]" onClick={() => { useSettingsStore.getState().openSettings("agentAccounts"); accountNotices.dismiss(notice.key); }}>{t("app.openAccounts")}</button>
+                <button className="min-h-10 rounded-lg px-3 text-xs text-[var(--text-tertiary)] transition-colors hover:bg-[var(--surface-hover)] focus-visible:outline-2 focus-visible:outline-[var(--accent)]" onClick={() => accountNotices.dismiss(notice.key)}>{t("labels.dismiss")}</button>
               </div>
             </div>
           ))}
@@ -576,34 +578,33 @@ function App() {
             {isQuitting ? (
               <div className="flex flex-col items-center gap-3 py-2">
                 <div className="h-5 w-5 animate-spin rounded-full border-2 border-zinc-600 border-t-zinc-300" />
-                <p className="text-[13px] text-zinc-400">Shutting down…</p>
+                <p className="text-[13px] text-zinc-400">{t("app.shuttingDown")}</p>
               </div>
             ) : (
               <>
                 <h2 className="ui-title-d text-zinc-100">
-                  Quit agmux?
+                  {t("app.quit.title")}
                 </h2>
                 {runningSessionCount > 0 && (
                   <p className="mt-1 text-[12px] leading-relaxed text-zinc-300">
-                    You have {runningSessionCount}{" "}
-                    {runningSessionCount === 1 ? "session" : "sessions"} running.
+                    {t("app.quit.runningSessions", { count: runningSessionCount })}
                   </p>
                 )}
                 <p className={`text-[12px] leading-relaxed text-zinc-500 ${runningSessionCount > 0 ? "mt-0.5" : "mt-1"}`}>
-                  Running sessions will be stopped.
+                  {t("app.quit.runningSessionsWarning")}
                 </p>
                 <div className="mt-4 flex justify-end gap-2">
                   <button
                     onClick={() => setShowQuitDialog(false)}
                     className="fx-quiet rounded-[9px] min-h-[30px] px-3 py-1.5 text-[12px] font-medium text-zinc-400 hover:bg-zinc-800 hover:text-zinc-300 transition-colors"
                   >
-                    Cancel
+                    {t("labels.cancel")}
                   </button>
                   <button
                     onClick={handleQuit}
                     className="fx-danger rounded-[9px] min-h-[30px] px-3 py-1.5 bg-red-600/90 text-[12px] font-medium text-white hover:bg-red-500 transition-colors"
                   >
-                    Quit
+                    {t("app.quit.button")}
                   </button>
                 </div>
               </>

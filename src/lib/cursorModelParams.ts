@@ -1,4 +1,5 @@
 import type { CursorModel } from "./cursorSdkCommands";
+import { t } from "../i18n";
 
 export interface CursorReasoningOption {
   slug: string;
@@ -13,15 +14,15 @@ export interface CursorReasoningOptions {
   maxLabel?: string;
 }
 
-const BOOLEAN_LABELS: Record<string, "On" | "Off"> = {
-  true: "On",
-  on: "On",
-  yes: "On",
-  "1": "On",
-  false: "Off",
-  off: "Off",
-  no: "Off",
-  "0": "Off",
+const BOOLEAN_VALUES: Record<string, boolean> = {
+  true: true,
+  on: true,
+  yes: true,
+  "1": true,
+  false: false,
+  off: false,
+  no: false,
+  "0": false,
 };
 
 /** Map catalog tokens like `false`/`true` to Off/On. Keep named levels (Low, High). */
@@ -29,12 +30,14 @@ export function prettyCursorParamValueLabel(
   value: string,
   displayName?: string | null,
 ): string {
-  const named = (displayName ?? "").trim();
-  if (named) {
-    return BOOLEAN_LABELS[named.toLowerCase()] ?? named;
-  }
   const raw = String(value ?? "").trim();
-  return BOOLEAN_LABELS[raw.toLowerCase()] ?? raw;
+  const normalized = raw.toLowerCase();
+  const booleanValue = Object.prototype.hasOwnProperty.call(BOOLEAN_VALUES, normalized)
+    ? BOOLEAN_VALUES[normalized]
+    : undefined;
+  return booleanValue === undefined
+    ? (displayName ?? "").trim() || raw
+    : t(booleanValue ? "models.cursor.on" : "models.cursor.off");
 }
 
 export function cursorBaseModelSlug(slug: string | null | undefined): string {
@@ -69,7 +72,7 @@ export function cursorReasoningOptionsForModel(
   models: CursorModel[] | undefined,
   selectedModel: string,
 ): CursorReasoningOptions {
-  const empty: CursorReasoningOptions = { options: [], currentLabel: null, title: "Thinking" };
+  const empty: CursorReasoningOptions = { options: [], currentLabel: null, title: t("models.cursor.thinking") };
   const base = cursorBaseModelSlug(selectedModel);
   const model = models?.find((m) => cursorBaseModelSlug(m.slug) === base || m.slug === selectedModel);
   if (!model) return empty;
@@ -82,14 +85,16 @@ export function cursorReasoningOptionsForModel(
     slug: cursorSlugWithParam(selectedModel || model.slug, reasoningParam.id, value.value),
     label: prettyCursorParamValueLabel(value.value, value.displayName),
   }));
-  const booleanToggle =
-    options.length >= 2 && options.every((option) => option.label === "Off" || option.label === "On");
+  const booleanToggle = reasoningParam.values.length >= 2 && reasoningParam.values.every((value) => {
+    const raw = value.value.trim().toLowerCase();
+    return Object.prototype.hasOwnProperty.call(BOOLEAN_VALUES, raw);
+  });
   return {
     options,
     currentLabel:
       options.find((option) => cursorModelParamValue(option.slug, reasoningParam.id) === current)
         ?.label ?? null,
-    title: reasoningParam.displayName ?? "Thinking",
+    title: reasoningParam.displayName ?? t("models.cursor.thinking"),
     ...(booleanToggle
       ? {
           minLabel: options[0]?.label,

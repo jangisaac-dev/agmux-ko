@@ -566,7 +566,7 @@ describe("CodexSessionView", () => {
     expect(useUiStore.getState().pendingApprovalsBySession[baseSession.id]).toMatchObject({
       summary, interactionMode: "pty", category: "waiting",
     });
-    expect(notify).toHaveBeenCalledWith("agmux — Approval Required", summary, { threadId: baseSession.id, provider: "Codex" });
+    expect(notify).toHaveBeenCalledWith("agmux — Approval Required", summary, { threadId: baseSession.id, provider: "Codex", kind: "approval" });
     await act(async () => { terminalMock.props[terminalMock.props.length - 1]?.onPermissionPrompt?.(summary); });
     await act(async () => { vi.advanceTimersByTime(3_000); });
     expect(useUiStore.getState().pendingApprovalsBySession[baseSession.id]?.summary).toBe(summary);
@@ -7126,6 +7126,17 @@ describe("CodexSessionView — Click-through coverage", () => {
       expect(ta.value).toBe("");
       expect(ta.style.height).toBe("36px");
     });
+  });
+
+  it("Enter that confirms an IME conversion does not send; the next Enter does", async () => {
+    const { container } = render(<CodexSessionView session={baseSession} />);
+    await flush();
+    const ta = container.querySelector("textarea") as HTMLTextAreaElement;
+    fireEvent.change(ta, { target: { value: "変換中" } });
+    fireEvent.keyDown(ta, { key: "Enter", isComposing: true });
+    expect(ta.value).toBe("変換中");
+    fireEvent.keyDown(ta, { key: "Enter" });
+    await waitFor(() => expect(ta.value).toBe(""));
   });
 
   it("textarea Shift+Enter inserts newline (no submit)", async () => {

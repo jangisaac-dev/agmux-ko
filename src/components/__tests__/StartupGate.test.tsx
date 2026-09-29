@@ -1,9 +1,9 @@
 /** @vitest-environment jsdom */
-import { render, screen, fireEvent, cleanup } from "@testing-library/react";
+import { render, screen, fireEvent, cleanup, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { invoke } from "@tauri-apps/api/core";
 import { StartupGate } from "../StartupGate";
-vi.mock("@tauri-apps/api/core", () => ({ invoke: vi.fn() }));
+vi.mock("@tauri-apps/api/core", () => ({ invoke: vi.fn(() => Promise.resolve(undefined)) }));
 vi.mock("../../App", () => ({ default: () => <div>Main application</div> }));
 vi.mock("../settings/SupportSection", () => ({ SupportSection: ({ initialDetails }: { initialDetails: string }) => <div>Support: {initialDetails}</div> }));
 vi.mock("../../lib/appVisibility", () => ({ installAppVisibilitySync: vi.fn() }));
@@ -15,7 +15,7 @@ it("does not mount the main app after failed database startup", async () => {
   const splash = document.createElement("div"); splash.id = "splash"; document.body.append(splash);
   render(<StartupGate />);
   await screen.findByText("agmux could not open your data");
-  expect(document.getElementById("splash")).toBeNull();
+  await waitFor(() => expect(document.getElementById("splash")).toBeNull());
   expect(screen.queryByText("Main application")).toBeNull();
   fireEvent.click(screen.getByText("Contact Support"));
   expect(screen.getByText("Support: Startup failed: Migration failed")).toBeTruthy();

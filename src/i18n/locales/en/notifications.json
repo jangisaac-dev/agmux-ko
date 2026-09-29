@@ -1,0 +1,11 @@
+{
+  "notifications.enabledToast": "Notifications are now enabled!",
+  "notifications.title": "Enable Notifications",
+  "notifications.subtitle": "Stay in the loop",
+  "notifications.description": "Get notified when your agents finish working, need approval, or have a question — even when agmux isn't in focus.",
+  "notifications.notNow": "Not now",
+  "notifications.enabled": "Enabled!",
+  "notifications.requesting": "Requesting...",
+  "notifications.tryAgain": "Try again",
+  "notifications.enable": "Enable"
+}

@@ -2,6 +2,7 @@ import { useState } from "react";
 import { X } from "lucide-react";
 import type { JournalKind } from "../../lib/types";
 import { useJournalStore } from "../../stores/journalStore";
+import { useT } from "../../i18n";
 
 const JOURNAL_KINDS: JournalKind[] = [
   "Decision",
@@ -11,6 +12,15 @@ const JOURNAL_KINDS: JournalKind[] = [
   "Note",
   "Pin",
 ];
+
+const JOURNAL_KIND_LABELS: Record<JournalKind, string> = {
+  Decision: "thread.journal.kind.decision",
+  Convention: "thread.journal.kind.convention",
+  CompletedWork: "thread.journal.kind.completed",
+  KnownIssue: "thread.journal.kind.issue",
+  Note: "thread.journal.kind.note",
+  Pin: "thread.journal.kind.pin",
+};
 
 const kindColors: Record<JournalKind, string> = {
   Decision: "bg-purple-500/20 text-purple-400",
@@ -30,6 +40,7 @@ interface Props {
 }
 
 export function AddToJournalDialog({ open, threadId, initialContent, initialKind, onClose }: Props) {
+  const t = useT();
   const [kind, setKind] = useState<JournalKind>(initialKind ?? "Note");
   const [title, setTitle] = useState(() => {
     const firstLine = initialContent.split("\n")[0] || "";
@@ -59,7 +70,7 @@ export function AddToJournalDialog({ open, threadId, initialContent, initialKind
       <div className="w-full max-w-lg rounded-[20px] border border-zinc-800 bg-zinc-900 shadow-xl fx-dialog">
         {/* Header */}
         <div className="flex items-center justify-between border-b border-zinc-800 px-4 py-3">
-          <h3 className="text-sm font-medium text-zinc-100">Add to Journal</h3>
+          <h3 className="text-sm font-medium text-zinc-100">{t("thread.journal.addToJournal")}</h3>
           <button
             onClick={onClose}
             className="rounded p-1 text-zinc-400 hover:bg-zinc-800 hover:text-zinc-300"
@@ -73,7 +84,7 @@ export function AddToJournalDialog({ open, threadId, initialContent, initialKind
           {/* Kind selector */}
           <div>
             <label className="mb-1.5 block text-xs font-medium text-zinc-400">
-              Kind
+              {t("thread.journal.kind")}
             </label>
             <div className="flex flex-wrap gap-1.5">
               {JOURNAL_KINDS.map((k) => (
@@ -87,7 +98,7 @@ export function AddToJournalDialog({ open, threadId, initialContent, initialKind
                       : "bg-zinc-800 text-zinc-400 hover:text-zinc-300"
                   } ${kind === k ? "fx-soft-gold" : "fx-chip-q"}`}
                 >
-                  {k === "CompletedWork" ? "Completed" : k === "KnownIssue" ? "Issue" : k}
+                  {t(JOURNAL_KIND_LABELS[k])}
                 </button>
               ))}
             </div>
@@ -96,28 +107,28 @@ export function AddToJournalDialog({ open, threadId, initialContent, initialKind
           {/* Title */}
           <div>
             <label className="mb-1.5 block text-xs font-medium text-zinc-400">
-              Title
+              {t("thread.journal.title")}
             </label>
             <input
               type="text"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               className="w-full rounded border border-zinc-700 bg-zinc-800 px-3 py-2 text-sm text-zinc-100 outline-none focus:border-blue-500 fx-input"
-              placeholder="Entry title..."
+              placeholder={t("thread.journal.titlePlaceholder")}
             />
           </div>
 
           {/* Content */}
           <div>
             <label className="mb-1.5 block text-xs font-medium text-zinc-400">
-              Content
+              {t("thread.journal.content")}
             </label>
             <textarea
               value={content}
               onChange={(e) => setContent(e.target.value)}
               rows={6}
               className="w-full resize-none rounded border border-zinc-700 bg-zinc-800 px-3 py-2 text-sm text-zinc-100 outline-none focus:border-blue-500 fx-input"
-              placeholder="Entry content..."
+              placeholder={t("thread.journal.contentPlaceholder")}
             />
           </div>
         </div>
@@ -128,14 +139,14 @@ export function AddToJournalDialog({ open, threadId, initialContent, initialKind
             onClick={onClose}
             className="rounded border border-zinc-700 px-3 py-1.5 text-xs font-medium text-zinc-300 hover:bg-zinc-800"
           >
-            Cancel
+            {t("common.cancel")}
           </button>
           <button
             onClick={handleSave}
             disabled={saving || !title.trim()}
             className="rounded bg-blue-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-blue-500 disabled:opacity-50"
           >
-            {saving ? "Saving..." : "Save Entry"}
+            {saving ? t("thread.journal.saving") : t("thread.journal.saveEntry")}
           </button>
         </div>
       </div>

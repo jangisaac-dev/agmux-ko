@@ -18,6 +18,7 @@ import { getCodexSessionMode } from "../../lib/codexSessionMode";
 import { useUiStore } from "../../stores/uiStore";
 import { useThreadStore } from "../../stores/threadStore";
 import { useSessionNameStore } from "../../stores/sessionNameStore";
+import { useT } from "../../i18n";
 import {
   getClaudeModelDisplayName,
   prettifyCodexModelName,
@@ -189,16 +190,18 @@ function projectFromCwd(cwd?: string): string | null {
  *  User-renamed tabs (`customLabel`) always show `tab.label` as typed. */
 function resolveTabLabel(
   tab: TabItem,
-  sessionNames: Record<string, string>
+  sessionNames: Record<string, string>,
+  t: ReturnType<typeof useT>,
 ): string {
   if (tab.customLabel && tab.label.trim()) return tab.label;
+  if (tab.type === "draft" && tab.label === "New Chat") return t("labels.newChat");
 
   const entityId =
     tab.threadId ?? tab.claudeSessionId ?? tab.codexSessionId ?? tab.terminalSessionId;
   if (!entityId) return tab.label;
 
   const name = sessionNames[entityId];
-  if (!name) return tab.label;
+  if (!name) return tab.label === "Thread" ? t("labels.thread") : tab.label;
 
   const cwd = tab.claudeSessionCwd ?? tab.codexSessionCwd ?? tab.terminalSessionCwd;
   const project = projectFromCwd(cwd);
@@ -261,22 +264,23 @@ const TAB_TYPE_INTERACTION_MODE: Record<string, InteractionMode | null> = {
  *  threads with agent_profile "cowork" show "Cowork". The provider
  *  is shown via the icon, not the label. */
 function kindNameFor(
+  t: ReturnType<typeof useT>,
   interactionMode: InteractionMode | null,
   fallbackTabType: string,
   agentProfile?: string | null,
   sessionId?: string | null,
 ): string {
-  if (agentProfile === "cowork") return "Cowork";
-  if (fallbackTabType === "codex" && isCodexWorkSession(sessionId)) return "Work";
-  if (interactionMode === "sdk" || interactionMode === "mlx" || interactionMode === "opencode-sdk" || interactionMode === "grok-sdk" || interactionMode === "cursor-sdk" || interactionMode === "gemini-sdk") return "Chat";
-  if (interactionMode === "pty") return "Terminal";
-  if (fallbackTabType === "terminal" || fallbackTabType === "thread") return "Terminal";
-  if (fallbackTabType === "draft") return "Draft";
+  if (agentProfile === "cowork") return t("layout.tab.kind.cowork");
+  if (fallbackTabType === "codex" && isCodexWorkSession(sessionId)) return t("layout.tab.kind.work");
+  if (interactionMode === "sdk" || interactionMode === "mlx" || interactionMode === "opencode-sdk" || interactionMode === "grok-sdk" || interactionMode === "cursor-sdk" || interactionMode === "gemini-sdk") return t("layout.tab.kind.chat");
+  if (interactionMode === "pty") return t("layout.tab.kind.terminal");
+  if (fallbackTabType === "terminal" || fallbackTabType === "thread") return t("layout.tab.kind.terminal");
+  if (fallbackTabType === "draft") return t("layout.tab.kind.draft");
   // Provider tab types ("claude" / "codex" / "opencode-sdk") that haven't
   // resolved to a thread row yet — best guess is "Chat" since SDK chats
   // are the most common path through these tab types in modern xanom.
-  if (fallbackTabType === "claude" || fallbackTabType === "codex" || fallbackTabType === "opencode-sdk") return "Chat";
-  return "Thread";
+  if (fallbackTabType === "claude" || fallbackTabType === "codex" || fallbackTabType === "opencode-sdk") return t("layout.tab.kind.chat");
+  return t("layout.tab.kind.thread");
 }
 
 function modelDisplayFor(provider: Provider | null, slug: string | null | undefined): string | null {
@@ -411,6 +415,7 @@ interface ContextMenuState {
 }
 
 export function PaneTabBar({ paneId }: Props) {
+  const t = useT();
   const pane = useSplitViewStore((s) => s.panes[paneId]);
   const closeTab = useSplitViewStore((s) => s.closeTab);
   const setActiveTab = useSplitViewStore((s) => s.setActiveTab);
@@ -605,10 +610,10 @@ export function PaneTabBar({ paneId }: Props) {
     // (which may lag behind the summarized session name).
     setRenaming({
       tabId: contextMenu.tab.id,
-      value: resolveTabLabel(contextMenu.tab, sessionNames),
+      value: resolveTabLabel(contextMenu.tab, sessionNames, t),
     });
     setContextMenu(null);
-  }, [contextMenu, sessionNames]);
+  }, [contextMenu, sessionNames, t]);
 
   const commitRename = useCallback(() => {
     if (!renaming) return;
@@ -713,7 +718,7 @@ export function PaneTabBar({ paneId }: Props) {
             dropIndex === index &&
             dropIndex !== dragIndex &&
             dropIndex !== dragIndex + 1;
-          const label = resolveTabLabel(tab, sessionNames);
+          const label = resolveTabLabel(tab, sessionNames, t);
           // Subtle title-colour hint mirrors glow even on inactive tabs (no
           // pill, just the text colour shift).
           const titleColor =
@@ -747,6 +752,7 @@ export function PaneTabBar({ paneId }: Props) {
           const modelSlug = codexModel ?? resolveModelSlug(tab, thread, claudeSessionModelById, claudeSessionMap);
           const modelLabel = modelDisplayFor(provider, modelSlug);
           const kindLabel = kindNameFor(
+            t,
             interactionMode,
             tab.type,
             thread?.agentProfile,
@@ -808,7 +814,7 @@ export function PaneTabBar({ paneId }: Props) {
                 onDoubleClick={() =>
                   setRenaming({
                     tabId: tab.id,
-                    value: resolveTabLabel(tab, sessionNames),
+                    value: resolveTabLabel(tab, sessionNames, t),
                   })
                 }
                 onAuxClick={(e) => {
@@ -939,7 +945,7 @@ export function PaneTabBar({ paneId }: Props) {
                       ? "opacity-80 text-zinc-500 hover:bg-white/10 hover:text-white"
                       : "opacity-0 group-hover:opacity-100 text-zinc-600 hover:bg-white/10 hover:text-white",
                   ].join(" ")}
-                  aria-label="Close tab"
+                  aria-label={t("layout.pane.closeTab")}
                 >
                   <X size={11} strokeWidth={2.4} />
                 </span>
@@ -982,7 +988,7 @@ export function PaneTabBar({ paneId }: Props) {
           <button
             onClick={() => setSplitMenuOpen((v) => !v)}
             className="flex items-center justify-center rounded-md p-1.5 text-zinc-500 transition-colors hover:bg-white/[0.07] hover:text-zinc-300"
-            aria-label="Split pane"
+            aria-label={t("layout.pane.splitPane")}
           >
             <Plus size={14} />
           </button>
@@ -993,14 +999,14 @@ export function PaneTabBar({ paneId }: Props) {
                 className="flex w-full items-center gap-2.5 px-3 py-2 text-[13px] text-zinc-300 hover:bg-white/[0.07]"
               >
                 <SplitSquareHorizontal size={14} />
-                Split Right
+                {t("layout.pane.splitRight")}
               </button>
               <button
                 onClick={() => handleSplit("vertical")}
                 className="flex w-full items-center gap-2.5 px-3 py-2 text-[13px] text-zinc-300 hover:bg-white/[0.07]"
               >
                 <SplitSquareVertical size={14} />
-                Split Down
+                {t("layout.pane.splitDown")}
               </button>
             </div>
           )}
@@ -1012,8 +1018,8 @@ export function PaneTabBar({ paneId }: Props) {
           <button
             onClick={resetLayout}
             className="flex items-center justify-center rounded-md p-1.5 text-zinc-500 transition-colors hover:bg-white/[0.07] hover:text-zinc-300"
-            aria-label="Unsplit"
-            title="Unsplit"
+            aria-label={t("layout.pane.unsplit")}
+            title={t("layout.pane.unsplit")}
           >
             <Minimize2 size={13} />
           </button>
@@ -1034,14 +1040,14 @@ export function PaneTabBar({ paneId }: Props) {
                 className="flex w-full items-center gap-2.5 px-3 py-2 text-[13px] text-zinc-300 hover:bg-white/[0.07]"
               >
                 <SplitSquareHorizontal size={14} />
-                Split Right
+                {t("layout.pane.splitRight")}
               </button>
               <button
                 onClick={() => handleSplitFromContext("vertical")}
                 className="flex w-full items-center gap-2.5 px-3 py-2 text-[13px] text-zinc-300 hover:bg-white/[0.07]"
               >
                 <SplitSquareVertical size={14} />
-                Split Down
+                {t("layout.pane.splitDown")}
               </button>
               <div className="my-1 h-px" style={{ background: "var(--glass-border)" }} />
             </>
@@ -1051,14 +1057,14 @@ export function PaneTabBar({ paneId }: Props) {
             className="flex w-full items-center gap-2.5 px-3 py-2 text-[13px] text-zinc-300 hover:bg-white/[0.07]"
           >
             <Pencil size={14} />
-            Rename Tab
+            {t("layout.pane.renameTab")}
           </button>
           <button
             onClick={handleCloseFromContext}
             className="flex w-full items-center gap-2.5 px-3 py-2 text-[13px] text-zinc-300 hover:bg-white/[0.07]"
           >
             <X size={14} />
-            Close Tab
+            {t("layout.pane.closeTabMenu")}
           </button>
         </div>
       )}

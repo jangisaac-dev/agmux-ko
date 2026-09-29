@@ -144,6 +144,8 @@ export interface AppSettings {
   groqModel: string;
   /** Custom accent color hex (empty string = use theme default). */
   accentColor: string;
+  /** Interface language. "system" follows the macOS language (see src/i18n). */
+  uiLanguage: "system" | "en" | "ko";
   /** UI font family. */
   uiFont: UIFont;
   /** Monospace font family. */
@@ -419,6 +421,7 @@ const DEFAULT_SETTINGS: AppSettings = {
   llmProvider: "local",
   groqModel: "",
   accentColor: "",
+  uiLanguage: "system",
   uiFont: "archivo",
   monoFont: "geist-mono",
   uiFontSize: 14,

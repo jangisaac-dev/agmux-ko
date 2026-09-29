@@ -1,8 +1,18 @@
 import { useEffect, useMemo } from "react";
 import { Search, RefreshCw, Package, Server } from "lucide-react";
 import { useSkillsStore, SKILL_CATEGORIES, type SkillCategory } from "../../stores/skillsStore";
+import { useT } from "../../i18n";
+
+const CATEGORY_LABEL_KEYS: Record<SkillCategory, string> = {
+  all: "skills.category.all",
+  installed: "skills.installed",
+  "Official Plugins": "skills.official",
+  "Community Plugins": "skills.community",
+  mcp: "skills.category.mcp",
+};
 
 export function SkillsPanel() {
+  const t = useT();
   const skills = useSkillsStore((s) => s.skills);
   const loading = useSkillsStore((s) => s.loading);
   const searchQuery = useSkillsStore((s) => s.searchQuery);
@@ -45,15 +55,15 @@ export function SkillsPanel() {
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Search skills..."
+            placeholder={t("skills.searchPlaceholder")}
             className="h-7 w-full rounded-md border border-white/5 bg-zinc-800/60 pl-7 pr-2 text-xs text-zinc-200 placeholder-zinc-600 outline-none focus:border-blue-600/50 focus:ring-1 focus:ring-blue-600/20"
           />
         </div>
         <button
           onClick={fetchSkills}
           disabled={loading}
-          aria-label="Refresh skills"
-          title="Refresh skills"
+          aria-label={t("skills.refresh")}
+          title={t("skills.refresh")}
           className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-white/5 bg-zinc-800/60 text-zinc-400 transition-colors hover:bg-zinc-700/60 hover:text-zinc-300 disabled:opacity-50"
         >
           <RefreshCw size={12} className={loading ? "animate-spin" : ""} />
@@ -65,10 +75,10 @@ export function SkillsPanel() {
         <Package size={14} className="shrink-0 text-blue-400" />
         <div className="min-w-0 flex-1">
           <p className="text-xs font-medium text-zinc-200">
-            {installedCount} installed
+            {t("skills.installedCount", { count: installedCount })}
           </p>
           <p className="text-[10px] text-zinc-400">
-            {skills.length} available
+            {t("skills.availableCount", { count: skills.length })}
           </p>
         </div>
         <div className="flex items-center gap-1 text-zinc-400">
@@ -80,7 +90,7 @@ export function SkillsPanel() {
       {/* Category filters */}
       <div className="px-3 pb-2">
         <p className="mb-2 text-[10px] font-semibold uppercase tracking-wider text-zinc-500">
-          Categories
+          {t("skills.categories")}
         </p>
         <div className="space-y-1">
           {SKILL_CATEGORIES.map((cat) => {
@@ -103,7 +113,7 @@ export function SkillsPanel() {
                     : "text-zinc-400 hover:bg-white/[0.04] hover:text-zinc-200"
                   }`}
               >
-                <span>{cat.label}</span>
+                <span>{t(CATEGORY_LABEL_KEYS[cat.value])}</span>
                 <span
                   className={`text-[10px] ${
                     isActive ? "text-zinc-300" : "text-zinc-500"

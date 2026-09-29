@@ -1,0 +1,11 @@
+{
+  "search.input.placeholder": "세션, 메시지, 프로젝트 검색…",
+  "search.results.searchingMessages": "메시지 검색 중…",
+  "search.results.noneFound": "검색 결과 없음",
+  "search.results.noSessions": "아직 세션 없음",
+  "search.result.message": "메시지",
+  "search.footer.navigate": "{{up}}{{down}} 이동",
+  "search.footer.open": "{{enter}} 열기",
+  "search.footer.close": "{{esc}} 닫기",
+  "search.footer.scope": "이름, 메시지, 저널 검색"
+}

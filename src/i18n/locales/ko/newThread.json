@@ -1,0 +1,12 @@
+{
+  "newThread.title": "새 워크트리",
+  "newThread.provider.label": "제공자",
+  "newThread.branch.options": "브랜치 옵션",
+  "newThread.branch.base": "기준 브랜치",
+  "newThread.branch.currentSuffix": " (현재)",
+  "newThread.branch.name": "브랜치 이름",
+  "newThread.branch.assigned": "— 생성 시 할당됨",
+  "newThread.action.cancel": "취소",
+  "newThread.action.create": "생성",
+  "newThread.action.creating": "생성하는 중..."
+}

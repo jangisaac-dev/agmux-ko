@@ -2,6 +2,7 @@ import { useState } from "react";
 import { FileEdit, FilePlus, Undo2, Loader2, Check, AlertCircle } from "lucide-react";
 import type { TurnFileChange } from "../../lib/types";
 import { sdkRewindFiles } from "../../lib/commands";
+import { localeTag, useT } from "../../i18n";
 
 interface Props {
   changes: TurnFileChange[];
@@ -14,6 +15,7 @@ interface Props {
 type RewindState = "idle" | "loading" | "success" | "error";
 
 export function TurnChangeSummary({ changes, userMessageId, sessionId }: Props) {
+  const t = useT();
   const [rewindState, setRewindState] = useState<RewindState>("idle");
   const [rewindError, setRewindError] = useState<string | null>(null);
 
@@ -31,7 +33,7 @@ export function TurnChangeSummary({ changes, userMessageId, sessionId }: Props) 
       const result = await sdkRewindFiles(sessionId, userMessageId);
       if (result.canRewind === false) {
         setRewindState("error");
-        setRewindError(result.error ?? "Cannot rewind — no checkpoint found");
+        setRewindError(result.error ?? t("session.changes.rewindUnavailable"));
       } else {
         setRewindState("success");
       }
@@ -45,10 +47,10 @@ export function TurnChangeSummary({ changes, userMessageId, sessionId }: Props) 
     <div className="rounded-[14px] bg-white/[0.03] fx-card px-3 py-2">
       <div className="flex items-center gap-2 mb-1.5">
         <span className="text-[13.5px] font-semibold text-zinc-400 fx-ink">
-          Changes this turn
+          {t("session.changes.heading")}
         </span>
         <span className="text-[10px] text-zinc-600">
-          {changes.length} file{changes.length > 1 ? "s" : ""}
+          {t("session.changes.fileCount", { count: changes.length, value: changes.length.toLocaleString(localeTag()) })}
         </span>
         {canRewind && (
           <button
@@ -69,32 +71,32 @@ export function TurnChangeSummary({ changes, userMessageId, sessionId }: Props) 
             }}
             title={
               rewindState === "success"
-                ? "Changes reverted"
-                : "Revert all file changes from this turn"
+                ? t("session.changes.revertedTitle")
+                : t("session.changes.revertTitle")
             }
           >
             {rewindState === "idle" && (
               <>
                 <Undo2 size={10} />
-                <span>Undo changes</span>
+                <span>{t("session.changes.undo")}</span>
               </>
             )}
             {rewindState === "loading" && (
               <>
                 <Loader2 size={10} className="animate-spin" />
-                <span>Reverting…</span>
+                <span>{t("session.changes.reverting")}</span>
               </>
             )}
             {rewindState === "success" && (
               <>
                 <Check size={10} />
-                <span>Reverted</span>
+                <span>{t("session.changes.reverted")}</span>
               </>
             )}
             {rewindState === "error" && (
               <>
                 <AlertCircle size={10} />
-                <span>Failed</span>
+                <span>{t("session.common.failed")}</span>
               </>
             )}
           </button>

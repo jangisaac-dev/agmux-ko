@@ -79,6 +79,7 @@ import {
 } from "./ImageAttachmentBar";
 import { useNativeFileDrop } from "../../hooks/useNativeFileDrop";
 import { DropdownPopover, DropdownHeader, DropdownRow } from "../ui/ComposerDropdown";
+import { localeTag, t as translate, tx, useT } from "../../i18n";
 
 // OpenCode doesn't expose a per-turn reasoning-effort knob in its SDK.
 // Instead, reasoning levels are configured as *model variants* in the
@@ -489,6 +490,7 @@ interface Props {
 }
 
 export function OpenCodeSdkSessionView({ sessionId: threadId, cwd, isNew, hideTopBar, compact = false }: Props) {
+  const t = useT();
   const sessionUiKey = `opencode-sdk:${threadId}`;
   const thread = useThreadStore((s) => {
     for (const arr of Object.values(s.threads)) {
@@ -1015,9 +1017,9 @@ export function OpenCodeSdkSessionView({ sessionId: threadId, cwd, isNew, hideTo
         const { title, body } = providerizeNotification(
           threadId,
           thread?.name ?? "OpenCode",
-          "Agent finished — tap to view results",
+          translate("session.notification.agentFinishedBody"),
         );
-        sendNotification(title, body, { threadId });
+        sendNotification(title, body, { threadId, kind: "complete" });
         // In-app completion toast (has its own duration tracker).
         showAgentCompleteToast(threadId);
         // Show plan follow-up banner if the turn was run under the "plan"
@@ -1150,10 +1152,10 @@ export function OpenCodeSdkSessionView({ sessionId: threadId, cwd, isNew, hideTo
         // Fire OS notification (suppressed if window is focused)
         const permNoti = providerizeNotification(
           threadId,
-          "Permission requested",
-          `OpenCode wants to ${evt.permission}`,
+          translate("session.notification.permissionRequested"),
+          translate("session.openc.permissionRequestedBody", { permission: evt.permission }),
         );
-        sendNotification(permNoti.title, permNoti.body, { threadId });
+        sendNotification(permNoti.title, permNoti.body, { threadId, kind: "approval" });
         break;
       }
 
@@ -1806,11 +1808,12 @@ export function OpenCodeSdkSessionView({ sessionId: threadId, cwd, isNew, hideTo
     return (
       <div className="flex h-full items-center justify-center p-8">
         <div className="max-w-md rounded-lg border border-red-500/30 bg-red-500/5 p-4 text-sm text-red-300">
-          <div className="font-medium">Failed to start OpenCode session</div>
+          <div className="font-medium">{t("session.openc.startFailed")}</div>
           <div className="mt-2 font-mono text-xs text-red-400/80">{startError}</div>
           <div className="mt-2 text-xs text-zinc-400">
-            Check that <code className="font-mono text-zinc-300">opencode</code> is installed and
-            the binary path is set in Settings → OpenCode.
+            {tx("session.openc.binaryPathHelp", {
+              command: <code className="font-mono text-zinc-300">opencode</code>,
+            })}
           </div>
         </div>
       </div>
@@ -1844,8 +1847,8 @@ export function OpenCodeSdkSessionView({ sessionId: threadId, cwd, isNew, hideTo
           onToggleBypass={() => setPermissionMode((m) => m === "full-access" ? "normal" : "full-access")}
           bypassTooltip={
             permissionMode === "full-access"
-              ? "Full access — auto-approve all (takes effect on next session start)"
-              : "Supervised — toggle for full access (takes effect on next session start)"
+              ? t("session.openc.fullAccessTooltip")
+              : t("session.openc.supervisedTooltip")
           }
         />
       )}
@@ -1877,7 +1880,7 @@ export function OpenCodeSdkSessionView({ sessionId: threadId, cwd, isNew, hideTo
             {blocks.length === 0 && !sending && started && (
               <div className="flex h-full flex-col items-center justify-center gap-3 text-zinc-400">
                 <Bot size={32} className="text-zinc-700" />
-                <p className="text-sm">No messages yet. Start typing to begin.</p>
+                <p className="text-sm">{t("session.empty.noMessagesYet")} {t("session.empty.startTypingToBegin")}</p>
               </div>
             )}
             {renderBlocks.map((entry) => {
@@ -1891,12 +1894,12 @@ export function OpenCodeSdkSessionView({ sessionId: threadId, cwd, isNew, hideTo
                   >
                     <CodexToolRow
                       icon={<Sparkles size={13} />}
-                      lead={`Thought for ${formatTurnDuration(entry.durationMs)}`}
+                      lead={t("session.common.thoughtFor", { duration: formatTurnDuration(entry.durationMs) })}
                       tone="thinking"
                       toggle={{
                         open,
-                        openLabel: "hide",
-                        closedLabel: `${entry.items.length} step${entry.items.length === 1 ? "" : "s"}`,
+                        openLabel: t("session.common.hide"),
+                        closedLabel: t("session.common.stepCount", { count: entry.items.length, value: entry.items.length.toLocaleString(localeTag()) }),
                         onToggle: () =>
                           setExpandedTurns((prev) => ({ ...prev, [entry.id]: !prev[entry.id] })),
                       }}
@@ -1935,12 +1938,12 @@ export function OpenCodeSdkSessionView({ sessionId: threadId, cwd, isNew, hideTo
                           fontVariantNumeric: "tabular-nums",
                         }}
                       >
-                        {(contextUsage.lastInputTokens ?? 0).toLocaleString()} in ·{" "}
-                        {(contextUsage.lastOutputTokens ?? 0).toLocaleString()} out
+                        {(contextUsage.lastInputTokens ?? 0).toLocaleString(localeTag())} {t("session.sdk.tokens.in")} ·{" "}
+                        {(contextUsage.lastOutputTokens ?? 0).toLocaleString(localeTag())} {t("session.sdk.tokens.out")}
                         {(contextUsage.lastCachedInputTokens ?? 0) > 0 && (
                           <>
                             {" "}
-                            · {(contextUsage.lastCachedInputTokens ?? 0).toLocaleString()} cache
+                            · {(contextUsage.lastCachedInputTokens ?? 0).toLocaleString(localeTag())} {t("session.sdk.tokens.cache")}
                           </>
                         )}
                       </span>
@@ -1983,15 +1986,15 @@ export function OpenCodeSdkSessionView({ sessionId: threadId, cwd, isNew, hideTo
                   <button
                     onClick={() => handleSteer(msg.id)}
                     className="flex shrink-0 items-center gap-1 rounded-lg bg-white/10 backdrop-blur-sm px-2.5 py-1 text-xs font-medium text-white/80 hover:bg-white/15 transition-colors"
-                    title="Interrupt the current turn and send this message now"
+                    title={t("session.openc.interruptAndSendNow")}
                   >
                     <CornerDownRight size={12} />
-                    Steer
+                    {t("session.common.steer")}
                   </button>
                   <button
                     onClick={() => handleDeleteQueued(msg.id)}
                     className="shrink-0 rounded p-1 text-white/40 hover:bg-white/10 hover:text-white/70 transition-colors"
-                    title="Remove from queue"
+                    title={t("session.common.removeFromQueue")}
                   >
                     <Trash2 size={14} />
                   </button>
@@ -2028,6 +2031,7 @@ export function OpenCodeSdkSessionView({ sessionId: threadId, cwd, isNew, hideTo
                 onFocus={() => setComposerFocused(true)}
                 onBlur={() => setComposerFocused(false)}
                 onKeyDown={(e) => {
+                  if (e.nativeEvent.isComposing) return; // IME conversion (Japanese/Chinese)
                   if (handleTextFieldCmdArrowNav(e, e.currentTarget)) return;
                   if (fileMention.handleKeyDown(e)) return;
                   if (e.key === "Enter" && !e.shiftKey) {
@@ -2053,7 +2057,7 @@ export function OpenCodeSdkSessionView({ sessionId: threadId, cwd, isNew, hideTo
                     console.error("OpenCode: paste image failed", err);
                   }
                 }}
-                placeholder={sending ? "Type to queue a follow-up…" : "Message OpenCode… (⇧⏎ newline · @ file · drop/paste image)"}
+                placeholder={sending ? t("session.openc.placeholder.queueFollowUp") : t("session.openc.placeholder.message")}
                 rows={1}
                 disabled={!started}
                 autoFocus
@@ -2103,7 +2107,7 @@ export function OpenCodeSdkSessionView({ sessionId: threadId, cwd, isNew, hideTo
                     ]}
                     value={currentVariant ?? ""}
                     onChange={(v) => handleSelectVariant(v || null)}
-                    title="Reasoning effort"
+                    title={t("session.openc.reasoningEffort")}
                   />
                 </>
               )}
@@ -2115,11 +2119,11 @@ export function OpenCodeSdkSessionView({ sessionId: threadId, cwd, isNew, hideTo
                     <button
                       onClick={() => setShowAgentMenu(!showAgentMenu)}
                       className={`${CBTN} ${selectedAgent === "plan" ? CBTN_PLAN : ""}`}
-                      title={selectedAgent ? `Agent: ${selectedAgent}` : "Default agent"}
+                      title={selectedAgent ? t("session.openc.agentTitle", { agent: selectedAgent }) : t("session.openc.defaultAgent")}
                     >
                       {selectedAgent === "plan" ? <Map size={15} className="shrink-0" /> : <Bot size={15} className="shrink-0" />}
                       <span className="capitalize">
-                        {selectedAgent ?? "Default"}
+                        {selectedAgent === "plan" ? t("session.openc.planAgent") : selectedAgent ?? t("session.openc.default")}
                       </span>
                       <ChevronDown size={10} className="ml-0.5 opacity-50" />
                     </button>
@@ -2134,13 +2138,13 @@ export function OpenCodeSdkSessionView({ sessionId: threadId, cwd, isNew, hideTo
                           style={{ width: 280 }}
                         >
                           <DropdownPopover>
-                            <DropdownHeader title="Agent" />
+                            <DropdownHeader title={t("session.openc.agent")} />
                             <DropdownRow
                               onClick={() => handleSelectAgent(undefined)}
                               selected={!selectedAgent}
                               icon={<Bot size={14} />}
-                              title="Default"
-                              meta="Use the session's default agent"
+                              title={t("session.openc.default")}
+                              meta={t("session.openc.useSessionDefaultAgent")}
                             />
                             {agents.map((a) => (
                               <DropdownRow
@@ -2174,13 +2178,13 @@ export function OpenCodeSdkSessionView({ sessionId: threadId, cwd, isNew, hideTo
                   className={`${CBTN} ${permissionMode === "full-access" ? CBTN_PERM_FULL : ""}`}
                   title={
                     permissionMode === "full-access"
-                      ? "Full access — all actions auto-approved"
-                      : "Supervised — approve each permission"
+                    ? t("session.openc.fullAccessAllApproved")
+                      : t("session.openc.supervisedApproveEach")
                   }
                 >
                   {permissionMode === "full-access" ? <LockOpen size={15} className="shrink-0" /> : <Lock size={15} className="shrink-0" />}
                   <span>
-                    {permissionMode === "full-access" ? "Full access" : "Supervised"}
+                    {permissionMode === "full-access" ? t("session.openc.fullAccess") : t("session.openc.supervised")}
                   </span>
                   <ChevronDown size={10} className="ml-0.5 opacity-50" />
                 </button>
@@ -2195,20 +2199,20 @@ export function OpenCodeSdkSessionView({ sessionId: threadId, cwd, isNew, hideTo
                       style={{ width: 260 }}
                     >
                       <DropdownPopover>
-                        <DropdownHeader title="Permissions" />
+                        <DropdownHeader title={t("session.openc.permissions")} />
                         <DropdownRow
                           onClick={() => { setPermissionMode("normal"); setShowPermMenu(false); }}
                           selected={permissionMode === "normal"}
                           icon={<Lock size={14} />}
-                          title="Supervised"
-                          meta="Approve every bash/edit/webfetch call"
+                          title={t("session.openc.supervised")}
+                          meta={t("session.openc.approveEveryCall")}
                         />
                         <DropdownRow
                           onClick={() => { setPermissionMode("full-access"); setShowPermMenu(false); }}
                           selected={permissionMode === "full-access"}
                           icon={<LockOpen size={14} className="text-[color:var(--accent)]" />}
-                          title="Full access"
-                          meta="Skip all approval prompts"
+                          title={t("session.openc.fullAccess")}
+                          meta={t("session.openc.skipApprovalPrompts")}
                         />
                       </DropdownPopover>
                     </motion.div>
@@ -2228,7 +2232,7 @@ export function OpenCodeSdkSessionView({ sessionId: threadId, cwd, isNew, hideTo
                 <button
                   onClick={handleInterrupt}
                   className={STOP_BTN}
-                  title="Stop"
+                  title={t("session.common.stop")}
                 >
                   <Square size={15} fill="currentColor" />
                 </button>
@@ -2241,7 +2245,7 @@ export function OpenCodeSdkSessionView({ sessionId: threadId, cwd, isNew, hideTo
                       ? SEND_BTN_ACTIVE
                       : SEND_BTN_IDLE
                   }
-                  title={sending ? "Queue message" : "Send message"}
+                  title={sending ? t("session.common.queueMessage") : t("session.common.sendMessage")}
                 >
                   <ArrowUp size={16} />
                 </button>
@@ -2264,10 +2268,10 @@ export function OpenCodeSdkSessionView({ sessionId: threadId, cwd, isNew, hideTo
       {pendingApproval && (
         <div className="border-t border-amber-400/30 bg-amber-500/5 px-4 py-3">
           <div className="mb-2 text-xs font-medium text-amber-200">
-            OpenCode wants to {pendingApproval.permission}
-            {pendingApproval.pattern && pendingApproval.pattern !== "*"
-              ? ` (${pendingApproval.pattern})`
-              : ""}
+            {t("session.openc.approvalDescription", {
+              permission: pendingApproval.permission,
+              pattern: pendingApproval.pattern && pendingApproval.pattern !== "*" ? ` (${pendingApproval.pattern})` : "",
+            })}
           </div>
           {Object.keys(pendingApproval.metadata).length > 0 && (
             <div className="mb-2 max-h-24 overflow-y-auto rounded bg-black/30 p-2 font-mono text-[11px] text-zinc-300">
@@ -2279,19 +2283,19 @@ export function OpenCodeSdkSessionView({ sessionId: threadId, cwd, isNew, hideTo
               onClick={() => handleApprove("accept")}
               className="rounded-md bg-[var(--accent-dim)] px-3 py-1 text-xs text-[color:var(--accent)] transition-colors hover:bg-[color-mix(in_srgb,var(--accent)_25%,transparent)]"
             >
-              Approve once
+              {t("session.openc.approveOnce")}
             </button>
             <button
               onClick={() => handleApprove("acceptForSession")}
               className="rounded-md bg-[var(--accent-dim)] px-3 py-1 text-xs text-[color:var(--accent)] transition-colors hover:bg-[color-mix(in_srgb,var(--accent)_20%,transparent)]"
             >
-              Approve always
+              {t("session.openc.approveAlways")}
             </button>
             <button
               onClick={() => handleApprove("decline")}
               className="rounded-md bg-red-500/15 px-3 py-1 text-xs text-red-300 transition-colors hover:bg-red-500/25"
             >
-              Deny
+              {t("session.common.deny")}
             </button>
           </div>
         </div>
@@ -2325,6 +2329,8 @@ export function OpenCodeSdkSessionView({ sessionId: threadId, cwd, isNew, hideTo
 // ---------------------------------------------------------------------------
 
 const BlockRenderer = memo(function BlockRenderer({ block }: { block: RenderBlock }) {
+  const t = useT();
+
   switch (block.kind) {
     case "tool_group": {
       // Reuse ClaudeSdk/Codex's ToolActivityGroup so the visual treatment
@@ -2414,7 +2420,7 @@ const BlockRenderer = memo(function BlockRenderer({ block }: { block: RenderBloc
         <div className="mb-1 animate-glass-in">
           <div className="rounded-md border border-violet-400/20 bg-violet-500/[0.04]">
             <div className="flex items-center gap-2 px-3 py-1.5 text-xs text-violet-300">
-              <span className="ui-eyebrow text-violet-400/80">Subtask</span>
+              <span className="ui-eyebrow text-violet-400/80">{t("session.openc.subtask")}</span>
               <span className="font-medium text-zinc-100">{block.agent}</span>
               {block.subtaskModel && (
                 <span className="ml-auto font-mono text-[10px] text-zinc-500">{block.subtaskModel}</span>
@@ -2426,7 +2432,7 @@ const BlockRenderer = memo(function BlockRenderer({ block }: { block: RenderBloc
             {block.prompt && (
               <pre className="overflow-x-auto border-t border-white/[0.04] bg-black/20 px-3 py-2 font-mono text-[11px] text-zinc-400">
                 {block.prompt.slice(0, 800)}
-                {block.prompt.length > 800 && "\n… (truncated)"}
+                {block.prompt.length > 800 && t("session.openc.truncated")}
               </pre>
             )}
           </div>
@@ -2448,14 +2454,14 @@ const BlockRenderer = memo(function BlockRenderer({ block }: { block: RenderBloc
         <div className="mb-1 animate-glass-in">
           <div className="rounded-md border border-blue-400/20 bg-blue-500/[0.05] px-3 py-2 text-xs text-blue-200/90">
             <div className="ui-eyebrow mb-1 text-blue-300/70">
-              Patch · {block.files.length} {block.files.length === 1 ? "file" : "files"}
+              {t("session.openc.patchFileCount", { count: block.files.length, value: block.files.length.toLocaleString(localeTag()) })}
             </div>
             <ul className="space-y-0.5 font-mono text-[11px] text-zinc-300">
               {block.files.slice(0, 20).map((f) => (
                 <li key={f} className="truncate">{f}</li>
               ))}
               {block.files.length > 20 && (
-                <li className="text-zinc-500">… {block.files.length - 20} more</li>
+                <li className="text-zinc-500">{t("session.openc.moreFiles", { count: block.files.length - 20, value: (block.files.length - 20).toLocaleString(localeTag()) })}</li>
               )}
             </ul>
           </div>
@@ -2466,7 +2472,7 @@ const BlockRenderer = memo(function BlockRenderer({ block }: { block: RenderBloc
       return (
         <div className="mb-3 animate-glass-in">
           <div className="rounded-md border border-amber-500/30 bg-amber-500/[0.05] px-3 py-2 text-xs text-amber-200/90">
-            <span className="font-medium">Retry #{block.attempt}:</span>{" "}
+            <span className="font-medium">{t("session.openc.retry", { attempt: block.attempt.toLocaleString(localeTag()) })}</span>{" "}
             <span className="text-amber-100/70">{block.error}</span>
           </div>
         </div>
@@ -2476,7 +2482,7 @@ const BlockRenderer = memo(function BlockRenderer({ block }: { block: RenderBloc
       return (
         <div className="mb-3 animate-glass-in">
           <div className="rounded-md border border-violet-400/20 bg-violet-500/[0.04] px-3 py-2 text-xs text-violet-200/80 text-center italic">
-            {block.auto ? "Context auto-compacted" : "Context manually compacted"}
+            {block.auto ? t("session.openc.contextAutoCompacted") : t("session.openc.contextManuallyCompacted")}
           </div>
         </div>
       );
@@ -2489,12 +2495,12 @@ const BlockRenderer = memo(function BlockRenderer({ block }: { block: RenderBloc
             {isImage && block.url ? (
               <img
                 src={block.url}
-                alt={block.filename || "attached image"}
+                alt={block.filename || t("session.openc.attachedImage")}
                 className="rounded max-h-64 object-contain"
               />
             ) : (
               <div className="flex items-center gap-2 px-1 py-0.5">
-                <span className="ui-eyebrow text-indigo-300/70">File</span>
+                <span className="ui-eyebrow text-indigo-300/70">{t("session.openc.file")}</span>
                 <span className="truncate">{block.filename || block.mime}</span>
               </div>
             )}

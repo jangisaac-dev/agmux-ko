@@ -38,7 +38,7 @@ import { useUiStore } from "../../stores/uiStore";
 import { useUpdateChecker } from "../UpdateChecker";
 import { useAppVersion } from "../../hooks/useAppVersion";
 import { motion, AnimatePresence, type Variants } from "framer-motion";
-import { useSettingsStore, type AppSettings, type AppTheme, type GitAccount, type UIFont, type MonoFont, type AnimationSpeed, type ColorMode, type QuickOpenAction, type CommitMessageModel, QUICK_OPEN_OPTIONS, quickOpenLabel, COMMIT_MESSAGE_MODEL_OPTIONS } from "../../stores/settingsStore";
+import { useSettingsStore, type AppSettings, type AppTheme, type GitAccount, type UIFont, type MonoFont, type AnimationSpeed, type ColorMode, type QuickOpenAction, type CommitMessageModel, QUICK_OPEN_OPTIONS, COMMIT_MESSAGE_MODEL_OPTIONS } from "../../stores/settingsStore";
 import { useSessionNameStore, type SummarizeLogEntry, type FailedSummarization } from "../../stores/sessionNameStore";
 import { useProjectStore } from "../../stores/projectStore";
 import { invoke } from "@tauri-apps/api/core";
@@ -64,22 +64,28 @@ import { CleanupSection } from "../settings/CleanupSection";
 import { useResolvedColorMode } from "../ThemeProvider";
 import { formatError } from "../../lib/formatError";
 import { FOCUS_WINDOW_MINUTES_OPTIONS, resolveFocusWindowMinutes } from "../../lib/focusView";
+import { localeDicts, localeTag, tx, useT } from "../../i18n";
 
 const EMPTY_GIT_ACCOUNTS: GitAccount[] = [];
+const NOTIFICATION_SOUND_LABEL_KEYS: Record<string, string> = {
+  "xanom-notify.wav": "settings.notifications.sound.agmuxDefault",
+  default: "settings.notifications.sound.systemDefault",
+  none: "settings.notifications.sound.none",
+};
 
-export const THEMES: { value: AppTheme; label: string; accent: string; desc: string }[] = [
-  { value: "midnight-glass", label: "Midnight", accent: "#f2a516", desc: "Brand yellow on black" },
-  { value: "forest-green", label: "Forest", accent: "#34d399", desc: "Soft emerald" },
-  { value: "frosted-indigo", label: "Indigo", accent: "#60a5fa", desc: "Cool sky blue" },
-  { value: "obsidian-gold", label: "Golden", accent: "#eab308", desc: "Warm amber" },
-  { value: "violet-haze", label: "Violet", accent: "#a78bfa", desc: "Soft purple" },
-  { value: "sunset-ember", label: "Sunset", accent: "#f97316", desc: "Warm orange" },
-  { value: "rose-quartz", label: "Rose", accent: "#f43f5e", desc: "Muted rose" },
-  { value: "arctic-frost", label: "Arctic", accent: "#22d3ee", desc: "Icy cyan" },
-  { value: "neon-noir", label: "Noir", accent: "#2dd4bf", desc: "Cyber mint" },
-  { value: "mocha-latte", label: "Mocha", accent: "#c4a484", desc: "Warm taupe" },
-  { value: "slate-steel", label: "Steel", accent: "#94a3b8", desc: "Neutral slate" },
-  { value: "custom", label: "Custom", accent: "#6366f1", desc: "Your own theme" },
+export const THEMES: { value: AppTheme; label: string; labelKey: string; accent: string; desc: string; descriptionKey: string }[] = [
+  { value: "midnight-glass", label: "Midnight", labelKey: "settings.appearance.theme.midnight", accent: "#f2a516", desc: "Brand yellow on black", descriptionKey: "settings.appearance.theme.midnightDescription" },
+  { value: "forest-green", label: "Forest", labelKey: "settings.appearance.theme.forest", accent: "#34d399", desc: "Soft emerald", descriptionKey: "settings.appearance.theme.forestDescription" },
+  { value: "frosted-indigo", label: "Indigo", labelKey: "settings.appearance.theme.indigo", accent: "#60a5fa", desc: "Cool sky blue", descriptionKey: "settings.appearance.theme.indigoDescription" },
+  { value: "obsidian-gold", label: "Golden", labelKey: "settings.appearance.theme.golden", accent: "#eab308", desc: "Warm amber", descriptionKey: "settings.appearance.theme.goldenDescription" },
+  { value: "violet-haze", label: "Violet", labelKey: "settings.appearance.theme.violet", accent: "#a78bfa", desc: "Soft purple", descriptionKey: "settings.appearance.theme.violetDescription" },
+  { value: "sunset-ember", label: "Sunset", labelKey: "settings.appearance.theme.sunset", accent: "#f97316", desc: "Warm orange", descriptionKey: "settings.appearance.theme.sunsetDescription" },
+  { value: "rose-quartz", label: "Rose", labelKey: "settings.appearance.theme.rose", accent: "#f43f5e", desc: "Muted rose", descriptionKey: "settings.appearance.theme.roseDescription" },
+  { value: "arctic-frost", label: "Arctic", labelKey: "settings.appearance.theme.arctic", accent: "#22d3ee", desc: "Icy cyan", descriptionKey: "settings.appearance.theme.arcticDescription" },
+  { value: "neon-noir", label: "Noir", labelKey: "settings.appearance.theme.noir", accent: "#2dd4bf", desc: "Cyber mint", descriptionKey: "settings.appearance.theme.noirDescription" },
+  { value: "mocha-latte", label: "Mocha", labelKey: "settings.appearance.theme.mocha", accent: "#c4a484", desc: "Warm taupe", descriptionKey: "settings.appearance.theme.mochaDescription" },
+  { value: "slate-steel", label: "Steel", labelKey: "settings.appearance.theme.steel", accent: "#94a3b8", desc: "Neutral slate", descriptionKey: "settings.appearance.theme.steelDescription" },
+  { value: "custom", label: "Custom", labelKey: "settings.appearance.theme.custom", accent: "#6366f1", desc: "Your own theme", descriptionKey: "settings.appearance.theme.customDescription" },
 ];
 
 export const THEME_TINTS: Record<AppTheme, [number, number, number]> = {
@@ -235,11 +241,11 @@ type TabId =
   | "teamsSync"
   | "about";
 
-const NAV_ITEMS: { id: TabId; label: string; icon: React.ReactNode }[] = [
-  { id: "general", label: "General", icon: <Sliders size={16} /> },
+const NAV_ITEMS: { id: TabId; labelKey: string; icon: React.ReactNode }[] = [
+  { id: "general", labelKey: "settings.general.title", icon: <Sliders size={16} /> },
   {
     id: "claude",
-    label: "Claude",
+    labelKey: "settings.nav.claude",
     icon: (
       <img
         src={claudeIcon}
@@ -250,28 +256,28 @@ const NAV_ITEMS: { id: TabId; label: string; icon: React.ReactNode }[] = [
       />
     ),
   },
-  { id: "codex", label: "Codex", icon: <svg width={16} height={16} viewBox="0 0 24 24" fill="none"><path d="M22.282 9.821a5.985 5.985 0 0 0-.516-4.91 6.046 6.046 0 0 0-6.51-2.9A6.065 6.065 0 0 0 4.981 4.18a5.998 5.998 0 0 0-3.998 2.9 6.042 6.042 0 0 0 .743 7.097 5.98 5.98 0 0 0 .51 4.911 6.051 6.051 0 0 0 6.515 2.9A5.985 5.985 0 0 0 13.26 24a6.056 6.056 0 0 0 5.772-4.206 5.99 5.99 0 0 0 3.997-2.9 6.056 6.056 0 0 0-.747-7.073ZM13.26 22.43a4.476 4.476 0 0 1-2.876-1.04l.143-.08 4.778-2.758a.795.795 0 0 0 .392-.681v-6.737l2.02 1.168a.07.07 0 0 1 .038.052v5.583a4.504 4.504 0 0 1-4.494 4.494ZM3.6 18.304a4.47 4.47 0 0 1-.535-3.014l.142.085 4.783 2.759a.771.771 0 0 0 .78 0l5.843-3.369v2.332a.08.08 0 0 1-.033.062L9.74 19.95a4.5 4.5 0 0 1-6.14-1.646ZM2.34 7.896a4.485 4.485 0 0 1 2.366-1.973V11.6a.766.766 0 0 0 .388.677l5.815 3.355-2.02 1.168a.076.076 0 0 1-.071 0l-4.83-2.786A4.504 4.504 0 0 1 2.34 7.872v.024Zm16.597 3.855-5.833-3.387L15.119 7.2a.076.076 0 0 1 .071 0l4.83 2.791a4.494 4.494 0 0 1-.676 8.105v-5.678a.79.79 0 0 0-.407-.667Zm2.01-3.023-.141-.085-4.774-2.782a.776.776 0 0 0-.785 0L9.409 9.23V6.897a.066.066 0 0 1 .028-.061l4.83-2.787a4.5 4.5 0 0 1 6.68 4.66v.018ZM8.318 12.861l-2.02-1.164a.08.08 0 0 1-.038-.057V6.072a4.5 4.5 0 0 1 7.375-3.453l-.142.08L8.704 5.46a.795.795 0 0 0-.392.68l-.004 6.721h.01Zm1.096-2.984L12 8.322l2.586 1.496v2.994L12 14.31l-2.586-1.495v-2.937Z" fill="currentColor"/></svg> },
+  { id: "codex", labelKey: "settings.nav.codex", icon: <svg width={16} height={16} viewBox="0 0 24 24" fill="none"><path d="M22.282 9.821a5.985 5.985 0 0 0-.516-4.91 6.046 6.046 0 0 0-6.51-2.9A6.065 6.065 0 0 0 4.981 4.18a5.998 5.998 0 0 0-3.998 2.9 6.042 6.042 0 0 0 .743 7.097 5.98 5.98 0 0 0 .51 4.911 6.051 6.051 0 0 0 6.515 2.9A5.985 5.985 0 0 0 13.26 24a6.056 6.056 0 0 0 5.772-4.206 5.99 5.99 0 0 0 3.997-2.9 6.056 6.056 0 0 0-.747-7.073ZM13.26 22.43a4.476 4.476 0 0 1-2.876-1.04l.143-.08 4.778-2.758a.795.795 0 0 0 .392-.681v-6.737l2.02 1.168a.07.07 0 0 1 .038.052v5.583a4.504 4.504 0 0 1-4.494 4.494ZM3.6 18.304a4.47 4.47 0 0 1-.535-3.014l.142.085 4.783 2.759a.771.771 0 0 0 .78 0l5.843-3.369v2.332a.08.08 0 0 1-.033.062L9.74 19.95a4.5 4.5 0 0 1-6.14-1.646ZM2.34 7.896a4.485 4.485 0 0 1 2.366-1.973V11.6a.766.766 0 0 0 .388.677l5.815 3.355-2.02 1.168a.076.076 0 0 1-.071 0l-4.83-2.786A4.504 4.504 0 0 1 2.34 7.872v.024Zm16.597 3.855-5.833-3.387L15.119 7.2a.076.076 0 0 1 .071 0l4.83 2.791a4.494 4.494 0 0 1-.676 8.105v-5.678a.79.79 0 0 0-.407-.667Zm2.01-3.023-.141-.085-4.774-2.782a.776.776 0 0 0-.785 0L9.409 9.23V6.897a.066.066 0 0 1 .028-.061l4.83-2.787a4.5 4.5 0 0 1 6.68 4.66v.018ZM8.318 12.861l-2.02-1.164a.08.08 0 0 1-.038-.057V6.072a4.5 4.5 0 0 1 7.375-3.453l-.142.08L8.704 5.46a.795.795 0 0 0-.392.68l-.004 6.721h.01Zm1.096-2.984L12 8.322l2.586 1.496v2.994L12 14.31l-2.586-1.495v-2.937Z" fill="currentColor"/></svg> },
   {
     id: "opencode",
-    label: "OpenCode",
+    labelKey: "settings.nav.opencode",
     icon: <img src={opencodeIcon} alt="" width={16} height={16} className="shrink-0 rounded-sm" />,
   },
-  { id: "accounts", label: "Git & Connections", icon: <User size={16} /> },
-  { id: "agentAccounts", label: "Accounts", icon: <Users size={16} /> },
-  { id: "appearance", label: "Appearance", icon: <Palette size={16} /> },
-  { id: "typography", label: "Typography", icon: <Type size={16} /> },
-  { id: "summaries", label: "Summaries", icon: <Cpu size={16} /> },
-  { id: "localModels", label: "Local Models", icon: <Boxes size={16} /> },
-  { id: "issues", label: "Issues", icon: <CircleDot size={16} /> },
-  { id: "notifications", label: "Notifications", icon: <Bell size={16} /> },
-  { id: "remote", label: "Remote Control", icon: <Smartphone size={16} /> },
-  { id: "yourData", label: "Your Data", icon: <BarChart3 size={16} /> },
-  { id: "support", label: "Support", icon: <Sliders size={16} /> },
-  { id: "debug", label: "Debug Mode", icon: <Cpu size={16} /> },
-  { id: "cleanup", label: "Cleanup", icon: <Trash2 size={16} /> },
-  { id: "teams", label: "Teams", icon: <Users size={16} /> },
-  { id: "teamsSync", label: "Teams Sync", icon: <RefreshCw size={16} /> },
-  { id: "about", label: "About", icon: <Info size={16} /> },
+  { id: "accounts", labelKey: "settings.nav.accounts", icon: <User size={16} /> },
+  { id: "agentAccounts", labelKey: "settings.nav.agentAccounts", icon: <Users size={16} /> },
+  { id: "appearance", labelKey: "settings.nav.appearance", icon: <Palette size={16} /> },
+  { id: "typography", labelKey: "settings.nav.typography", icon: <Type size={16} /> },
+  { id: "summaries", labelKey: "settings.nav.summaries", icon: <Cpu size={16} /> },
+  { id: "localModels", labelKey: "settings.nav.localModels", icon: <Boxes size={16} /> },
+  { id: "issues", labelKey: "settings.nav.issues", icon: <CircleDot size={16} /> },
+  { id: "notifications", labelKey: "settings.nav.notifications", icon: <Bell size={16} /> },
+  { id: "remote", labelKey: "settings.nav.remote", icon: <Smartphone size={16} /> },
+  { id: "yourData", labelKey: "settings.nav.yourData", icon: <BarChart3 size={16} /> },
+  { id: "support", labelKey: "settings.nav.support", icon: <Sliders size={16} /> },
+  { id: "debug", labelKey: "settings.nav.debug", icon: <Cpu size={16} /> },
+  { id: "cleanup", labelKey: "settings.nav.cleanup", icon: <Trash2 size={16} /> },
+  { id: "teams", labelKey: "settings.nav.teams", icon: <Users size={16} /> },
+  { id: "teamsSync", labelKey: "settings.nav.teamsSync", icon: <RefreshCw size={16} /> },
+  { id: "about", labelKey: "settings.nav.about", icon: <Info size={16} /> },
 ];
 
 /**
@@ -283,7 +289,7 @@ const SEARCH_INDEX: Record<TabId, string[]> = {
   debug: ["debug", "diagnostics", "performance", "cpu", "memory", "freeze", "slow", "mcp"],
   cleanup: ["cleanup", "clean up", "storage", "cache", "old data", "90 days", "delete", "summaries", "names"],
   general: [
-    "general", "defaults", "workspace", "behavior",
+    "general", "defaults", "workspace", "behavior", "language", "display language",
     "default agent", "agent provider", "provider",
     "quick open", "compose", "chat mode", "split view", "multi-view", "multi view",
     "default threads shown", "recent threads",
@@ -413,6 +419,7 @@ function useAnimationDurations() {
 // ─── Cursor Account (SDK login → ~/.cursor/sdk/auth.json) ────────────────────
 
 function CursorAccountRow() {
+  const t = useT();
   const [status, setStatus] = useState<CursorAuthStatus | null>(null);
   const [busy, setBusy] = useState<"idle" | "loading" | "login" | "logout">("loading");
   const [error, setError] = useState<string | null>(null);
@@ -442,16 +449,16 @@ function CursorAccountRow() {
         {busy === "loading" ? (
           <>
             <Loader2 className="w-3 h-3 animate-spin text-zinc-400" />
-            <span className="text-zinc-400">Checking Cursor…</span>
+            <span className="text-zinc-400">{t("settings.accounts.cursor.checking")}</span>
           </>
         ) : loggedIn ? (
           <>
             <span className="w-2 h-2 rounded-full bg-green-500" />
             <span className="text-zinc-300">
-              {status?.email?.trim() || "Signed in to Cursor"}
+              {status?.email?.trim() || t("settings.accounts.cursor.signedIn")}
             </span>
             {status?.source === "env" && (
-              <span className="text-[11px] text-zinc-500">via CURSOR_API_KEY</span>
+              <span className="text-[11px] text-zinc-500">{t("settings.accounts.cursor.viaEnvVar", { envVar: "CURSOR_API_KEY" })}</span>
             )}
             <GlassButton
               size="sm"
@@ -469,13 +476,13 @@ function CursorAccountRow() {
                 }
               }}
             >
-              {busy === "logout" ? "Signing out…" : "Sign out"}
+              {busy === "logout" ? t("settings.accounts.cursor.signingOut") : t("settings.accounts.signOut")}
             </GlassButton>
           </>
         ) : (
           <>
             <span className="w-2 h-2 rounded-full bg-zinc-500" />
-            <span className="text-zinc-400">Not signed in</span>
+            <span className="text-zinc-400">{t("settings.accounts.notSignedIn")}</span>
             <GlassButton
               size="sm"
               variant="accent"
@@ -497,10 +504,10 @@ function CursorAccountRow() {
               {busy === "login" ? (
                 <span className="inline-flex items-center gap-1.5">
                   <Loader2 className="w-3 h-3 animate-spin" />
-                  Waiting for browser…
+                  {t("settings.accounts.cursor.waitingForBrowser")}
                 </span>
               ) : (
-                "Sign in with Cursor"
+                t("settings.accounts.cursor.signIn")
               )}
             </GlassButton>
           </>
@@ -513,15 +520,15 @@ function CursorAccountRow() {
               void refresh();
             }}
             className="text-[11px] text-zinc-500 hover:text-zinc-300 transition-colors"
-            title="Refresh status"
+            title={t("settings.accounts.refreshStatus")}
           >
-            Refresh
+            {t("settings.accounts.refresh")}
           </button>
         )}
       </div>
       <p className="text-[11px] text-zinc-500 leading-relaxed max-w-xl">
-        One-click sign-in unlocks every model on your Cursor plan (including Ultra) for Cursor chat.
-        Uses the same account as cursor.com — no separate API key required.
+        {t("settings.accounts.cursor.description.first")}{" "}
+        {t("settings.accounts.cursor.description.second")}
       </p>
       {error && (
         <p className="text-xs text-red-400">{error}</p>
@@ -533,9 +540,10 @@ function CursorAccountRow() {
 // ─── Codex Account & MCP Status ──────────────────────────────────────────────
 
 function CodexAccountRow() {
+  const t = useT();
   const [account, setAccount] = useState<AccountInfo | null>(null);
   const [loginPending, setLoginPending] = useState<string | null>(null);
-  const [loginError, setLoginError] = useState<string | null>(null);
+  const [loginError, setLoginError] = useState<{ kind: "missing-cli" } | { kind: "failed"; error: string } | null>(null);
   const projects = useProjectStore((s) => s.projects);
   const workDir = projects[0]?.repo_path ?? "";
 
@@ -563,7 +571,7 @@ function CodexAccountRow() {
           if (params.success) {
             codexAccountRead(workDir).then(setAccount).catch(() => {});
           } else if (params.error) {
-            setLoginError(`Login failed: ${String(params.error)}`);
+            setLoginError({ kind: "failed", error: String(params.error) });
           }
         }
       },
@@ -582,7 +590,7 @@ function CodexAccountRow() {
         {account?.authenticated ? (
           <>
             <span className="w-2 h-2 rounded-full bg-green-500" />
-            <span className="text-zinc-300">{account.email ?? "Logged in"}</span>
+            <span className="text-zinc-300">{account.email ?? t("settings.accounts.codex.loggedIn")}</span>
           </>
         ) : (
           <>
@@ -590,7 +598,7 @@ function CodexAccountRow() {
             {loginPending ? (
               <>
                 <Loader2 className="w-3 h-3 animate-spin text-zinc-400" />
-                <span className="text-zinc-400">Waiting for browser login...</span>
+                <span className="text-zinc-400">{t("settings.accounts.codex.waitingForBrowser")}</span>
                 <GlassButton
                   size="sm"
                   variant="ghost"
@@ -599,7 +607,7 @@ function CodexAccountRow() {
                     setLoginPending(null);
                   }}
                 >
-                  Cancel
+                  {t("settings.accounts.cancel")}
                 </GlassButton>
               </>
             ) : (
@@ -619,13 +627,13 @@ function CodexAccountRow() {
                   } catch (err) {
                     setLoginError(
                       String(err).includes("codex")
-                        ? "Codex CLI not found. Install it first."
-                        : `Login failed: ${String(err)}`,
+                        ? { kind: "missing-cli" }
+                        : { kind: "failed", error: String(err) },
                     );
                   }
                 }}
               >
-                Log in to Codex
+                {t("settings.accounts.codex.signIn")}
               </GlassButton>
             )}
           </>
@@ -634,7 +642,9 @@ function CodexAccountRow() {
       {loginError && (
         <div className="flex items-center gap-2 rounded bg-red-500/10 border border-red-500/20 px-3 py-2 text-xs text-red-400">
           <XCircle size={14} className="shrink-0" />
-          <span>{loginError}</span>
+          <span>{loginError.kind === "missing-cli"
+            ? `${t("settings.accounts.codex.cliMissing.first")} ${t("settings.accounts.codex.cliMissing.second")}`
+            : t("settings.accounts.loginFailed", { error: loginError.error })}</span>
         </div>
       )}
     </div>
@@ -642,6 +652,7 @@ function CodexAccountRow() {
 }
 
 export function SettingsDialog() {
+  const t = useT();
   const isOpen = useSettingsStore((s) => s.isOpen);
   const settings = useSettingsStore((s) => s.settings);
   const closeSettings = useSettingsStore((s) => s.closeSettings);
@@ -676,11 +687,13 @@ export function SettingsDialog() {
   const filteredNav = useMemo(() => {
     if (!normalizedQuery) return NAV_ITEMS;
     return NAV_ITEMS.filter((item) => {
-      if (item.label.toLowerCase().includes(normalizedQuery)) return true;
+      const translatedLabel = t(item.labelKey).toLowerCase();
+      const englishLabel = localeDicts.en[item.labelKey]?.toLowerCase() ?? "";
+      if (translatedLabel.includes(normalizedQuery) || englishLabel.includes(normalizedQuery)) return true;
       const keywords = SEARCH_INDEX[item.id] ?? [];
       return keywords.some((k) => k.includes(normalizedQuery));
     });
-  }, [normalizedQuery]);
+  }, [normalizedQuery, settings.uiLanguage, t]);
 
   // When filtering hides the current tab, hop to the first match so the user
   // sees something relevant immediately.
@@ -757,7 +770,7 @@ export function SettingsDialog() {
             {/* Brand header: app icon + Settings + version, with hairline divider */}
             <button
               onClick={closeSettings}
-              title="Back to app"
+              title={t("settings.dialog.backToApp")}
               className="settings-brand-divider group mx-2 mb-2.5 flex items-center gap-2.5 pb-3.5 text-left rounded-md -mt-1 px-1 py-1 hover:bg-white/5 transition-colors"
               style={{ borderBottom: "1px solid rgba(255,255,255,0.05)" }}
             >
@@ -809,7 +822,7 @@ export function SettingsDialog() {
                     }}
                     className="group-hover:-translate-x-0.5 group-hover:text-zinc-200"
                   />
-                  Settings
+                  {t("settings.dialog.title")}
                 </span>
                 <span
                   className="block"
@@ -838,7 +851,7 @@ export function SettingsDialog() {
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Search settings"
+                placeholder={t("settings.dialog.searchPlaceholder")}
                 spellCheck={false}
                 autoComplete="off"
                 className="flex-1 min-w-0 border-0 bg-transparent p-0 outline-none placeholder:text-zinc-500"
@@ -855,7 +868,7 @@ export function SettingsDialog() {
                     setSearchQuery("");
                     searchInputRef.current?.focus();
                   }}
-                  title="Clear search"
+                  title={t("settings.dialog.clearSearch")}
                   className="inline-flex items-center justify-center rounded-[5px] hover:bg-white/10"
                   style={{
                     minWidth: 18,
@@ -893,7 +906,7 @@ export function SettingsDialog() {
                     letterSpacing: "-0.01em",
                   }}
                 >
-                  No matching settings
+                  {t("settings.dialog.noMatchingSettings")}
                 </div>
               ) : (
                 filteredNav.map((item) => {
@@ -916,7 +929,7 @@ export function SettingsDialog() {
                       >
                         {item.icon}
                       </span>
-                      {item.label}
+                      {t(item.labelKey)}
                     </button>
                   );
                 })
@@ -934,7 +947,7 @@ export function SettingsDialog() {
               <button
                 onClick={closeSettings}
                 className="glass-icon-btn p-1.5"
-                aria-label="Close settings"
+                aria-label={t("settings.dialog.close")}
               >
                 <X size={17} />
               </button>
@@ -1081,6 +1094,7 @@ function GeneralPage({
   updateSettings: (patch: Partial<SettingsShape>) => void;
   onRerunWizard: () => void;
 }) {
+  const t = useT();
   const [helperStatus, setHelperStatus] = useState<ClosedLidHelperStatus | null>(null);
   const [helperBusy, setHelperBusy] = useState(false);
   const [helperError, setHelperError] = useState<string | null>(null);
@@ -1134,12 +1148,35 @@ function GeneralPage({
 
   return (
     <div>
-      <PageHeader title="General" description="Defaults and workspace behaviour." />
+      <PageHeader
+        title={t("settings.general.title")}
+        description={t("settings.general.description")}
+      />
 
-      <SettingsCard className="mb-6" eyebrow="General" title="Defaults">
+      <SettingsCard
+        className="mb-6"
+        eyebrow={t("settings.general.title")}
+        title={t("settings.general.defaults.title")}
+      >
+        <SettingsRow label={t("settings.general.language.label")}>
+          <select
+            aria-label={t("settings.general.language.label")}
+            className="block w-full max-w-[240px] rounded-lg border border-[var(--glass-border)] bg-[var(--bg-app)] px-3 py-2 text-sm text-[var(--text-primary)]"
+            value={settings.uiLanguage ?? "system"}
+            onChange={(e) => {
+              const uiLanguage = e.currentTarget.value as SettingsShape["uiLanguage"];
+              updateSettings({ uiLanguage });
+            }}
+          >
+            <option value="system">{t("settings.general.language.system")}</option>
+            <option value="en">English</option>
+            <option value="ko">한국어</option>
+          </select>
+        </SettingsRow>
+
         <SettingsRow
-          label="Default agent provider"
-          description="Which agent is launched when you open a new chat."
+          label={t("settings.general.defaultAgentProvider.label")}
+          description={t("settings.general.defaultAgentProvider.description")}
         >
           <div className="flex gap-1.5">
             {(["Codex", "ClaudeCode"] as const).map((p) => (
@@ -1149,15 +1186,19 @@ function GeneralPage({
                 color={p === "Codex" ? "emerald" : "indigo"}
                 onClick={() => updateSettings({ defaultProvider: p })}
               >
-                {p === "ClaudeCode" ? "Claude Code" : p}
+                {t(
+                  p === "ClaudeCode"
+                    ? "settings.general.defaultAgentProvider.claudeCode"
+                    : "settings.nav.codex",
+                )}
               </SegButton>
             ))}
           </div>
         </SettingsRow>
 
         <SettingsRow
-          label="Quick Open"
-          description="What the compose button and ⌘N create."
+          label={t("settings.general.quickOpen.label")}
+          description={t("settings.general.quickOpen.description")}
         >
           <QuickOpenDropdown
             value={settings.quickOpenAction ?? "chat"}
@@ -1166,8 +1207,8 @@ function GeneralPage({
         </SettingsRow>
 
         <SettingsRow
-          label="Multi-View"
-          description="View multiple threads side-by-side in split panes with tabs."
+          label={t("settings.general.multiView.label")}
+          description={t("settings.general.multiView.description")}
         >
           <Toggle
             enabled={settings.multiViewEnabled}
@@ -1176,8 +1217,8 @@ function GeneralPage({
         </SettingsRow>
 
         <SettingsRow
-          label="Commit message model"
-          description="AI used to draft commit subjects in the commit dialog. Auto tries GPT-6 Luna Low, then Grok 4.5, then Claude Haiku."
+          label={t("settings.general.commitMessageModel.label")}
+          description={t("settings.general.commitMessageModel.description")}
           stacked
         >
           <div className="flex flex-wrap gap-1.5">
@@ -1190,15 +1231,15 @@ function GeneralPage({
                   updateSettings({ commitMessageModel: opt.value as CommitMessageModel })
                 }
               >
-                {opt.label}
+                {t(`settings.general.commitMessageModel.option.${opt.value}`)}
               </SegButton>
             ))}
           </div>
         </SettingsRow>
 
         <SettingsRow
-          label="Terminal scrollback"
-          description="Lines of history retained by Claude terminal sessions."
+          label={t("settings.general.terminalScrollback.label")}
+          description={t("settings.general.terminalScrollback.description")}
           last
         >
           <div className="flex gap-1.5">
@@ -1216,10 +1257,14 @@ function GeneralPage({
         </SettingsRow>
       </SettingsCard>
 
-      <SettingsCard eyebrow="General" title="Behavior" className="mb-6">
+      <SettingsCard
+        eyebrow={t("settings.general.title")}
+        title={t("settings.general.behavior.title")}
+        className="mb-6"
+      >
         <SettingsRow
-          label="Default threads shown"
-          description="How many recent threads each project displays before the 'Show more' button. Right-click a project in the sidebar to override per project."
+          label={t("settings.general.defaultThreads.label")}
+          description={t("settings.general.defaultThreads.description")}
         >
           <NumberInput
             value={settings.defaultThreadsVisible ?? 5}
@@ -1230,8 +1275,8 @@ function GeneralPage({
         </SettingsRow>
 
         <SettingsRow
-          label="Focus"
-          description="Add a Focus group to the top of the sidebar with the threads you're actively working on, from every project: ones that are running, or were active within the time below. Shows 7 threads before 'Show more' — right-click Focus in the sidebar to change that. New sessions started from Focus ask which project they belong to."
+          label={t("settings.general.focus.label")}
+          description={t("settings.general.focus.description")}
         >
           <Toggle
             enabled={settings.focusEnabled ?? false}
@@ -1241,8 +1286,8 @@ function GeneralPage({
 
         {(settings.focusEnabled ?? false) && (
           <SettingsRow
-            label="Keep idle threads in Focus for"
-            description="Threads that are running or waiting for approval stay in Focus regardless."
+            label={t("settings.general.keepIdleThreadsInFocus.label")}
+            description={t("settings.general.keepIdleThreadsInFocus.description")}
           >
             <div className="flex flex-wrap gap-1.5">
               {FOCUS_WINDOW_MINUTES_OPTIONS.map((m) => (
@@ -1260,8 +1305,8 @@ function GeneralPage({
         )}
 
         <SettingsRow
-          label="Move status line to top bar"
-          description="Show quota, pace, and context usage on the chat top bar instead of Claude's own status line inside the terminal. When off, the top bar stays single-row and Claude's status line runs as usual."
+          label={t("settings.general.moveStatusLineToTopBar.label")}
+          description={t("settings.general.moveStatusLineToTopBar.description")}
         >
           <Toggle
             enabled={settings.moveStatusLineToTopBar ?? false}
@@ -1270,8 +1315,8 @@ function GeneralPage({
         </SettingsRow>
 
         <SettingsRow
-          label="Default to full permissions"
-          description="Start every new chat with full permissions so shell, edit, and write tools run without asking. Only enable on machines and projects you trust. Existing chats are not changed."
+          label={t("settings.general.defaultFullPermissions.label")}
+          description={t("settings.general.defaultFullPermissions.description")}
         >
           <Toggle
             enabled={settings.defaultBypassPermissions ?? false}
@@ -1280,8 +1325,8 @@ function GeneralPage({
         </SettingsRow>
 
         <SettingsRow
-          label="Project memory"
-          description="Share facts and decisions across every agent and terminal in a project (Claude, Grok, Codex, …). Agents get memory tools and a short reminder to use them. Turn off if you don't want agents reading or writing project memory. Applies to new sessions."
+          label={t("settings.general.projectMemory.label")}
+          description={t("settings.general.projectMemory.description")}
         >
           <Toggle
             enabled={settings.projectMemoryEnabled ?? true}
@@ -1290,8 +1335,8 @@ function GeneralPage({
         </SettingsRow>
 
         <SettingsRow
-          label="Inject recent session index"
-          description="When project memory is on, new sessions get a short list of recent chat titles (one-line previews only) so agents know prior work exists. Full logs are never pasted in. Agents still use search / session tools for detail. Applies to new sessions."
+          label={t("settings.general.injectRecentSessionIndex.label")}
+          description={t("settings.general.injectRecentSessionIndex.description")}
         >
           <Toggle
             enabled={
@@ -1309,8 +1354,8 @@ function GeneralPage({
         </SettingsRow>
 
         <SettingsRow
-          label="Keep awake while running"
-          description="Prevent your Mac from sleeping while any agent is working or waiting for your approval."
+          label={t("settings.general.keepAwakeWhileRunning.label")}
+          description={t("settings.general.keepAwakeWhileRunning.description")}
         >
           <Toggle
             enabled={settings.keepAwakeWhileRunning ?? false}
@@ -1325,11 +1370,11 @@ function GeneralPage({
         </SettingsRow>
 
         <SettingsRow
-          label="Keep running with lid closed"
+          label={t("settings.general.keepRunningWithLidClosed.label")}
           description={
             helperInstalled
-              ? "Full closed-display mode (like Amphetamine). Uses a privileged helper so the Mac stays awake with the lid shut — works on AC and battery."
-              : "Full closed-display mode (like Amphetamine). Install the one-time privileged helper below so lid-close sleep is disabled while agents run."
+              ? t("settings.general.keepRunningWithLidClosed.installedDescription")
+              : t("settings.general.keepRunningWithLidClosed.notInstalledDescription")
           }
         >
           <Toggle
@@ -1360,11 +1405,13 @@ function GeneralPage({
         </SettingsRow>
 
         <SettingsRow
-          label="Closed-display helper"
+          label={t("settings.general.closedDisplayHelper.label")}
           description={
             helperInstalled
-              ? `Installed at ${helperStatus?.helperPath ?? "…"}. Lets agmux keep the Mac awake with the lid closed, then restores normal sleep.`
-              : "One-time install (Touch ID or admin password). Installs a root-owned helper that can disable lid-close sleep while agents run, then restores normal sleep when done."
+              ? t("settings.general.closedDisplayHelper.installedDescription", {
+                  path: helperStatus?.helperPath ?? "…",
+                })
+              : t("settings.general.closedDisplayHelper.notInstalledDescription")
           }
           last
         >
@@ -1374,7 +1421,7 @@ function GeneralPage({
                 <>
                   <span className="inline-flex items-center gap-1 text-[11px] text-[color:var(--accent)]">
                     <CheckCircle2 className="size-3.5" />
-                    Ready
+                    {t("settings.general.closedDisplayHelper.ready")}
                   </span>
                   <GlassButton
                     size="sm"
@@ -1382,7 +1429,7 @@ function GeneralPage({
                     disabled={helperBusy}
                     onClick={() => void uninstallHelper()}
                   >
-                    {helperBusy ? "…" : "Uninstall"}
+                    {helperBusy ? "…" : t("settings.general.closedDisplayHelper.uninstall")}
                   </GlassButton>
                 </>
               ) : (
@@ -1395,10 +1442,10 @@ function GeneralPage({
                   {helperBusy ? (
                     <span className="inline-flex items-center gap-1.5">
                       <Loader2 className="size-3.5 animate-spin" />
-                      Waiting for auth…
+                      {t("settings.general.closedDisplayHelper.waitingForAuth")}
                     </span>
                   ) : (
-                    "Install helper…"
+                    t("settings.general.closedDisplayHelper.install")
                   )}
                 </GlassButton>
               )}
@@ -1412,10 +1459,14 @@ function GeneralPage({
         </SettingsRow>
       </SettingsCard>
 
-      <SettingsCard eyebrow="General" title="Privacy" className="mb-6">
+      <SettingsCard
+        eyebrow={t("settings.general.title")}
+        title={t("settings.general.privacy.title")}
+        className="mb-6"
+      >
         <SettingsRow
-          label="Product analytics"
-          description="Helps us understand how many people use agmux. Anonymous device id, app version, OS version, which agent you start, and which layout you're in. No prompts, paths, or account info."
+          label={t("settings.general.productAnalytics.label")}
+          description={t("settings.general.productAnalytics.description")}
           last
         >
           <Toggle
@@ -1425,14 +1476,17 @@ function GeneralPage({
         </SettingsRow>
       </SettingsCard>
 
-      <SettingsCard eyebrow="General" title="Setup">
+      <SettingsCard
+        eyebrow={t("settings.general.title")}
+        title={t("settings.general.setup.title")}
+      >
         <SettingsRow
-          label="Setup wizard"
-          description="Re-run onboarding — providers, look, memory, permissions, phone remote, and essentials."
+          label={t("settings.general.setupWizard.label")}
+          description={t("settings.general.setupWizard.description")}
           last
         >
           <GlassButton size="sm" variant="primary" onClick={onRerunWizard}>
-            Run setup
+            {t("settings.general.setupWizard.run")}
           </GlassButton>
         </SettingsRow>
       </SettingsCard>
@@ -1449,14 +1503,15 @@ function ClaudePage({
   settings: AppSettings;
   updateSettings: (patch: Partial<SettingsShape>) => void;
 }) {
+  const t = useT();
   return (
     <div>
-      <PageHeader title="Claude" description="Claude Code session preferences." />
+      <PageHeader title={t("settings.nav.claude")} description={t("settings.claude.description")} />
 
-      <SettingsCard eyebrow="Claude" title="Session defaults" description="Permissions and chat display for Claude Code threads.">
+      <SettingsCard eyebrow={t("settings.nav.claude")} title={t("settings.claude.sessionDefaults")} description={t("settings.claude.sessionDefaultsDescription")}>
         <SettingsRow
-          label="Auto mode"
-          description="Let Claude approve safe tool use on its own. Available on every Claude plan."
+          label={t("settings.claude.autoMode")}
+          description={`${t("settings.claude.autoModeDescription.first")} ${t("settings.claude.autoModeDescription.second")}`}
         >
           <Toggle
             enabled={settings.claudeAutoMode}
@@ -1465,8 +1520,8 @@ function ClaudePage({
         </SettingsRow>
 
         <SettingsRow
-          label="Skip permissions"
-          description="Skip all tool approval prompts. Overrides Auto mode when both are on."
+          label={t("settings.claude.skipPermissions")}
+          description={`${t("settings.claude.skipPermissionsDescription.first")} ${t("settings.claude.skipPermissionsDescription.second")}`}
         >
           <Toggle
             enabled={settings.claudeSkipPermissions}
@@ -1475,8 +1530,8 @@ function ClaudePage({
         </SettingsRow>
 
         <SettingsRow
-          label="Allow image reads"
-          description="Allow Claude to read temporary image files when you drag screenshots into chat."
+          label={t("settings.claude.allowImageReads")}
+          description={t("settings.claude.allowImageReadsDescription")}
         >
           <Toggle
             enabled={settings.whitelistXanomReads ?? false}
@@ -1493,8 +1548,8 @@ function ClaudePage({
         </SettingsRow>
 
         <SettingsRow
-          label="Auto-expand tool calls"
-          description="Automatically expand tool call groups in Claude chat instead of showing them collapsed."
+          label={t("settings.claude.autoExpandToolCalls")}
+          description={t("settings.claude.autoExpandToolCallsDescription")}
           last
         >
           <Toggle
@@ -1516,27 +1571,28 @@ function IssuesSettingsPage({
   settings: AppSettings;
   updateSettings: (patch: Partial<SettingsShape>) => void;
 }) {
+  const t = useT();
   return (
     <div>
       <PageHeader
-        title="Issues"
-        description="Defaults for GitHub Issues agent dispatch."
+        title={t("settings.nav.issues")}
+        description={t("settings.issues.description")}
       />
 
       <SettingsCard
-        eyebrow="Issues"
-        title="Dispatch"
-        description="Standing notes included in every Issues-tab agent dispatch. Per-issue notes can still be added on the Issues detail panel."
+        eyebrow={t("settings.nav.issues")}
+        title={t("settings.issues.dispatch")}
+        description={`${t("settings.issues.dispatchDescription.first")} ${t("settings.issues.dispatchDescription.second")}`}
       >
         <SettingsRow
           stacked
-          label="Dispatch instructions"
-          description="Coding standards, PR preferences, test commands — prepended to every issue brief. Empty = no global block."
+          label={t("settings.issues.instructions")}
+          description={`${t("settings.issues.instructionsDescription.first")} ${t("settings.issues.instructionsDescription.second")}`}
           last
         >
           <textarea
             className="w-full min-h-[120px] resize-y rounded-lg border border-[var(--glass-border)] bg-[var(--glass-bg)] px-3 py-2 text-[12.5px] leading-relaxed text-[var(--text-primary)] outline-none placeholder:text-[var(--text-muted)] focus:border-[var(--accent-border)]"
-            placeholder="e.g. Prefer minimal diffs. Always run the package tests before opening a PR. Use conventional commits."
+          placeholder={`${t("settings.issues.instructionsPlaceholder.first")} ${t("settings.issues.instructionsPlaceholder.second")} ${t("settings.issues.instructionsPlaceholder.third")}`}
             value={settings.issuesDispatchInstructions ?? ""}
             onChange={(e) => updateSettings({ issuesDispatchInstructions: e.target.value })}
             rows={6}
@@ -1556,14 +1612,15 @@ function CodexPage({
   settings: AppSettings;
   updateSettings: (patch: Partial<SettingsShape>) => void;
 }) {
+  const t = useT();
   return (
     <div>
-      <PageHeader title="Codex" description="Codex session preferences." />
+      <PageHeader title={t("settings.nav.codex")} description={t("settings.codex.description")} />
 
-      <SettingsCard eyebrow="Codex" title="Session defaults" description="How new Codex threads open by default.">
+      <SettingsCard eyebrow={t("settings.nav.codex")} title={t("settings.codex.sessionDefaults")} description={t("settings.codex.sessionDefaultsDescription")}>
         <SettingsRow
-          label="Default view"
-          description="Chat or terminal mode for new sessions."
+          label={t("settings.codex.defaultView")}
+          description={t("settings.codex.defaultViewDescription")}
           last
         >
           <div className="flex gap-1.5">
@@ -1574,7 +1631,7 @@ function CodexPage({
                 color="emerald"
                 onClick={() => updateSettings({ codexDefaultView: v })}
               >
-                <span className="capitalize">{v}</span>
+                <span className="capitalize">{t(`settings.codex.defaultView.${v}`)}</span>
               </SegButton>
             ))}
           </div>
@@ -1593,6 +1650,7 @@ function OpenCodePage({
   settings: AppSettings;
   updateSettings: (patch: Partial<SettingsShape>) => void;
 }) {
+  const t = useT();
   const [bridgeReady, setBridgeReady] = useState(false);
   const [connectError, setConnectError] = useState<string | null>(null);
   const [connecting, setConnecting] = useState(false);
@@ -1678,12 +1736,12 @@ function OpenCodePage({
 
   return (
     <div>
-      <PageHeader title="OpenCode" description="OpenCode session preferences." />
+      <PageHeader title={t("settings.nav.opencode")} description={t("settings.openCode.description")} />
 
-      <SettingsCard eyebrow="OpenCode" title="Binary &amp; server" description="Configure how agmux launches or connects to OpenCode.">
+      <SettingsCard eyebrow={t("settings.nav.opencode")} title={t("settings.openCode.binaryServer")} description={t("settings.openCode.binaryServerDescription")}>
         <div className="px-5 py-4 space-y-4">
           <div>
-            <label className="mb-1 block text-xs text-zinc-400">OpenCode binary path</label>
+            <label className="mb-1 block text-xs text-zinc-400">{t("settings.openCode.binaryPath")}</label>
             <div className="flex gap-2">
               <input
                 type="text"
@@ -1697,27 +1755,27 @@ function OpenCodePage({
                 onClick={handleBrowse}
                 className="glass-seg shrink-0 px-3 py-2 text-xs"
               >
-                Browse…
+                {t("settings.openCode.browse")}
               </button>
             </div>
             {detectedPath && detectedPath !== (settings.opencodeBinaryPath ?? "") && (
               <div className="mt-1.5 flex items-center gap-2 text-[11px] text-[color:var(--accent)]">
-                <span>Detected on PATH:</span>
+                <span>{t("settings.openCode.detectedOnPath")}</span>
                 <code className="font-mono text-[color:var(--accent)]">{detectedPath}</code>
                 <button
                   type="button"
                   onClick={() => updateSettings({ opencodeBinaryPath: detectedPath })}
                   className="rounded border border-[color:var(--accent-border)] bg-[var(--accent-dim)] px-1.5 py-[1px] text-[10px] text-[color:var(--accent)] hover:bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] transition-colors"
                 >
-                  Use
+                  {t("settings.openCode.useDetectedPath")}
                 </button>
               </div>
             )}
-            <p className="mt-1 text-[11px] text-zinc-500">Path to the opencode executable. Leave empty to auto-detect from PATH.</p>
+            <p className="mt-1 text-[11px] text-zinc-500">{t("settings.openCode.binaryPathHint")}{" "}{t("settings.openCode.binaryPathHintSecond")}</p>
           </div>
 
           <div>
-            <label className="mb-1 block text-xs text-zinc-400">External server URL (optional)</label>
+            <label className="mb-1 block text-xs text-zinc-400">{t("settings.openCode.serverUrl")}</label>
             <input
               type="text"
               value={settings.opencodeServerUrl ?? ""}
@@ -1725,11 +1783,11 @@ function OpenCodePage({
               onChange={(e) => updateSettings({ opencodeServerUrl: e.target.value })}
               className="glass-input w-full px-3 py-2 text-sm placeholder-zinc-600"
             />
-            <p className="mt-1 text-[11px] text-zinc-500">Leave empty to auto-spawn a local <code className="text-zinc-400">opencode serve</code> subprocess.</p>
+            <p className="mt-1 text-[11px] text-zinc-500">{tx("settings.openCode.serverUrlHint", { command: <code className="text-zinc-400">opencode serve</code> })}</p>
           </div>
 
           <div>
-            <label className="mb-1 block text-xs text-zinc-400">External server password (optional)</label>
+            <label className="mb-1 block text-xs text-zinc-400">{t("settings.openCode.serverPassword")}</label>
             <input
               type="password"
               value={settings.opencodeServerPassword ?? ""}
@@ -1737,7 +1795,7 @@ function OpenCodePage({
               onChange={(e) => updateSettings({ opencodeServerPassword: e.target.value })}
               className="glass-input w-full px-3 py-2 text-sm placeholder-zinc-600"
             />
-            <p className="mt-1 text-[11px] text-zinc-500">Only meaningful when an external server URL is set above.</p>
+            <p className="mt-1 text-[11px] text-zinc-500">{t("settings.openCode.serverPasswordHint")}</p>
           </div>
 
           <div className="flex items-center gap-3">
@@ -1748,11 +1806,11 @@ function OpenCodePage({
               className="flex items-center gap-2 rounded-lg border border-[var(--accent-border)] bg-[var(--accent-dim)] px-4 py-2 text-xs font-medium text-[var(--accent)] transition-colors hover:brightness-110 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {connecting ? (
-                <><Loader2 size={12} className="animate-spin" /> Connecting…</>
+                <><Loader2 size={12} className="animate-spin" /> {t("settings.openCode.connecting")}</>
               ) : bridgeReady ? (
-                <><Check size={12} /> Connected</>
+                <><Check size={12} /> {t("settings.openCode.connected")}</>
               ) : (
-                "Connect"
+                t("settings.openCode.connect")
               )}
             </button>
             {connectError && (
@@ -1762,7 +1820,7 @@ function OpenCodePage({
         </div>
       </SettingsCard>
 
-      <SettingsCard eyebrow="OpenCode" title="Provider auth" description="Sign in to AI providers directly from agmux.">
+      <SettingsCard eyebrow={t("settings.nav.opencode")} title={t("settings.openCode.providerAuth")} description={t("settings.openCode.providerAuthDescription")}>
         <div className="px-5 py-4">
           <OpenCodeAuthPanel
             directory={activeProjectDir}
@@ -1797,22 +1855,23 @@ function AccountsPage({
   settings: AppSettings;
   updateSettings: (patch: Partial<AppSettings>) => void;
 }) {
+  const t = useT();
   return (
     <div>
-      <PageHeader title="Git & Connections" description="Manage connected accounts and git identities." />
+      <PageHeader title={t("settings.nav.accounts")} description={t("settings.accounts.description")} />
 
       <SettingsCard
         className="mb-6"
-        eyebrow="Account"
+        eyebrow={t("settings.accounts.account")}
         title="Cursor"
-        description="Sign in once to use Cursor chat and your plan’s model list (including Ultra)."
+        description={t("settings.accounts.cursor.cardDescription")}
       >
         <div className="px-5 py-4">
           <CursorAccountRow />
         </div>
       </SettingsCard>
 
-      <SettingsCard className="mb-6" eyebrow="Account" title="Codex" description="Sign in once per machine. Credentials live in your macOS Keychain.">
+      <SettingsCard className="mb-6" eyebrow={t("settings.accounts.account")} title="Codex" description={`${t("settings.accounts.codex.cardDescription.first")} ${t("settings.accounts.codex.cardDescription.second")}`}>
         <div className="px-5 py-4">
           <CodexAccountRow />
         </div>
@@ -1827,17 +1886,17 @@ function AccountsPage({
         }}
       >
         <div className="ui-eyebrow settings-card-eyebrow" style={{ marginBottom: 8 }}>
-          Account
+          {t("settings.accounts.account")}
         </div>
         <h3 className="m-0" style={{ fontSize: 18, fontWeight: 600, color: "var(--text-primary, #fff)", letterSpacing: "-0.015em" }}>
-          Git accounts
+          {t("settings.accounts.gitAccounts")}
         </h3>
         <p className="m-0 mt-1.5 mb-4" style={{ fontSize: 12.5, color: "var(--text-tertiary, #a1a1aa)", lineHeight: 1.55, letterSpacing: "-0.01em", maxWidth: 560 }}>
-          SSH keys and identities for git operations across worktrees.
+          {t("settings.accounts.gitAccountsDescription")}
         </p>
       <div className="space-y-2">
         {gitAccounts.length === 0 && !addingAccount && (
-          <p className="text-sm text-zinc-400">No git accounts configured.</p>
+          <p className="text-sm text-zinc-400">{t("settings.accounts.noGitAccounts")}</p>
         )}
 
         {gitAccounts.map((account, i) => (
@@ -1861,7 +1920,7 @@ function AccountsPage({
                 variant="ghost"
                 icon={Trash2}
                 onClick={() => handleRemoveAccount(i)}
-                title="Remove account"
+                title={t("settings.accounts.removeAccount")}
               >
                 {""}
               </GlassButton>
@@ -1871,20 +1930,20 @@ function AccountsPage({
 
         {addingAccount && (
           <div className="space-y-2 rounded-xl border border-white/10 bg-white/5 p-4">
-            <p className="mb-3 text-sm font-medium text-zinc-200">New account</p>
+            <p className="mb-3 text-sm font-medium text-zinc-200">{t("settings.accounts.newAccount")}</p>
             {(
               [
-                { key: "name", placeholder: "Display name (e.g. Personal)" },
-                { key: "gitUser", placeholder: "GitHub username" },
-                { key: "gitEmail", placeholder: "Git email" },
-                { key: "sshKeyPath", placeholder: "SSH key path (e.g. ~/.ssh/id_ed25519)" },
-              ] as { key: keyof GitAccount; placeholder: string }[]
-            ).map(({ key, placeholder }) => (
+                { key: "name", placeholderKey: "settings.accounts.displayNamePlaceholder" },
+                { key: "gitUser", placeholderKey: "settings.accounts.gitHubUsernamePlaceholder" },
+                { key: "gitEmail", placeholderKey: "settings.accounts.gitEmailPlaceholder" },
+                { key: "sshKeyPath", placeholderKey: "settings.accounts.sshKeyPathPlaceholder" },
+              ] as { key: keyof GitAccount; placeholderKey: string }[]
+            ).map(({ key, placeholderKey }) => (
               <input
                 key={key}
                 type="text"
                 value={newAccount[key]}
-                placeholder={placeholder}
+                placeholder={t(placeholderKey)}
                 onChange={(e) =>
                   setNewAccount((prev) => ({ ...prev, [key]: e.target.value }))
                 }
@@ -1898,7 +1957,7 @@ function AccountsPage({
                 onClick={handleAddAccount}
                 disabled={!newAccount.name.trim() || !newAccount.gitUser.trim() || (!!newAccount.gitEmail.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(newAccount.gitEmail.trim()))}
               >
-                Add
+                {t("settings.accounts.add")}
               </GlassButton>
               <GlassButton
                 size="md"
@@ -1908,7 +1967,7 @@ function AccountsPage({
                   setNewAccount({ ...BLANK_GIT_ACCOUNT });
                 }}
               >
-                Cancel
+                {t("settings.accounts.cancel")}
               </GlassButton>
             </div>
           </div>
@@ -1917,17 +1976,17 @@ function AccountsPage({
         {!addingAccount && (
           <div className="mt-1">
             <GlassButton size="md" variant="primary" icon={Plus} onClick={() => setAddingAccount(true)}>
-              Add Account
+              {t("settings.accounts.addAccount")}
             </GlassButton>
           </div>
         )}
       </div>
       </div>
 
-      <SettingsCard eyebrow="Account" title="Git worktrees" description="Each task gets its own git worktree under this root.">
+      <SettingsCard eyebrow={t("settings.accounts.account")} title={t("settings.accounts.gitWorktrees")} description={t("settings.accounts.gitWorktreesDescription")}>
         <div className="px-5 py-4 space-y-3">
           <div>
-            <label className="mb-1 block text-xs text-zinc-400">Worktree root directory</label>
+            <label className="mb-1 block text-xs text-zinc-400">{t("settings.accounts.worktreeRoot")}</label>
             <input
               type="text"
               value={settings.worktreeRoot}
@@ -1935,12 +1994,12 @@ function AccountsPage({
               onChange={(e) => updateSettings({ worktreeRoot: e.target.value })}
               className="glass-input w-full px-3 py-2 text-sm placeholder-zinc-600"
             />
-            <p className="mt-1 text-[11px] text-zinc-500">Leave empty to use the default location.</p>
+            <p className="mt-1 text-[11px] text-zinc-500">{t("settings.accounts.worktreeRootHint")}</p>
           </div>
 
           <SettingsRow
-            label="Branch-first folder structure"
-            description="Use <root>/<branch>/<repo> instead of <root>/<repo>/<branch> for new task worktrees."
+            label={t("settings.accounts.branchFirstStructure")}
+            description={t("settings.accounts.branchFirstStructureDescription")}
           >
             <Toggle
               enabled={settings.worktreeBranchFirst ?? false}
@@ -1956,14 +2015,14 @@ function AccountsPage({
 // ─── Page: Appearance ─────────────────────────────────────────────────────────
 
 const ACCENT_PRESETS = [
-  { color: "#f2a516", label: "Gold" },
-  { color: "#34d399", label: "Emerald" },
-  { color: "#3b82f6", label: "Blue" },
-  { color: "#8b5cf6", label: "Violet" },
-  { color: "#f43f5e", label: "Rose" },
-  { color: "#f59e0b", label: "Amber" },
-  { color: "#06b6d4", label: "Cyan" },
-  { color: "#f97316", label: "Orange" },
+  { color: "#f2a516", labelKey: "settings.appearance.accent.gold" },
+  { color: "#34d399", labelKey: "settings.appearance.accent.emerald" },
+  { color: "#3b82f6", labelKey: "settings.appearance.accent.blue" },
+  { color: "#8b5cf6", labelKey: "settings.appearance.accent.violet" },
+  { color: "#f43f5e", labelKey: "settings.appearance.accent.rose" },
+  { color: "#f59e0b", labelKey: "settings.appearance.accent.amber" },
+  { color: "#06b6d4", labelKey: "settings.appearance.accent.cyan" },
+  { color: "#f97316", labelKey: "settings.appearance.accent.orange" },
 ];
 
 function AppearancePage({
@@ -1973,20 +2032,21 @@ function AppearancePage({
   settings: SettingsShape;
   updateSettings: (patch: Partial<SettingsShape>) => void;
 }) {
+  const t = useT();
   const accentColor = settings.accentColor ?? "";
 
   return (
     <div>
-      <PageHeader title="Appearance" description="Colors, themes, and visual effects." />
+      <PageHeader title={t("settings.nav.appearance")} description={t("settings.appearance.description")} />
 
       {/* ── Color Mode ── */}
-      <SettingsCard className="mb-6" eyebrow="Appearance" title="Color mode" description="Match your macOS appearance, or pin agmux to dark or light.">
+      <SettingsCard className="mb-6" eyebrow={t("settings.nav.appearance")} title={t("settings.appearance.colorMode")} description={t("settings.appearance.colorModeDescription")}>
         <div className="px-6 py-4">
           <div className="flex gap-2">
             {([
-              { value: "dark" as ColorMode, label: "Dark", icon: <Moon size={14} /> },
-              { value: "light" as ColorMode, label: "Light", icon: <Sun size={14} /> },
-              { value: "system" as ColorMode, label: "System", icon: <Monitor size={14} /> },
+              { value: "dark" as ColorMode, labelKey: "settings.appearance.colorMode.dark", icon: <Moon size={14} /> },
+              { value: "light" as ColorMode, labelKey: "settings.appearance.colorMode.light", icon: <Sun size={14} /> },
+              { value: "system" as ColorMode, labelKey: "settings.appearance.colorMode.system", icon: <Monitor size={14} /> },
             ]).map((m) => {
               const isActive = (settings.colorMode ?? "dark") === m.value;
               return (
@@ -2000,7 +2060,7 @@ function AppearancePage({
                   }`}
                 >
                   {m.icon}
-                  {m.label}
+                  {t(m.labelKey)}
                 </button>
               );
             })}
@@ -2011,15 +2071,15 @@ function AppearancePage({
       {/* ── Agent tabs layout ── */}
       <SettingsCard
         className="mb-6"
-        eyebrow="Appearance"
-        title="Agent tabs"
-        description="How projects and sessions are arranged in agent mode. Vertical is the classic sidebar. Horizontal puts project pills and sessions along the top for a full-width chat canvas."
+        eyebrow={t("settings.nav.appearance")}
+        title={t("settings.appearance.agentTabs")}
+        description={`${t("settings.appearance.agentTabsDescription.first")} ${t("settings.appearance.agentTabsDescription.second")} ${t("settings.appearance.agentTabsDescription.third")}`}
       >
         <div className="px-6 py-4">
           <div className="flex gap-2">
             {([
-              { value: "vertical" as const, label: "Vertical tabs", hint: "Default sidebar" },
-              { value: "horizontal" as const, label: "Horizontal tabs", hint: "Top chrome" },
+              { value: "vertical" as const, labelKey: "settings.appearance.agentTabs.vertical", hintKey: "settings.appearance.agentTabs.verticalHint" },
+              { value: "horizontal" as const, labelKey: "settings.appearance.agentTabs.horizontal", hintKey: "settings.appearance.agentTabs.horizontalHint" },
             ]).map((m) => {
               const isActive = (settings.agentTabsLayout ?? "vertical") === m.value;
               return (
@@ -2033,8 +2093,8 @@ function AppearancePage({
                       : "border-[var(--glass-border)] bg-transparent text-[var(--text-muted)] hover:bg-[var(--glass-hover)] hover:text-[var(--text-secondary)]"
                   }`}
                 >
-                  <span className="text-xs font-medium">{m.label}</span>
-                  <span className="ui-meta text-[10px] opacity-70">{m.hint}</span>
+                  <span className="text-xs font-medium">{t(m.labelKey)}</span>
+                  <span className="ui-meta text-[10px] opacity-70">{t(m.hintKey)}</span>
                 </button>
               );
             })}
@@ -2044,24 +2104,24 @@ function AppearancePage({
 
       {/* ── Theme ── */}
       <SettingsCard
-        eyebrow="Appearance"
-        title="Theme"
-        description="Pick a preset or start from one and customize. Glass surfaces reflect the desktop wallpaper behind the app — intensity and border brightness scale the whole system."
+        eyebrow={t("settings.nav.appearance")}
+        title={t("settings.appearance.theme.title")}
+        description={`${t("settings.appearance.theme.description.first")} ${t("settings.appearance.theme.description.second")}`}
         className="mb-6"
       >
         <div className="px-6 py-5">
           <div className="grid grid-cols-3 gap-3.5">
-            {THEMES.map((t) => {
-              const isActive = settings.theme === t.value;
-              const dotColor = t.value === "custom" ? (settings.customThemeColor || "#6366f1") : t.accent;
+            {THEMES.map((theme) => {
+              const isActive = settings.theme === theme.value;
+              const dotColor = theme.value === "custom" ? (settings.customThemeColor || "#6366f1") : theme.accent;
               return (
                 <button
-                  key={t.value}
-                  onClick={() => updateSettings({ theme: t.value })}
-                  title={t.desc}
+                  key={theme.value}
+                  onClick={() => updateSettings({ theme: theme.value })}
+                  title={t(theme.descriptionKey)}
                   className="flex flex-col items-stretch gap-[7px] text-left bg-transparent border-0 p-0 cursor-pointer"
                 >
-                  <ThemeMiniPreview accent={dotColor} tint={THEME_TINTS[t.value] ?? [10, 10, 12]} selected={isActive} />
+                  <ThemeMiniPreview accent={dotColor} tint={THEME_TINTS[theme.value] ?? [10, 10, 12]} selected={isActive} />
                   <div className="flex items-center justify-between gap-1 px-0.5">
                     <div className="flex items-center gap-1.5 min-w-0">
                       <span
@@ -2076,12 +2136,12 @@ function AppearancePage({
                           letterSpacing: "-0.015em",
                         }}
                       >
-                        {t.label}
+                        {t(theme.labelKey)}
                       </span>
                     </div>
-                    {t.value === "midnight-glass" && (
+                    {theme.value === "midnight-glass" && (
                       <span className="ui-eyebrow">
-                        Default
+                        {t("settings.appearance.theme.default")}
                       </span>
                     )}
                   </div>
@@ -2093,7 +2153,7 @@ function AppearancePage({
           {/* Custom theme color picker */}
           {settings.theme === "custom" && (
             <div className="mt-3 pt-3" style={{ borderTop: "1px solid var(--glass-border)" }}>
-              <p className="text-xs mb-2" style={{ color: "var(--text-muted)" }}>Base color for your custom theme</p>
+              <p className="text-xs mb-2" style={{ color: "var(--text-muted)" }}>{t("settings.appearance.theme.baseColor")}</p>
               <div className="flex items-center gap-3">
                 <input
                   type="color"
@@ -2110,7 +2170,7 @@ function AppearancePage({
                   className="w-24 rounded-md border border-[var(--glass-border-highlight)] bg-[var(--glass-bg)] px-2 py-1.5 text-xs font-mono outline-none"
                   style={{ color: "var(--text-primary)" }}
                 />
-                <span className="text-[11px]" style={{ color: "var(--text-muted)" }}>Used as tint, border, and accent base</span>
+                <span className="text-[11px]" style={{ color: "var(--text-muted)" }}>{t("settings.appearance.theme.baseColorHint")}</span>
               </div>
             </div>
           )}
@@ -2118,10 +2178,10 @@ function AppearancePage({
       </SettingsCard>
 
       {/* ── Accent Color ── */}
-      <SettingsCard className="mb-6" eyebrow="Appearance" title="Accent color" description="Override the theme accent. Leave blank to use the theme default.">
+      <SettingsCard className="mb-6" eyebrow={t("settings.nav.appearance")} title={t("settings.appearance.accent.title")} description={`${t("settings.appearance.accent.description.first")} ${t("settings.appearance.accent.description.second")}`}>
         <SettingsRow
-          label="Accent"
-          description="Override the theme accent. Leave blank to use the theme default."
+          label={t("settings.appearance.accent.label")}
+          description={`${t("settings.appearance.accent.description.first")} ${t("settings.appearance.accent.description.second")}`}
           last
         >
           <div className="flex items-center gap-2.5">
@@ -2130,7 +2190,7 @@ function AppearancePage({
               return (
                 <button
                   key={p.color}
-                  title={p.label}
+                  title={t(p.labelKey)}
                   onClick={() =>
                     updateSettings({ accentColor: isActive ? "" : p.color })
                   }
@@ -2158,8 +2218,8 @@ function AppearancePage({
       </SettingsCard>
 
       {/* ── Effects ── */}
-      <SettingsCard eyebrow="Surface" title="Surfaces & motion" description="Flat matches agmux.dev and the phone app. Glass is the original frosted look.">
-        <SettingsRow label="Surfaces" description="Flat panels, or frosted glass with the sliders below.">
+      <SettingsCard eyebrow={t("settings.appearance.surface.eyebrow")} title={t("settings.appearance.surface.title")} description={`${t("settings.appearance.surface.description.first")} ${t("settings.appearance.surface.description.second")}`}>
+        <SettingsRow label={t("settings.appearance.surface.label")} description={t("settings.appearance.surface.labelDescription")}>
           <div className="flex gap-1.5">
             {(["flat", "glass"] as const).map((s) => (
               <SegButton
@@ -2168,15 +2228,15 @@ function AppearancePage({
                 color="indigo"
                 onClick={() => updateSettings({ surfaceStyle: s })}
               >
-                {s === "flat" ? "Flat" : "Glass"}
+                {t(s === "flat" ? "settings.appearance.surface.flat" : "settings.appearance.surface.glass")}
               </SegButton>
             ))}
           </div>
         </SettingsRow>
 
         <SettingsRow
-          label="Animation speed"
-          description="Controls transition and animation durations."
+          label={t("settings.appearance.animationSpeed")}
+          description={t("settings.appearance.animationSpeedDescription")}
           last={(settings.surfaceStyle ?? "flat") !== "glass"}
         >
           <div className="flex gap-1.5">
@@ -2187,7 +2247,7 @@ function AppearancePage({
                 color="indigo"
                 onClick={() => updateSettings({ animationSpeed: s })}
               >
-                <span className="capitalize">{s}</span>
+                <span className="capitalize">{t(`settings.appearance.animationSpeed.${s}`)}</span>
               </SegButton>
             ))}
           </div>
@@ -2196,8 +2256,8 @@ function AppearancePage({
         {(settings.surfaceStyle ?? "flat") === "glass" && (
           <>
             <SettingsRow
-              label="Glass intensity"
-              description="Overall opacity of glass surfaces — lower is more transparent."
+              label={t("settings.appearance.glassIntensity")}
+              description={t("settings.appearance.glassIntensityDescription")}
             >
               <div className="flex items-center gap-3">
                 <Slider
@@ -2211,8 +2271,8 @@ function AppearancePage({
             </SettingsRow>
 
             <SettingsRow
-              label="Glass blur"
-              description="Backdrop blur intensity for glass surfaces (0–24 px)."
+              label={t("settings.appearance.glassBlur")}
+              description={t("settings.appearance.glassBlurDescription")}
             >
               <div className="flex items-center gap-3">
                 <Slider
@@ -2226,8 +2286,8 @@ function AppearancePage({
             </SettingsRow>
 
             <SettingsRow
-              label="Border brightness"
-              description="Visibility of borders and dividers throughout the UI."
+              label={t("settings.appearance.borderBrightness")}
+              description={t("settings.appearance.borderBrightnessDescription")}
             >
               <div className="flex items-center gap-3">
                 <Slider
@@ -2241,8 +2301,8 @@ function AppearancePage({
             </SettingsRow>
 
             <SettingsRow
-              label="Sidebar opacity"
-              description="Background opacity of the sidebar panel (0–100%)."
+              label={t("settings.appearance.sidebarOpacity")}
+              description={t("settings.appearance.sidebarOpacityDescription")}
               last
             >
               <div className="flex items-center gap-3">
@@ -2271,12 +2331,13 @@ function TypographyPage({
   settings: SettingsShape;
   updateSettings: (patch: Partial<SettingsShape>) => void;
 }) {
+  const t = useT();
   return (
     <div>
-      <PageHeader title="Typography" description="Fonts and font sizes across the entire app." />
+      <PageHeader title={t("settings.nav.typography")} description={t("settings.typography.description")} />
 
-      <SettingsCard className="mb-6" eyebrow="Typography" title="Font families" description="Archivo is the default and matches agmux.dev and the phone app.">
-        <SettingsRow label="UI font" description="Font used throughout the interface.">
+      <SettingsCard className="mb-6" eyebrow={t("settings.nav.typography")} title={t("settings.typography.fontFamilies")} description={t("settings.typography.fontFamiliesDescription")}>
+        <SettingsRow label={t("settings.typography.uiFont")} description={t("settings.typography.uiFontDescription")}>
           <div className="flex gap-1.5 flex-wrap justify-end">
             {(["archivo", "geist", "inter", "sf-pro", "zed-sans", "system"] as UIFont[]).map((f) => (
               <SegButton
@@ -2285,13 +2346,13 @@ function TypographyPage({
                 color="indigo"
                 onClick={() => updateSettings({ uiFont: f })}
               >
-                {f === "archivo" ? "Archivo" : f === "geist" ? "Geist" : f === "inter" ? "Inter" : f === "sf-pro" ? "SF Pro" : f === "zed-sans" ? "Zed Sans" : "System"}
+                {f === "archivo" ? "Archivo" : f === "geist" ? "Geist" : f === "inter" ? "Inter" : f === "sf-pro" ? "SF Pro" : f === "zed-sans" ? "Zed Sans" : t("settings.typography.systemFont")}
               </SegButton>
             ))}
           </div>
         </SettingsRow>
 
-        <SettingsRow label="Mono font" description="Font used in code blocks, the editor, and terminal." last>
+        <SettingsRow label={t("settings.typography.monoFont")} description={t("settings.typography.monoFontDescription")} last>
           <div className="flex gap-1.5 flex-wrap justify-end">
             {(["jetbrains-mono", "hack", "zed-mono", "menlo"] as MonoFont[]).map((f) => (
               <SegButton
@@ -2307,8 +2368,8 @@ function TypographyPage({
         </SettingsRow>
       </SettingsCard>
 
-      <SettingsCard eyebrow="Typography" title="Font sizes" description="Per-surface text scaling. UI chrome scales separately with macOS text size.">
-        <SettingsRow label="UI size" description="Base font size applied to the entire interface.">
+      <SettingsCard eyebrow={t("settings.nav.typography")} title={t("settings.typography.fontSizes")} description={`${t("settings.typography.fontSizesDescription.first")} ${t("settings.typography.fontSizesDescription.second")}`}>
+        <SettingsRow label={t("settings.typography.uiSize")} description={t("settings.typography.uiSizeDescription")}>
           <NumberInput
             value={settings.uiFontSize ?? 14}
             min={12}
@@ -2317,7 +2378,7 @@ function TypographyPage({
           />
         </SettingsRow>
 
-        <SettingsRow label="Chat size" description="Font size in chat message threads.">
+        <SettingsRow label={t("settings.typography.chatSize")} description={t("settings.typography.chatSizeDescription")}>
           <NumberInput
             value={settings.chatFontSize ?? 15}
             min={12}
@@ -2327,8 +2388,8 @@ function TypographyPage({
         </SettingsRow>
 
         <SettingsRow
-          label="Terminal size"
-          description="Font size in the integrated terminal."
+          label={t("settings.typography.terminalSize")}
+          description={t("settings.typography.terminalSizeDescription")}
           last
         >
           <NumberInput
@@ -2365,6 +2426,7 @@ function SummariesPage({
   clearLogs: () => void;
   clearAllNames: () => void;
 }) {
+  const t = useT();
   const failedSummarizations = useSessionNameStore((s) => s.failedSummarizations);
   const clearFailedSummarizations = useSessionNameStore((s) => s.clearFailedSummarizations);
   const retryFailedSummarization = useSessionNameStore((s) => s.retryFailedSummarization);
@@ -2427,27 +2489,28 @@ function SummariesPage({
   return (
     <div>
       <PageHeader
-        title="Summaries"
-        description="On-device models for thread naming and summarization. Local only — no cloud provider."
+        title={t("settings.nav.summaries")}
+        description={`${t("settings.summaries.description.first")} ${t("settings.summaries.description.second")}`}
       />
 
       {/* ── Local AI Model Section ── */}
       <SettingsCard
         className="mb-6"
-        eyebrow="Summaries"
-        title="Local AI model"
-        description="Run a quantized model on-device for offline thread naming. Prefer Qwen3-1.7B for speed or Qwen3-4B for quality."
+        eyebrow={t("settings.nav.summaries")}
+        title={t("settings.summaries.localModel")}
+        description={`${t("settings.summaries.localModelDescription.first")} ${t("settings.summaries.localModelDescription.second")}`}
       >
         {onLegacy && (
           <div className="border-b border-amber-500/20 bg-amber-500/10 px-5 py-3 text-xs leading-relaxed text-amber-200/90">
-            You&apos;re on a retired Qwen2.5 model ({modelStatus?.model_name}). Download and switch
-            to Qwen3 or Phi-4 below — legacy models are no longer used for summaries.
+            {t("settings.summaries.retiredModel.first", { model: modelStatus?.model_name ?? "" })}{" "}
+            {t("settings.summaries.retiredModel.second")}
           </div>
         )}
         <div className="border-b border-white/6 px-5 py-3">
           <p className="text-xs text-zinc-400 leading-relaxed">
-            Uses a local GGUF model for offline inference. No API key required.
-            {modelStatus && !modelStatus.model_downloaded && " Model not yet downloaded."}
+            {t("settings.summaries.localInference")}{" "}
+            {t("settings.summaries.noApiKey")}
+            {modelStatus && !modelStatus.model_downloaded && ` ${t("settings.summaries.modelNotDownloaded")}`}
           </p>
         </div>
         {/* Per-variant rows (current catalog only — legacy Qwen2.5 hidden) */}
@@ -2457,9 +2520,9 @@ function SummariesPage({
             ? formatBytes(v.size_bytes)
             : `~${formatBytes(v.approx_size_bytes)}`;
           const descParts: string[] = [];
-          descParts.push(v.blurb || "On-device model");
+          descParts.push(v.blurb || t("settings.summaries.onDeviceModel"));
           descParts.push(sizeLabel);
-          if (v.downloaded && isActive) descParts.push("Active");
+          if (v.downloaded && isActive) descParts.push(t("settings.summaries.active"));
 
           return (
             <SettingsRow
@@ -2469,7 +2532,7 @@ function SummariesPage({
                   <span className="inline-flex items-center gap-2">
                     {v.display_name}
                     <span className="rounded-full border border-[color:var(--accent-border)] bg-[var(--accent-dim)] px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-[color:var(--accent)]">
-                      Rec
+                      {t("settings.summaries.recommended")}
                     </span>
                   </span>
                 ) : (
@@ -2484,7 +2547,7 @@ function SummariesPage({
                     {isActive ? (
                       <span className="flex items-center gap-1.5 text-xs text-[color:var(--status-green)]">
                         <CheckCircle2 size={13} />
-                        Installed · Active
+                        {t("settings.summaries.installed")} · {t("settings.summaries.active")}
                       </span>
                     ) : (
                       <GlassButton
@@ -2492,16 +2555,16 @@ function SummariesPage({
                         variant="primary"
                         onClick={() => setActiveVariant(v.variant).catch(() => {})}
                       >
-                        Use this model
+                        {t("settings.summaries.useModel")}
                       </GlassButton>
                     )}
                     <button
                       onClick={() => removeModel(v.variant).catch(() => {})}
                       className="inline-flex items-center justify-center gap-1.5 rounded-[7px] border border-red-500/25 bg-red-500/[0.10] px-2.5 py-[5px] text-[11px] font-medium text-red-400 transition-colors hover:border-red-500/40 hover:bg-red-500/[0.16]"
-                      title={`Delete ${v.display_name}`}
+                      title={t("settings.summaries.deleteModel", { name: v.display_name })}
                     >
                       <Trash2 size={12} />
-                      Remove
+                      {t("settings.summaries.remove")}
                     </button>
                   </>
                 ) : (
@@ -2512,7 +2575,7 @@ function SummariesPage({
                     onClick={() => handleStartDownload(v.variant)}
                     disabled={downloading}
                   >
-                    Download
+                    {t("settings.summaries.download")}
                   </GlassButton>
                 )}
               </div>
@@ -2522,25 +2585,25 @@ function SummariesPage({
 
         {/* Server status row */}
         <SettingsRow
-          label="Server"
+          label={t("settings.summaries.server")}
           description={
             modelStatus?.server_running
-              ? "Running and ready"
+              ? t("settings.summaries.serverReady")
               : modelStatus?.model_downloaded
-              ? "Stopped"
-              : "Requires model download"
+              ? t("settings.summaries.stopped")
+              : t("settings.summaries.requiresModelDownload")
           }
         >
           <div className="flex items-center gap-2">
             {modelStatus?.server_running ? (
               <span className="flex items-center gap-1.5 text-xs text-[color:var(--accent)]">
                 <span className="h-1.5 w-1.5 rounded-full bg-[var(--accent)] animate-pulse" />
-                Running
+                {t("settings.summaries.running")}
               </span>
             ) : (
               <span className="flex items-center gap-1.5 text-xs text-zinc-500">
                 <span className="h-1.5 w-1.5 rounded-full bg-zinc-600" />
-                Stopped
+                {t("settings.summaries.stopped")}
               </span>
             )}
           </div>
@@ -2551,7 +2614,7 @@ function SummariesPage({
           <div className="border-t border-white/6 px-5 py-4">
             <div className="mb-1.5 flex items-center justify-between text-xs text-zinc-400">
               <span className="capitalize">
-                {downloadProgress?.stage === "server" ? "Downloading server..." : "Downloading model..."}
+                {t(downloadProgress?.stage === "server" ? "settings.summaries.downloadingServer" : "settings.summaries.downloadingModel")}
               </span>
               {progressPercent !== null && (
                 <span className="tabular-nums">{progressPercent}%</span>
@@ -2585,20 +2648,20 @@ function SummariesPage({
         <div className="flex flex-wrap gap-2 border-t border-white/6 px-5 py-3">
           {modelStatus?.model_downloaded && !modelStatus.server_running && !serverBusy && (
             <GlassButton size="sm" variant="accent" icon={Play} onClick={handleStartServer}>
-              Start Server
+              {t("settings.summaries.startServer")}
             </GlassButton>
           )}
 
           {modelStatus?.server_running && !serverBusy && (
             <GlassButton size="sm" variant="primary" icon={Square} onClick={handleStopServer}>
-              Stop Server
+              {t("settings.summaries.stopServer")}
             </GlassButton>
           )}
 
           {serverBusy && (
             <span className="flex items-center gap-1.5 text-xs text-zinc-500">
               <Loader2 size={12} className="animate-spin" />
-              Working...
+              {t("settings.summaries.working")}
             </span>
           )}
 
@@ -2613,26 +2676,26 @@ function SummariesPage({
               }`}
             >
               <Trash2 size={12} />
-              {confirmUninstall ? "Confirm Uninstall" : "Uninstall Model"}
+              {confirmUninstall ? t("settings.summaries.confirmUninstall") : t("settings.summaries.uninstallModel")}
             </button>
           )}
 
           <GlassButton size="sm" variant="primary" icon={RefreshCw} onClick={() => fetchStatus().catch(() => {})}>
-            Refresh
+            {t("settings.summaries.refresh")}
           </GlassButton>
         </div>
       </SettingsCard>
 
       {/* ── Thread Summarization ── */}
-      <SettingsCard eyebrow="Summaries" title="Thread summarization" description="Cached AI-generated names for your threads.">
-        <SettingsRow label="Cached names" description="Number of AI-generated thread names stored locally.">
+      <SettingsCard eyebrow={t("settings.nav.summaries")} title={t("settings.summaries.threadSummarization")} description={t("settings.summaries.threadSummarizationDescription")}>
+        <SettingsRow label={t("settings.summaries.cachedNames")} description={t("settings.summaries.cachedNamesDescription")}>
           <span className="tabular-nums text-sm text-zinc-200">{cachedCount}</span>
         </SettingsRow>
 
         {pendingCount > 0 && (
           <div className="flex items-center gap-2 border-t border-white/6 px-5 py-3 text-sm text-amber-400">
             <Loader2 size={13} className="animate-spin" />
-            Summarizing {pendingCount} thread{pendingCount !== 1 ? "s" : ""}...
+            {t("settings.summaries.summarizingThreads", { count: pendingCount })}
           </div>
         )}
 
@@ -2649,12 +2712,12 @@ function SummariesPage({
         <div className="flex gap-2 border-t border-white/6 px-5 py-3" style={{ borderTopWidth: summarizeLogs.length > 0 || pendingCount > 0 ? undefined : 0 }}>
           {summarizeLogs.length > 0 && (
             <GlassButton size="sm" variant="primary" onClick={clearLogs}>
-              Clear logs
+              {t("settings.summaries.clearLogs")}
             </GlassButton>
           )}
           {cachedCount > 0 && (
             <GlassButton size="sm" variant="destructive" onClick={clearAllNames}>
-              Reset all names
+              {t("settings.summaries.resetNames")}
             </GlassButton>
           )}
         </div>
@@ -2662,16 +2725,16 @@ function SummariesPage({
 
       <SettingsCard
         className="mt-6"
-        eyebrow="Summaries"
-        title="Failed summarizations"
-        description="Thread-name summarizations that failed, persisted across app opens. Common causes: local model not running, provider timeout, or empty LLM response."
+        eyebrow={t("settings.nav.summaries")}
+        title={t("settings.summaries.failedTitle")}
+        description={`${t("settings.summaries.failedDescription.first")} ${t("settings.summaries.failedDescription.second")}`}
       >
         <SettingsRow
-          label="Failed count"
+          label={t("settings.summaries.failedCount")}
           description={
             failedSummarizations.length === 0
-              ? "No failures recorded."
-              : `Showing ${failedSummarizations.length} failure${failedSummarizations.length === 1 ? "" : "s"} (newest first, capped at 200).`
+              ? t("settings.summaries.noFailures")
+              : t("settings.summaries.failuresRecorded", { count: failedSummarizations.length })
           }
         >
           <span className="tabular-nums text-sm text-zinc-200">{failedSummarizations.length}</span>
@@ -2694,7 +2757,7 @@ function SummariesPage({
         {failedSummarizations.length > 0 && (
           <div className="flex gap-2 border-t border-white/6 px-5 py-3">
             <GlassButton size="sm" variant="primary" onClick={clearFailedSummarizations}>
-              Clear failures
+              {t("settings.summaries.clearFailures")}
             </GlassButton>
           </div>
         )}
@@ -2710,8 +2773,9 @@ function FailedSummarizationRow({
   entry: FailedSummarization;
   onRetry: () => void;
 }) {
+  const t = useT();
   const ts = new Date(entry.timestamp);
-  const timeLabel = ts.toLocaleString(undefined, {
+  const timeLabel = ts.toLocaleString(localeTag(), {
     month: "short",
     day: "numeric",
     hour: "2-digit",
@@ -2728,7 +2792,7 @@ function FailedSummarizationRow({
         </p>
       </div>
       <GlassButton size="sm" variant="ghost" onClick={onRetry}>
-        Retry
+        {t("settings.summaries.retry")}
       </GlassButton>
     </div>
   );
@@ -2743,14 +2807,15 @@ function NotificationsPage({
   settings: SettingsShape;
   updateSettings: (patch: Partial<SettingsShape>) => void;
 }) {
+  const t = useT();
   return (
     <div>
-      <PageHeader title="Notifications" description="Sound and test helpers for macOS alerts." />
+      <PageHeader title={t("settings.nav.notifications")} description={t("settings.notifications.description")} />
 
-      <SettingsCard className="mb-6 overflow-visible" eyebrow="Notifications" title="Alerts" description="Background notifications fire when the app is unfocused (completion and approval).">
+      <SettingsCard className="mb-6 overflow-visible" eyebrow={t("settings.nav.notifications")} title={t("settings.notifications.alerts")} description={t("settings.notifications.alertsDescription")}>
         <SettingsRow
-          label="Notify when an agent finishes"
-          description="macOS notification when a chat finishes in the background."
+          label={t("settings.notifications.notifyOnComplete")}
+          description={t("settings.notifications.notifyOnCompleteDescription")}
         >
           <Toggle
             enabled={settings.notifyOnComplete ?? true}
@@ -2758,8 +2823,8 @@ function NotificationsPage({
           />
         </SettingsRow>
         <SettingsRow
-          label="Notify when approval is needed"
-          description="Alert when an agent is waiting for you to approve a tool or answer a question."
+          label={t("settings.notifications.notifyOnApproval")}
+          description={t("settings.notifications.notifyOnApprovalDescription")}
         >
           <Toggle
             enabled={settings.notifyOnApproval ?? true}
@@ -2767,8 +2832,8 @@ function NotificationsPage({
           />
         </SettingsRow>
         <SettingsRow
-          label="Notification sound"
-          description="Sound to play with macOS notifications."
+          label={t("settings.notifications.sound")}
+          description={t("settings.notifications.soundDescription")}
           last
         >
           <NotificationSoundDropdown
@@ -2778,10 +2843,10 @@ function NotificationsPage({
         </SettingsRow>
       </SettingsCard>
 
-      <SettingsCard eyebrow="Notifications" title="Test" description="Send a sample notification or toast to verify your setup.">
+      <SettingsCard eyebrow={t("settings.nav.notifications")} title={t("settings.notifications.test")} description={t("settings.notifications.testDescription")}>
         <SettingsRow
-          label="Test push notification"
-          description="Send a test macOS notification to verify they're working."
+          label={t("settings.notifications.testPush")}
+          description={t("settings.notifications.testPushDescription")}
         >
           <GlassButton
             size="md"
@@ -2793,12 +2858,12 @@ function NotificationsPage({
               });
             }}
           >
-            Test
+            {t("settings.notifications.testButton")}
           </GlassButton>
         </SettingsRow>
         <SettingsRow
-          label="Test in-app toast"
-          description="Show a test approval toast in the top-right corner."
+          label={t("settings.notifications.testToast")}
+          description={t("settings.notifications.testToastDescription")}
           last
         >
           <GlassButton
@@ -2826,7 +2891,7 @@ function NotificationsPage({
               setTimeout(() => useUiStore.getState().setPendingApproval("test-toast", null), 30000);
             }}
           >
-            Test
+            {t("settings.notifications.testButton")}
           </GlassButton>
         </SettingsRow>
       </SettingsCard>
@@ -2841,11 +2906,12 @@ function QuickOpenDropdown({
   value: QuickOpenAction;
   onChange: (value: QuickOpenAction) => void;
 }) {
+  const t = useT();
   const [open, setOpen] = useState(false);
   const [menuStyle, setMenuStyle] = useState<CSSProperties>({});
   const triggerRef = useRef<HTMLButtonElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
-  const label = quickOpenLabel(value);
+  const label = t(`settings.general.quickOpen.option.${value}`);
 
   const updateMenuPosition = useCallback(() => {
     const trigger = triggerRef.current;
@@ -2916,7 +2982,7 @@ function QuickOpenDropdown({
         }`}
         aria-haspopup="listbox"
         aria-expanded={open}
-        aria-label="Quick Open action"
+        aria-label={t("settings.general.quickOpen.ariaLabel")}
       >
         <div className="min-w-0">
           <div className="truncate text-sm font-medium">{label}</div>
@@ -2939,7 +3005,7 @@ function QuickOpenDropdown({
               style={menuStyle}
               className="composer-popover overflow-y-auto overscroll-contain rounded-2xl border border-white/10 p-1.5 shadow-2xl"
               role="listbox"
-              aria-label="Quick Open action"
+              aria-label={t("settings.general.quickOpen.ariaLabel")}
             >
               {QUICK_OPEN_OPTIONS.map((option) => {
                 const selected = option.value === value;
@@ -2963,7 +3029,9 @@ function QuickOpenDropdown({
                     <span className="flex h-4 w-4 shrink-0 items-center justify-center">
                       {selected ? <Check size={14} className="text-[var(--accent)]" /> : null}
                     </span>
-                    <span className="truncate">{option.label}</span>
+                    <span className="truncate">
+                      {t(`settings.general.quickOpen.option.${option.value}`)}
+                    </span>
                   </button>
                 );
               })}
@@ -2983,9 +3051,14 @@ function NotificationSoundDropdown({
   value: string;
   onChange: (value: string) => void;
 }) {
+  const t = useT();
   const [open, setOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const selectedSound = NOTIFICATION_SOUNDS.find((sound) => sound.value === value) ?? NOTIFICATION_SOUNDS[1];
+  const soundLabel = (sound: (typeof NOTIFICATION_SOUNDS)[number]) => {
+    const key = NOTIFICATION_SOUND_LABEL_KEYS[sound.value];
+    return key ? t(key) : sound.label;
+  };
 
   useEffect(() => {
     if (!open) return;
@@ -3022,7 +3095,7 @@ function NotificationSoundDropdown({
         aria-expanded={open}
       >
         <div className="min-w-0">
-          <div className="truncate text-sm font-medium">{selectedSound.label}</div>
+          <div className="truncate text-sm font-medium">{soundLabel(selectedSound)}</div>
         </div>
         <ChevronDown
           size={14}
@@ -3039,7 +3112,7 @@ function NotificationSoundDropdown({
             exit="exit"
             className="composer-popover absolute right-0 top-full z-30 mt-2 w-full rounded-2xl border border-white/10 p-1.5 shadow-2xl"
             role="listbox"
-            aria-label="Notification sound"
+            aria-label={t("settings.notifications.sound")}
           >
             {NOTIFICATION_SOUNDS.map((sound) => {
               const selected = sound.value === value;
@@ -3063,7 +3136,7 @@ function NotificationSoundDropdown({
                   <span className="flex h-4 w-4 shrink-0 items-center justify-center">
                     {selected ? <Check size={14} className="text-[var(--accent)]" /> : null}
                   </span>
-                  <span className="truncate">{sound.label}</span>
+                  <span className="truncate">{soundLabel(sound)}</span>
                 </button>
               );
             })}
@@ -3075,6 +3148,7 @@ function NotificationSoundDropdown({
 }
 
 function BetaUpdatesRow() {
+  const t = useT();
   const settings = useSettingsStore((s) => s.settings);
   const updateSettings = useSettingsStore((s) => s.updateSettings);
   const [tokenError, setTokenError] = useState<string | null>(null);
@@ -3088,20 +3162,20 @@ function BetaUpdatesRow() {
     setChecking(true);
     try {
       const result = await verifyBetaToken(token);
-      if (result && !result.ok) setTokenError("Token rejected or revoked");
+      if (result && !result.ok) setTokenError(t("settings.about.beta.tokenRejected"));
       else setTokenError(null);
     } catch {
-      setTokenError("Could not verify token");
+      setTokenError(t("settings.about.beta.verifyFailed"));
     } finally {
       setChecking(false);
     }
-  }, [settings.betaUpdatesEnabled]);
+  }, [settings.betaUpdatesEnabled, t]);
 
   return (
     <>
       <SettingsRow
-        label="Beta channel"
-        description="Get upcoming builds after you’re approved at agmux.dev/beta. Paste the tester token from the website."
+        label={t("settings.about.beta.channel")}
+        description={`${t("settings.about.beta.channelDescription.first")} ${t("settings.about.beta.channelDescription.second")}`}
       >
         <Toggle
           enabled={settings.betaUpdatesEnabled ?? false}
@@ -3113,8 +3187,8 @@ function BetaUpdatesRow() {
       </SettingsRow>
       {settings.betaUpdatesEnabled ? (
         <SettingsRow
-          label="Tester token"
-          description={tokenError ?? (checking ? "Checking…" : "Shown once on the beta site after you sign in.")}
+          label={t("settings.about.beta.token")}
+          description={tokenError ?? (checking ? t("settings.about.beta.checking") : t("settings.about.beta.tokenDescription"))}
         >
           <input
             type="password"
@@ -3141,12 +3215,13 @@ function AboutPage({
   resetSettings: () => void;
   onRerunWizard: () => void;
 }) {
+  const t = useT();
   const { state: updateState, checkForUpdate, installUpdate, openManualDownload } = useUpdateChecker();
   const settings = useSettingsStore((s) => s.settings);
   const updateSettings = useSettingsStore((s) => s.updateSettings);
   const appVersion = useAppVersion();
-  const [tauriVersion, setTauriVersion] = useState("");
-  const [osInfo, setOsInfo] = useState("");
+  const [tauriVersion, setTauriVersion] = useState<string | null>(null);
+  const [osInfo, setOsInfo] = useState<string | null>(null);
 
   useEffect(() => {
     import("@tauri-apps/api/app").then((mod) => {
@@ -3157,43 +3232,43 @@ function AboutPage({
     if (ua.includes("Mac")) setOsInfo("macOS");
     else if (ua.includes("Windows")) setOsInfo("Windows");
     else if (ua.includes("Linux")) setOsInfo("Linux");
-    else setOsInfo(navigator.platform || "Unknown");
+    else setOsInfo(navigator.platform || "unknown");
   }, []);
 
   return (
     <div>
-      <PageHeader title="About" description="Version info, updates, setup, and reset." />
+      <PageHeader title={t("settings.nav.about")} description={t("settings.about.description")} />
 
       <div className="mb-8 flex items-center gap-4">
         <div className="flex h-16 w-16 items-center justify-center overflow-hidden rounded-2xl border border-white/10 bg-white/5 shadow-[0_10px_30px_rgba(0,0,0,0.2)]">
           <img
             src="/xanom-icon.png"
-            alt="agmux app icon"
+            alt={t("settings.about.appIconAlt")}
             className="h-full w-full object-cover"
           />
         </div>
         <div>
           <h2 className="text-lg font-semibold text-zinc-100">agmux</h2>
-          <p className="text-sm text-zinc-400">Version {appVersion || "..."}</p>
+          <p className="text-sm text-zinc-400">{t("settings.about.version", { version: appVersion || "..." })}</p>
         </div>
       </div>
 
-      <SettingsCard className="mb-6" eyebrow="About" title="System" description="Hardware, OS, and runtime your build is running on.">
+      <SettingsCard className="mb-6" eyebrow={t("settings.nav.about")} title={t("settings.about.system")} description={t("settings.about.systemDescription")}>
         {[
-          { label: "App version", value: appVersion || "..." },
-          { label: "Tauri", value: tauriVersion || "..." },
-          { label: "Platform", value: osInfo || "..." },
+          { labelKey: "settings.about.appVersion", value: appVersion || "..." },
+          { labelKey: "settings.about.tauri", value: tauriVersion === null ? "..." : tauriVersion === "unknown" ? t("settings.about.unknown") : tauriVersion },
+          { labelKey: "settings.about.platform", value: osInfo === null ? "..." : osInfo === "unknown" ? t("settings.about.unknown") : osInfo },
         ].map((item, i, arr) => (
-          <SettingsRow key={item.label} label={item.label} description="" last={i === arr.length - 1}>
+          <SettingsRow key={item.labelKey} label={t(item.labelKey)} description="" last={i === arr.length - 1}>
             <span className="text-xs text-zinc-300 font-mono">{item.value}</span>
           </SettingsRow>
         ))}
       </SettingsCard>
 
-      <SettingsCard className="mb-6" eyebrow="About" title="Updates" description="Stay current with the latest agmux build.">
+      <SettingsCard className="mb-6" eyebrow={t("settings.nav.about")} title={t("settings.about.updates")} description={t("settings.about.updatesDescription")}>
         <SettingsRow
-          label="Automatic updates"
-          description="When on, download and install new versions as soon as they are found on app open. When off, you still get a prompt and choose when to update."
+          label={t("settings.about.automaticUpdates")}
+          description={`${t("settings.about.automaticUpdatesDescription.first")} ${t("settings.about.automaticUpdatesDescription.second")}`}
         >
           <Toggle
             enabled={settings.autoUpdateEnabled ?? false}
@@ -3202,60 +3277,60 @@ function AboutPage({
         </SettingsRow>
         <BetaUpdatesRow />
         <SettingsRow
-          label="App updates"
-          description="Check for new versions of agmux."
+          label={t("settings.about.appUpdates")}
+          description={t("settings.about.appUpdatesDescription")}
           last
         >
           <div className="flex items-center gap-2">
             {updateState.status === "checking" && (
               <span className="flex items-center gap-1.5 text-xs text-zinc-400">
                 <Loader2 size={12} className="animate-spin" />
-                Checking...
+                {t("settings.about.update.checking")}
               </span>
             )}
             {updateState.status === "up-to-date" && (
               <span className="flex items-center gap-1.5 text-xs text-[color:var(--status-green)]">
                 <CheckCircle2 size={12} />
-                Up to date
+                {t("settings.about.update.upToDate")}
               </span>
             )}
             {updateState.status === "available" && (
               <>
                 <span className="text-xs text-[var(--accent)]">
-                  v{updateState.version} available
+                  {t("settings.about.update.available", { version: updateState.version })}
                 </span>
                 <GlassButton size="sm" variant="accent" icon={Download} onClick={installUpdate}>
-                  Install
+                  {t("settings.about.update.install")}
                 </GlassButton>
               </>
             )}
             {updateState.status === "downloading" && (
               <span className="flex items-center gap-1.5 text-xs text-[var(--accent)]">
                 <RefreshCw size={12} className="animate-spin" />
-                Downloading {Math.round(updateState.progress)}%
+                {t("settings.about.update.downloading", { progress: Math.round(updateState.progress) })}
               </span>
             )}
             {updateState.status === "ready" && (
               <span className="flex items-center gap-1.5 text-xs text-[color:var(--status-green)]">
                 <CheckCircle2 size={12} />
-                Restart to apply
+                {t("settings.about.update.restartToApply")}
               </span>
             )}
             {updateState.status === "error" && (
               <span className="text-xs text-red-400 max-w-[200px] truncate" title={updateState.message}>
-                Error checking
+                {t("settings.about.update.errorChecking")}
               </span>
             )}
             {updateState.status === "manual-required" && (
               <>
                 <span
                   className="text-xs text-amber-400 max-w-[180px] truncate"
-                  title={updateState.message || "Redownload required"}
+                  title={updateState.message || t("settings.about.update.redownloadRequired")}
                 >
-                  Redownload required
+                  {t("settings.about.update.redownloadRequired")}
                 </span>
                 <GlassButton size="sm" variant="accent" icon={Download} onClick={() => void openManualDownload()}>
-                  Website
+                  {t("settings.about.update.website")}
                 </GlassButton>
               </>
             )}
@@ -3273,7 +3348,7 @@ function AboutPage({
                   void checkForUpdate({ force: true });
                 }}
               >
-                Check now
+                {t("settings.about.update.checkNow")}
               </GlassButton>
             )}
           </div>
@@ -3282,29 +3357,29 @@ function AboutPage({
 
       <SettingsCard
         className="mb-6"
-        eyebrow="About"
-        title="Setup"
-        description="Walk through theme, fonts, layout, and other first-time preferences again."
+        eyebrow={t("settings.nav.about")}
+        title={t("settings.about.setup")}
+        description={t("settings.about.setupDescription")}
       >
         <SettingsRow
-          label="Setup wizard"
-          description="Re-run onboarding anytime — providers, look, memory, permissions, phone remote, and essentials."
+          label={t("settings.about.setupWizard")}
+          description={t("settings.about.setupWizardDescription")}
           last
         >
           <GlassButton size="sm" variant="primary" onClick={onRerunWizard}>
-            Run setup
+            {t("settings.about.runSetup")}
           </GlassButton>
         </SettingsRow>
       </SettingsCard>
 
-      <SettingsCard eyebrow="About" title="Danger zone" description="Reset every agmux preference to defaults. Data and accounts are not removed.">
+      <SettingsCard eyebrow={t("settings.nav.about")} title={t("settings.about.dangerZone")} description={`${t("settings.about.dangerZoneDescription.first")} ${t("settings.about.dangerZoneDescription.second")}`}>
         <SettingsRow
-          label="Reset all settings"
-          description="Restore every setting to its factory default. This cannot be undone."
+          label={t("settings.about.resetAllSettings")}
+          description={`${t("settings.about.resetAllSettingsDescription.first")} ${t("settings.about.resetAllSettingsDescription.second")}`}
           last
         >
           <GlassButton size="md" variant="destructive" icon={RotateCcw} onClick={resetSettings}>
-            Reset
+            {t("settings.about.reset")}
           </GlassButton>
         </SettingsRow>
       </SettingsCard>

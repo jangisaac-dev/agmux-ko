@@ -9,12 +9,14 @@ import { isThreadMidTurn, isThreadAwaitingInput } from "../../lib/taskAgentActiv
 import { useUiStore } from "../../stores/uiStore";
 import { SessionPresentationContext } from "../../hooks/useIsSessionActive";
 import type { Thread } from "../../lib/types";
+import { useT } from "../../i18n";
 
 interface TaskMainPanelProps { taskId: string | null; active?: boolean }
 const EMPTY_THREADS: Thread[] = [];
 
 /** Tasks organize sessions; shared provider views own controls and lifecycle. */
 export function TaskMainPanel({ taskId, active = true }: TaskMainPanelProps) {
+  const t = useT();
   const task = useTaskViewStore((s) => taskId ? s.getTaskById(taskId) : undefined);
   const activeAgentTabId = useTaskViewStore((s) => s.activeAgentTabId);
   const allThreads = useThreadStore((s) => s.threads);
@@ -63,8 +65,8 @@ export function TaskMainPanel({ taskId, active = true }: TaskMainPanelProps) {
             <path d="M8 5v14l11-7L8 5z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round"/>
           </svg>
         </div>
-        <p className="text-[13px] font-medium text-zinc-400">No agents running</p>
-        <p className="mt-1 text-[11px] text-zinc-600">Start one from the tab bar above</p>
+        <p className="text-[13px] font-medium text-zinc-400">{t("task.main.noAgentsRunning")}</p>
+        <p className="mt-1 text-[11px] text-zinc-600">{t("task.main.startFromTabBar")}</p>
       </div>
       )}
       {renderedThreads.map((thread) => {

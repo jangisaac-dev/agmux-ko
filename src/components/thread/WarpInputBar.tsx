@@ -8,6 +8,7 @@ import { useTerminalStore } from "../../stores/terminalStore";
 import type { TerminalGitInfo } from "../../stores/terminalStore";
 import { useTerminalAutocomplete } from "../../hooks/useTerminalAutocomplete";
 import { handleTextFieldCmdArrowNav } from "../../lib/textFieldNav";
+import { useT } from "../../i18n";
 
 interface Props {
   sessionId: string;
@@ -40,6 +41,7 @@ function shortenPath(p: string): string {
 }
 
 export function WarpInputBar({ sessionId, visible, cwd, gitInfo, agentRunning, onAgentStart }: Props) {
+  const t = useT();
   const [value, setValue] = useState("");
   const [history, setHistory] = useState<string[]>([]);
   const [historyIndex, setHistoryIndex] = useState<number>(-1);
@@ -315,10 +317,10 @@ export function WarpInputBar({ sessionId, visible, cwd, gitInfo, agentRunning, o
             }`}
             placeholder={
               agentRunning
-                ? "Agent running..."
+                ? t("composer.warp.agentRunning")
                 : suggestion
                   ? ""
-                  : "Type a command... (\u2318\u21B5 for AI)"
+                  : t("composer.warp.commandPlaceholder")
             }
           />
           {/* Ghost text: absolutely positioned to overlay the input, offset by typed text width */}
@@ -337,7 +339,7 @@ export function WarpInputBar({ sessionId, visible, cwd, gitInfo, agentRunning, o
             type="button"
             onClick={() => sendPtyInput(sessionId, "\x03").catch(() => {})}
             className="shrink-0 rounded p-1 text-zinc-500 transition-colors hover:bg-[var(--surface-hover)] hover:text-zinc-300"
-            title="Stop agent (Ctrl+C)"
+            title={t("composer.warp.stopAgent")}
           >
             <Square size={14} />
           </button>

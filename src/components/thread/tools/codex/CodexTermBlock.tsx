@@ -1,5 +1,6 @@
 import { memo } from "react";
 import { Terminal } from "lucide-react";
+import { useT } from "../../../../i18n";
 import { CodexTextPreview, OUTPUT_PREVIEW_CHARS } from "./outputPreview";
 
 export interface CodexTermBlockProps {
@@ -19,6 +20,7 @@ export const CodexTermBlock = memo(function CodexTermBlock({
   exitCode,
   isError,
 }: CodexTermBlockProps) {
+  const t = useT();
   const failed = isError || (typeof exitCode === "number" && exitCode !== 0);
 
   return (
@@ -33,11 +35,11 @@ export const CodexTermBlock = memo(function CodexTermBlock({
           <CodexTextPreview text={command} label="command" />
           {cwd ? ` · ${cwd}` : ""}
         </span>
-        {failed && <span className="ml-auto shrink-0 text-red-400">{exitCode === undefined ? "error" : `exit ${exitCode}`}</span>}
+        {failed && <span className="ml-auto shrink-0 text-red-400">{exitCode === undefined ? t("tools.status.error.lowercase") : t("tools.codexTerm.exitCode", { code: exitCode })}</span>}
       </div>
 
       <div className="max-h-[320px] overflow-auto whitespace-pre-wrap px-3 py-2 text-[var(--text-secondary)]">
-        {output.trim() ? <CodexTextPreview text={output} /> : <span className="opacity-50">no output</span>}
+        {output.trim() ? <CodexTextPreview text={output} /> : <span className="opacity-50">{t("tools.output.noOutput.lowercase")}</span>}
       </div>
     </div>
   );

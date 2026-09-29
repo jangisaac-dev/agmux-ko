@@ -1,4 +1,5 @@
 import { HelpCircle, Check } from "lucide-react";
+import { useT } from "../../../i18n";
 import type { ToolRendererProps } from "./types";
 
 interface AskQuestion {
@@ -26,6 +27,7 @@ function parseQuestions(input: Record<string, unknown>): AskQuestion[] {
 }
 
 export function AskUserToolRenderer({ input, result, isPending }: ToolRendererProps): React.ReactElement {
+  const t = useT();
   const questions = parseQuestions(input);
   const firstQ = questions[0];
 
@@ -67,7 +69,7 @@ export function AskUserToolRenderer({ input, result, isPending }: ToolRendererPr
       ) : (
         <div className="flex items-start gap-2">
           <HelpCircle size={14} className="shrink-0 text-blue-400 mt-0.5" />
-          <p className="text-xs text-zinc-200 leading-relaxed">Question</p>
+          <p className="text-xs text-zinc-200 leading-relaxed">{t("tools.askUser.question")}</p>
         </div>
       )}
 

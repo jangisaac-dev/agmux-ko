@@ -5,6 +5,7 @@ import { fuzzyFilter } from "../../lib/fuzzyMatch";
 import { useEditorStore } from "../../stores/editorStore";
 import { FileIcon } from "../editor/FileIcon";
 import type { FileEntry } from "../../lib/types";
+import { useT } from "../../i18n";
 
 interface Props {
   workDir: string;
@@ -66,6 +67,7 @@ async function collectAllFiles(
 }
 
 export function QuickOpenDialog({ workDir, open, onClose }: Props) {
+  const t = useT();
   const [query, setQuery] = useState("");
   const [allFiles, setAllFiles] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
@@ -192,7 +194,7 @@ export function QuickOpenDialog({ workDir, open, onClose }: Props) {
               setSelectedIndex(0);
             }}
             onKeyDown={handleKeyDown}
-            placeholder="Search files by name..."
+            placeholder={t("palette.quickOpen.searchPlaceholder")}
             className="w-full bg-transparent text-sm text-zinc-100 placeholder-zinc-500 outline-none"
           />
           {loading && (
@@ -208,7 +210,7 @@ export function QuickOpenDialog({ workDir, open, onClose }: Props) {
         >
           {results.length === 0 && !loading && (
             <div className="px-3 py-6 text-center text-sm text-zinc-500">
-              {allFiles.length === 0 ? "Loading files..." : "No matching files"}
+              {allFiles.length === 0 ? t("palette.quickOpen.loading") : t("palette.quickOpen.noMatches")}
             </div>
           )}
           {results.map((result, i) => {

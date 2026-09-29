@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 import { useEditorStore } from "../../stores/editorStore";
 import { useUiStore } from "../../stores/uiStore";
+import { useT } from "../../i18n";
 
 interface Props {
   x: number;
@@ -42,6 +43,7 @@ export function FileTreeContextMenu({
   onRename,
   onDelete,
 }: Props) {
+  const t = useT();
   const menuRef = useRef<HTMLDivElement>(null);
   const openTab = useEditorStore((s) => s.openTab);
   const openFile = useUiStore((s) => s.openFile);
@@ -128,43 +130,43 @@ export function FileTreeContextMenu({
 
   const items: MenuItem[] = [
     {
-      label: "Open in Editor",
+      label: t("editor.context.openInEditor"),
       icon: <FileText size={13} />,
       action: handleOpenInEditor,
       visible: !isDirectory,
     },
     {
-      label: "Reveal in Finder",
+      label: t("editor.context.revealInFinder"),
       icon: <FolderOpen size={13} />,
       action: handleRevealInFinder,
       visible: true,
     },
     {
-      label: "Copy Path",
+      label: t("editor.context.copyPath"),
       icon: <Copy size={13} />,
       action: handleCopyPath,
       visible: true,
     },
     {
-      label: "Copy Relative Path",
+      label: t("editor.context.copyRelativePath"),
       icon: <FileCode size={13} />,
       action: handleCopyRelativePath,
       visible: true,
     },
     {
-      label: "Ask Claude about this file",
+      label: t("editor.context.askClaude"),
       icon: <MessageSquare size={13} />,
       action: handleAskClaude,
       visible: !!onAskClaude && !isDirectory,
     },
     {
-      label: "Rename…",
+      label: t("editor.context.rename"),
       icon: <Pencil size={13} />,
       action: handleRename,
       visible: !!onRename,
     },
     {
-      label: "Delete",
+      label: t("editor.context.delete"),
       icon: <Trash2 size={13} />,
       action: handleDelete,
       visible: !!onDelete,

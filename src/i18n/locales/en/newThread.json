@@ -1,0 +1,12 @@
+{
+  "newThread.title": "New Worktree",
+  "newThread.provider.label": "Provider",
+  "newThread.branch.options": "Branch options",
+  "newThread.branch.base": "Base branch",
+  "newThread.branch.currentSuffix": " (current)",
+  "newThread.branch.name": "Branch name",
+  "newThread.branch.assigned": "— assigned on create",
+  "newThread.action.cancel": "Cancel",
+  "newThread.action.create": "Create",
+  "newThread.action.creating": "Creating..."
+}

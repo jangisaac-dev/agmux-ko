@@ -26,6 +26,7 @@ import {
 import { isAppForeground, syncPollingToAppForeground } from "../../lib/appVisibility";
 import type { GitBranch } from "../../lib/commands";
 import { useThreadStore } from "../../stores/threadStore";
+import { useT } from "../../i18n";
 import { useSettingsStore } from "../../stores/settingsStore";
 import { useUiStore } from "../../stores/uiStore";
 import { PromptDiffView } from "./PromptDiffView";
@@ -70,6 +71,7 @@ interface Props {
 }
 
 export function InputBar({ active = true, threadId, status, provider, model, reasoningEffort, fastMode, workDir }: Props) {
+  const t = useT();
   const [value, setValue] = useState("");
   const [optimizing, setOptimizing] = useState(false);
   const [showDiff, setShowDiff] = useState(false);
@@ -340,6 +342,9 @@ export function InputBar({ active = true, threadId, status, provider, model, rea
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent) => {
+      // IME composition (Japanese/Chinese): Enter confirms the conversion. macOS
+      // WebKit sends Korean without composition, so isComposing stays false there.
+      if (e.nativeEvent.isComposing) return;
       if (
         handleTextFieldCmdArrowNav(
           e,
@@ -394,8 +399,9 @@ export function InputBar({ active = true, threadId, status, provider, model, rea
   const selectedModelLabel =
     CODEX_MODELS.find((m) => m.slug === currentModel)?.name ?? currentModel;
 
-  const selectedEffortLabel =
-    CODEX_REASONING_EFFORTS.find((e) => e.value === currentEffort)?.label ?? currentEffort;
+  const selectedEffortLabel = CODEX_REASONING_EFFORTS.some((e) => e.value === currentEffort)
+    ? t("composer.reasoning.codex.label." + currentEffort)
+    : currentEffort;
 
   return (
     <>
@@ -429,14 +435,14 @@ export function InputBar({ active = true, threadId, status, provider, model, rea
             {showModelMenu && (
               <div className="absolute bottom-full left-0 z-30 mb-2" style={{ width: 260 }}>
                 <DropdownPopover>
-                  <DropdownHeader title="Model" kbd="⌘M" />
+                  <DropdownHeader title={t("composer.model.heading")} kbd="⌘M" />
                   {CODEX_MODELS.map((m, i) => (
                     <DropdownRow
                       key={m.slug}
                       selected={m.slug === currentModel}
                       onClick={() => handleModelSelect(m.slug)}
                       title={m.name}
-                      meta={i === 0 ? "Latest · via Codex CLI" : "via Codex CLI"}
+                      meta={i === 0 ? t("composer.model.latestViaCodexCli") : t("composer.model.viaCodexCli")}
                       right={m.slug === currentModel ? <Check size={14} className="text-[color:var(--accent)]" /> : null}
                     />
                   ))}
@@ -465,7 +471,7 @@ export function InputBar({ active = true, threadId, status, provider, model, rea
             {showEffortMenu && (
               <div className="absolute bottom-full left-0 z-30 mb-2" style={{ width: 360 }}>
                 <DropdownPopover>
-                  <DropdownHeader title="Reasoning effort" kbd="⌘⇧R" />
+                  <DropdownHeader title={t("composer.reasoning.heading")} kbd="⌘⇧R" />
                   {codexEffortsForModel(model).map((e, i) => {
                     const level = Math.max(1, Math.min(6, i + 1)) as 1 | 2 | 3 | 4 | 5 | 6;
                     const selected = e.value === currentEffort;
@@ -479,10 +485,10 @@ export function InputBar({ active = true, threadId, status, provider, model, rea
                           }`}
                         >
                           <span className="flex items-center gap-2 text-[13.5px] font-medium text-white tracking-[-0.015em]">
-                            <span>{e.label}</span>
+                            <span>{t("composer.reasoning.codex.label." + e.value)}</span>
                             <EffortBars level={level} />
                           </span>
-                          <span className="text-[11.5px] text-zinc-400 leading-snug">{e.description}</span>
+                          <span className="text-[11.5px] text-zinc-400 leading-snug">{t("composer.reasoning.codex.description." + e.value)}</span>
                         </button>
                       </div>
                     );
@@ -503,10 +509,10 @@ export function InputBar({ active = true, threadId, status, provider, model, rea
                 ? "bg-[var(--accent-dim)] text-[color:var(--accent)]"
                 : "text-zinc-500 hover:bg-white/5 hover:text-zinc-300"
             }`}
-            title={fastMode ? "Full auto mode ON" : "Full auto mode OFF"}
+            title={fastMode ? t("composer.fastMode.enabled") : t("composer.fastMode.disabled")}
           >
             <Bolt size={11} />
-            <span>Auto</span>
+            <span>{t("composer.fastMode.label")}</span>
           </button>
 
           <div className="h-3 w-px bg-white/5 mx-1" />
@@ -522,14 +528,14 @@ export function InputBar({ active = true, threadId, status, provider, model, rea
               }`}
             >
               {permissionMode === "full" ? <ShieldOff size={11} /> : <Shield size={11} />}
-              <span>{permissionMode === "full" ? "Full Perms" : "Default"}</span>
+              <span>{permissionMode === "full" ? t("composer.permissions.fullShort") : t("composer.permissions.default")}</span>
               <ChevronDown size={10} className="text-zinc-700" />
             </button>
             <AnimatePresence>
             {showPermMenu && (
               <div className="absolute bottom-full left-0 z-30 mb-2" style={{ width: 240 }}>
                 <DropdownPopover>
-                  <DropdownHeader title="Permissions" />
+                  <DropdownHeader title={t("composer.permissions.header")} />
                   <DropdownRow
                     selected={permissionMode === "default"}
                     onClick={() => handlePermissionSelect("default")}
@@ -538,8 +544,8 @@ export function InputBar({ active = true, threadId, status, provider, model, rea
                         <Shield size={14} />
                       </span>
                     }
-                    title="Default"
-                    meta="Approve each tool call"
+                    title={t("composer.permissions.default")}
+                    meta={t("composer.permissions.approveEach")}
                     right={<DropdownKbd>⌘1</DropdownKbd>}
                   />
                   <DropdownRow
@@ -550,8 +556,8 @@ export function InputBar({ active = true, threadId, status, provider, model, rea
                         <ShieldOff size={14} />
                       </span>
                     }
-                    title="Full permissions"
-                    meta="Skip approval prompts"
+                    title={t("composer.permissions.full")}
+                    meta={t("composer.permissions.skipApprovals")}
                     right={<DropdownKbd>⌘2</DropdownKbd>}
                   />
                 </DropdownPopover>
@@ -584,7 +590,7 @@ export function InputBar({ active = true, threadId, status, provider, model, rea
                   {branchLoading && (
                     <div className="flex items-center gap-2 px-4 py-3 text-xs text-zinc-400">
                       <Loader2 size={12} className="animate-spin" />
-                      Loading branches…
+                      {t("composer.branch.loading")}
                     </div>
                   )}
                   {!branchLoading && (() => {
@@ -595,7 +601,7 @@ export function InputBar({ active = true, threadId, status, provider, model, rea
                         {localBranches.length > 0 && (
                           <>
                             <div className="px-4 py-2 text-[10px] font-bold uppercase tracking-widest text-zinc-500">
-                              Local
+                              {t("composer.branch.local")}
                             </div>
                             {localBranches.map((b) => (
                               <button
@@ -616,7 +622,7 @@ export function InputBar({ active = true, threadId, status, provider, model, rea
                         {remoteBranches.length > 0 && (
                           <>
                             <div className="mt-1 border-t border-white/5 px-4 py-2 text-[10px] font-bold uppercase tracking-widest text-zinc-500">
-                              Remote
+                              {t("composer.branch.remote")}
                             </div>
                             {remoteBranches.map((b) => (
                               <button
@@ -641,7 +647,7 @@ export function InputBar({ active = true, threadId, status, provider, model, rea
                                 if (e.key === "Enter") handleCreateBranch();
                                 if (e.key === "Escape") { setShowNewBranch(false); setNewBranchName(""); }
                               }}
-                              placeholder="branch-name"
+                              placeholder={t("composer.branch.namePlaceholder")}
                               className="flex-1 rounded-lg bg-white/5 px-3 py-1.5 text-xs text-zinc-200 placeholder-zinc-700 outline-none focus:ring-1 focus:ring-indigo-500/40"
                             />
                             <button
@@ -657,7 +663,7 @@ export function InputBar({ active = true, threadId, status, provider, model, rea
                             className="flex w-full items-center gap-2 px-4 py-2.5 text-left text-xs font-medium text-zinc-400 hover:bg-white/5 hover:text-zinc-300 transition-colors"
                           >
                             <Plus size={14} />
-                            New branch…
+                            {t("composer.branch.new")}
                           </button>
                         )}
                       </>
@@ -682,7 +688,7 @@ export function InputBar({ active = true, threadId, status, provider, model, rea
               ) : (
                 <Sparkles size={11} />
               )}
-              <span>Optimize</span>
+              <span>{t("composer.optimize.label")}</span>
             </button>
           </>
         </div>
@@ -709,9 +715,9 @@ export function InputBar({ active = true, threadId, status, provider, model, rea
             placeholder={
               disabled
                 ? status === "Idle"
-                  ? "Start the thread to begin chatting..."
-                  : "Thread finished."
-                : "Type a message or / for commands..."
+                  ? t("composer.input.startThread")
+                  : t("composer.input.threadFinished")
+                : t("composer.input.messagePlaceholder")
             }
             rows={1}
             className="w-full resize-none rounded-2xl border border-white/10 bg-white/[0.03] px-5 py-4 text-[15px] text-zinc-100 placeholder-zinc-700 outline-none transition-all focus:border-indigo-500/30 focus:bg-white/[0.05] focus:ring-4 focus:ring-indigo-500/5 disabled:opacity-50"
@@ -723,7 +729,7 @@ export function InputBar({ active = true, threadId, status, provider, model, rea
               onClick={handleOptimize}
               disabled={optimizing}
               className="absolute right-4 bottom-3 rounded-lg p-1.5 text-amber-500/40 hover:bg-amber-500/10 hover:text-amber-400 transition-all duration-200"
-              title="Optimize prompt"
+              title={t("composer.optimize.title")}
             >
               {optimizing ? (
                 <Loader2 size={16} className="animate-spin" />

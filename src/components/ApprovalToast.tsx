@@ -11,6 +11,7 @@ import { opencodeSdk } from "../lib/opencodeSdkCommands";
 import type { Thread } from "../lib/types";
 import type { PendingApprovalToast } from "../stores/uiStore";
 import { broadcastApprovalResolved } from "../lib/approvalBroadcast";
+import { tx, useT } from "../i18n";
 
 const EMPTY_THREADS: Thread[] = [];
 
@@ -172,6 +173,7 @@ const Kbd = ({ children, isLight }: { children: React.ReactNode; isLight: boolea
  *  - PTY / hook-based approvals → single "Go to" button (navigates to session)
  */
 export function ApprovalToast() {
+  const t = useT();
   const approvals = useUiStore((s) => s.pendingApprovalsBySession);
   const selectedClaude = useUiStore((s) => s.selectedClaudeSessionId);
   const selectedCodex = useUiStore((s) => s.selectedCodexSessionId);
@@ -385,41 +387,40 @@ export function ApprovalToast() {
               }}
             />
             <AgentAvatar provider={provider} size={20} />
-            <span
-              title={sessionName}
-              style={{
-                fontSize: 12.5,
-                color: isLight ? "#0f172a" : "#fff",
-                fontWeight: 500,
-                whiteSpace: "nowrap",
-                overflow: "hidden",
-                textOverflow: "ellipsis",
-                maxWidth: 140,
-                flexShrink: 0,
-              }}
-            >
-              {sessionName}
-            </span>
-            <span
-              style={{
-                fontSize: 11,
-                color: isLight ? "#52525b" : "#71717a",
-                flexShrink: 0,
-              }}
-            >
-              wants
-            </span>
-            <span
-              className={`approval-pill ${RISK_FLAT_CLASS[riskKind]}`}
-              title={summaryText}
-              style={{
-                background: risk.bg,
-                border: `1px solid ${risk.bd}`,
-                color: risk.fg,
-              }}
-            >
-              <ToolIcon size={10} className="approval-pill-icon" />
-              <span className="approval-pill-text">{summaryText}</span>
+            <span style={{ display: "contents", fontSize: 11, color: isLight ? "#52525b" : "#71717a" }}>
+              {tx("notify.approval.summary", {
+                session: (
+                  <span
+                    title={sessionName}
+                    style={{
+                      fontSize: 12.5,
+                      color: isLight ? "#0f172a" : "#fff",
+                      fontWeight: 500,
+                      whiteSpace: "nowrap",
+                      overflow: "hidden",
+                      textOverflow: "ellipsis",
+                      maxWidth: 140,
+                      flexShrink: 0,
+                    }}
+                  >
+                    {sessionName}
+                  </span>
+                ),
+                action: (
+                  <span
+                    className={`approval-pill ${RISK_FLAT_CLASS[riskKind]}`}
+                    title={summaryText}
+                    style={{
+                      background: risk.bg,
+                      border: `1px solid ${risk.bd}`,
+                      color: risk.fg,
+                    }}
+                  >
+                    <ToolIcon size={10} className="approval-pill-icon" />
+                    <span className="approval-pill-text">{summaryText}</span>
+                  </span>
+                ),
+              })}
             </span>
             {extraCount > 0 && (
               <span
@@ -449,8 +450,8 @@ export function ApprovalToast() {
                 id, so the toast cannot reappear from the same stale data. */}
             <button
               type="button"
-              title="Dismiss this toast"
-              aria-label="Dismiss approval toast"
+              title={t("notify.approval.dismissTitle")}
+              aria-label={t("notify.approval.dismissLabel")}
               onClick={(e) => {
                 e.stopPropagation();
                 clearEntry(sessionId, realIds);
@@ -506,7 +507,7 @@ export function ApprovalToast() {
                     whiteSpace: "nowrap",
                   }}
                 >
-                  Deny
+                  {t("notify.approval.deny")}
                 </button>
                 <button
                   onClick={(e) => {
@@ -529,7 +530,7 @@ export function ApprovalToast() {
                     whiteSpace: "nowrap",
                   }}
                 >
-                  Approve
+                  {t("notify.approval.approve")}
                   <Kbd isLight={isLight}>⌘↵</Kbd>
                 </button>
               </>
@@ -555,7 +556,7 @@ export function ApprovalToast() {
                   whiteSpace: "nowrap",
                 }}
               >
-                Go to
+                {t("notify.approval.goTo")}
                 <ArrowUpRight size={11} />
               </button>
             )}

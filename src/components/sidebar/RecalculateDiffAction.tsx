@@ -2,12 +2,14 @@ import { useRef, useState } from "react";
 import { RefreshCw } from "lucide-react";
 import { recalculateSessionDiff, type DiffRecalculationTarget } from "../../lib/recalculateDiff";
 import { useDiffRecalculationStore } from "../../stores/diffRecalculationStore";
+import { useT } from "../../i18n";
 
 export function RecalculateDiffAction({ target, compact = false, onRecalculated }: {
   target: DiffRecalculationTarget;
   compact?: boolean;
   onRecalculated?: () => void;
 }) {
+  const t = useT();
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState(false);
@@ -23,10 +25,10 @@ export function RecalculateDiffAction({ target, compact = false, onRecalculated 
       const result = await recalculateSessionDiff(target);
       const notice = useDiffRecalculationStore.getState().notices[target.id];
       setMessage(notice === "incomplete"
-        ? "Exact totals cannot be recovered: original file versions were not saved for some edits."
-        : notice === "history-incomplete" ? "Some session history could not be verified. These totals may be incomplete."
-        : result.source !== "history" ? "Saved counts refreshed. This session does not support a full recalculation."
-        : notice === "empty" ? "No recorded file changes were found." : "Diff recalculated");
+        ? t("sidebar.diff.exactTotalsUnavailable")
+        : notice === "history-incomplete" ? t("sidebar.diff.historyIncomplete")
+        : result.source !== "history" ? t("sidebar.diff.savedCountsRefreshed")
+        : notice === "empty" ? t("sidebar.diff.noRecordedChanges") : t("sidebar.diff.recalculated"));
       onRecalculated?.();
     } catch (error) {
       setError(true);
@@ -51,7 +53,7 @@ export function RecalculateDiffAction({ target, compact = false, onRecalculated 
           <RefreshCw size={compact ? 12 : 14} className={busy ? "animate-spin" : "text-zinc-400"} />
         </span>
         <span className={compact ? undefined : "text-[13.5px] font-medium tracking-[-0.015em] leading-tight"}>
-          {busy ? "Recalculating diff…" : "Recalculate diff"}
+          {busy ? t("sidebar.diff.recalculating") : t("sidebar.diff.recalculate")}
         </span>
       </button>
       {message && <p role={error ? "alert" : "status"} className={`px-3 pb-2 text-[11px] leading-relaxed ${error ? "text-red-400" : "text-zinc-400"}`}>{message}</p>}

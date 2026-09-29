@@ -3,6 +3,7 @@ import { CheckCircle2, Download, ExternalLink, Loader2, Trash2, X } from "lucide
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { tierLabel, type CatalogModel, type MlxDownloadProgress } from "../../../lib/mlx";
 import { MetaLine, RoleBadge, btn, btnAccent, btnDanger } from "./ui";
+import { useT } from "../../../i18n";
 
 export interface DownloadControls {
   activeRepo: string | null;
@@ -12,8 +13,10 @@ export interface DownloadControls {
   onRemove: (repoId: string) => void;
 }
 
-const MEMORY_HINT =
-  "Memory this model uses on this Mac, including room for a long conversation. On a Mac with less memory, it runs in a leaner setup that needs less.";
+const MEMORY_HINT_KEYS = [
+  "settings.localModels.memoryHint.first",
+  "settings.localModels.memoryHint.second",
+] as const;
 
 /** One curated catalog model inside a SettingsCard. */
 export function CatalogModelRow({
@@ -25,6 +28,7 @@ export function CatalogModelRow({
   controls: DownloadControls;
   showTier?: boolean;
 }) {
+  const t = useT();
   const downloading = controls.activeRepo === model.repoId;
   return (
     <ModelRowShell
@@ -44,14 +48,14 @@ export function CatalogModelRow({
       meta={[
         model.params,
         model.quant,
-        `${model.sizeGb.toFixed(1)} GB download`,
+        t("settings.localModels.downloadSize", { size: model.sizeGb.toFixed(1) }),
         model.fitsThisMac ? (
-          <span key="memory" title={MEMORY_HINT}>
-            ~{model.memoryGb.toFixed(0)} GB memory
+          <span key="memory" title={`${t(MEMORY_HINT_KEYS[0])} ${t(MEMORY_HINT_KEYS[1])}`}>
+            {t("settings.localModels.memoryAvailable", { memory: model.memoryGb.toFixed(0) })}
           </span>
         ) : (
-          <span key="memory" title={MEMORY_HINT} className="text-[var(--status-amber)]">
-            Needs ~{model.memoryGb.toFixed(0)} GB, more than this Mac has
+          <span key="memory" title={`${t(MEMORY_HINT_KEYS[0])} ${t(MEMORY_HINT_KEYS[1])}`} className="text-[var(--status-amber)]">
+            {t("settings.localModels.memoryNeeded", { memory: model.memoryGb.toFixed(0) })}
           </span>
         ),
         <RepoLink key="repo" repoId={model.repoId} />,
@@ -61,7 +65,7 @@ export function CatalogModelRow({
           <RemoveButton onConfirm={() => controls.onRemove(model.repoId)} />
         ) : downloading ? (
           <button type="button" className={btn} onClick={controls.onCancel}>
-            <X size={12} /> Cancel
+            <X size={12} /> {t("settings.localModels.cancelDownload")}
           </button>
         ) : (
           <button
@@ -69,9 +73,9 @@ export function CatalogModelRow({
             className={btnAccent}
             onClick={() => controls.onDownload(model.repoId)}
             disabled={!!controls.activeRepo}
-            title={controls.activeRepo ? "Another download is in progress" : undefined}
+            title={controls.activeRepo ? t("settings.localModels.anotherDownloadInProgress") : undefined}
           >
-            <Download size={12} /> Download
+            <Download size={12} /> {t("settings.localModels.download")}
           </button>
         )
       }
@@ -119,20 +123,22 @@ export function ModelRowShell({
 }
 
 export function InstalledBadge() {
+  const t = useT();
   return (
     <span className="inline-flex items-center gap-1 text-[11px] text-[var(--accent)]">
-      <CheckCircle2 size={11} /> Installed
+      <CheckCircle2 size={11} /> {t("settings.localModels.installed")}
     </span>
   );
 }
 
 export function RepoLink({ repoId }: { repoId: string }) {
+  const t = useT();
   return (
     <button
       type="button"
       onClick={() => openUrl(`https://huggingface.co/${repoId}`).catch(() => {})}
       className="inline-flex min-w-0 items-center gap-1 font-mono text-[10.5px] text-[var(--text-muted)] hover:text-[var(--text-primary)]"
-      title="Open on HuggingFace"
+      title={t("settings.localModels.openOnHuggingFace")}
     >
       <span className="truncate">{repoId}</span>
       <ExternalLink size={9} className="shrink-0" />
@@ -142,18 +148,19 @@ export function RepoLink({ repoId }: { repoId: string }) {
 
 /** Two-step remove so a stray click doesn't delete a multi-GB download. */
 export function RemoveButton({ onConfirm }: { onConfirm: () => void }) {
+  const t = useT();
   const [confirming, setConfirming] = useState(false);
   if (!confirming) {
     return (
       <button type="button" className={btnDanger} onClick={() => setConfirming(true)}>
-        <Trash2 size={12} /> Remove
+        <Trash2 size={12} /> {t("settings.localModels.remove")}
       </button>
     );
   }
   return (
     <>
       <button type="button" className={btn} onClick={() => setConfirming(false)}>
-        Keep
+        {t("settings.localModels.keep")}
       </button>
       <button
         type="button"
@@ -163,15 +170,16 @@ export function RemoveButton({ onConfirm }: { onConfirm: () => void }) {
           onConfirm();
         }}
       >
-        <Trash2 size={12} /> Delete files
+        <Trash2 size={12} /> {t("settings.localModels.deleteFiles")}
       </button>
     </>
   );
 }
 
 function DownloadProgressBar({ progress }: { progress: MlxDownloadProgress }) {
+  const t = useT();
   const label =
-    progress.stage === "downloading" ? "Downloading…" : (progress.message ?? progress.stage);
+    progress.stage === "downloading" ? t("settings.localModels.downloading") : (progress.message ?? progress.stage);
   return (
     <div className="mt-3">
       <div className="mb-1 flex items-center justify-between text-[11px] text-[var(--text-tertiary)]">

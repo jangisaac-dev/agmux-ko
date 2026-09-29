@@ -4,8 +4,10 @@ import { parsePatchText, isPatchText } from "../../../lib/patchParser";
 import type { ToolRendererProps } from "./types";
 import { shortenPath } from "./types";
 import { useWorkDir } from "../WorkDirContext";
+import { useT } from "../../../i18n";
 
 export function ApplyPatchToolRenderer({ input }: ToolRendererProps): React.ReactElement {
+  const t = useT();
   const workDir = useWorkDir();
   const patchText = typeof input.patch === "string"
     ? input.patch
@@ -17,7 +19,7 @@ export function ApplyPatchToolRenderer({ input }: ToolRendererProps): React.Reac
 
   if (!patchText) {
     return (
-      <p className="text-xs text-zinc-400 italic">No patch content</p>
+      <p className="text-xs text-zinc-400 italic">{t("tools.applyPatch.noContent")}</p>
     );
   }
 
@@ -36,7 +38,7 @@ export function ApplyPatchToolRenderer({ input }: ToolRendererProps): React.Reac
       {hunks.length > 1 && (
         <div className="flex items-center gap-2">
           <FileCode size={14} className="shrink-0 text-blue-400" />
-          <span className="text-xs text-zinc-400">{hunks.length} files changed</span>
+          <span className="text-xs text-zinc-400">{t("tools.applyPatch.filesChanged", { count: hunks.length })}</span>
         </div>
       )}
       {hunks.map((hunk, idx) => (

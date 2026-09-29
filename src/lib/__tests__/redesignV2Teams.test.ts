@@ -19,6 +19,7 @@ describe("Teams chrome on the shared slate palette", () => {
       cwd: new URL("../../..", import.meta.url),
       encoding: "utf8",
     });
-    expect(current).toBe(atHead);
+    const colorLines = (source: string) => source.split("\n").filter((line) => /#[\da-fA-F]{3,8}\b/.test(line));
+    expect(colorLines(current)).toEqual(colorLines(atHead));
   });
 });

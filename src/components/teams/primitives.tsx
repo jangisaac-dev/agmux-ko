@@ -10,8 +10,9 @@
 import { useEffect, useState } from "react";
 import type { LucideIcon } from "lucide-react";
 import { Eye, EyeOff, ShieldCheck } from "lucide-react";
-import { initials, syncTone, type TeamRange, type TeamRole } from "../../lib/teams";
-import { NEVER, SHARED } from "./disclosureCopy";
+import { initials, since, syncTone, type TeamRange, type TeamRole } from "../../lib/teams";
+import { localeTag, useT } from "../../i18n";
+import { NEVER, NEVER_SHORT, SHARED, SHARED_SHORT } from "./disclosureCopy";
 
 export const TEAMS_ACCENT = "#60a5fa";
 
@@ -35,6 +36,7 @@ export function StatCard({
   note?: string;
   help?: string;
 }) {
+  const t = useT();
   // At most one delta line, ever — the design is explicit about this.
   const showDelta = delta !== null && delta !== undefined;
   return (
@@ -56,7 +58,7 @@ export function StatCard({
             {delta >= 0 ? "+" : ""}
             {Math.round(delta * 100)}%
           </b>
-          vs prev period
+          {t("teams.stats.vsPreviousPeriod")}
         </div>
       ) : note ? (
         <div className="text-[11px] text-[var(--text-muted)]">{note}</div>
@@ -94,11 +96,40 @@ export function Pill({ tone = "none", children }: { tone?: PillTone; children: R
 }
 
 export function SyncPill({ lastUploadAt }: { lastUploadAt: string | null }) {
+  const t = useT();
   const { tone, label } = syncTone(lastUploadAt);
-  return <Pill tone={tone}>{label}</Pill>;
+  return <Pill tone={tone}>{label === "never" ? t("teams.time.never") : translateSince(label, t, false)}</Pill>;
+}
+
+function translateSince(value: string | null, t: ReturnType<typeof useT>, ago: boolean): string | null {
+  if (!value) return null;
+  if (value === "now") return t(ago ? "teams.time.justNow" : "teams.time.now");
+  const unit = value.endsWith("m") ? "minute" : value.endsWith("h") ? "hour" : "day";
+  const count = Number.parseInt(value, 10);
+  return t(`teams.time.${unit}${ago ? "Ago" : ""}`, { count });
+}
+
+export function teamAgoLabel(iso: string | null, t: ReturnType<typeof useT>): string | null {
+  return translateSince(since(iso), t, true);
+}
+
+export function teamRangeLabel(range: TeamRange, t: ReturnType<typeof useT>): string {
+  const key = {
+    "7d": "teams.range.sevenDays",
+    "14d": "teams.range.fourteenDays",
+    "30d": "teams.range.thirtyDays",
+    "90d": "teams.range.ninetyDays",
+  }[range];
+  return t(key);
+}
+
+export function fmtTeamSessions(r: { sessionsStarted?: number; sessionsStartedIncomplete?: boolean }): string {
+  if (r.sessionsStarted == null) return "—";
+  return r.sessionsStarted.toLocaleString(localeTag()) + (r.sessionsStartedIncomplete ? "+" : "");
 }
 
 export function RoleBadge({ role }: { role: TeamRole }) {
+  const t = useT();
   const cls =
     role === "owner"
       ? "text-[var(--status-blue)] border-[#60a5fa]/[0.28] bg-[#60a5fa]/[0.12]"
@@ -109,7 +140,7 @@ export function RoleBadge({ role }: { role: TeamRole }) {
     <span
       className={`ui-chip sm fx-chip-q rounded-[5px] border px-[7px] py-0.5 ${cls}`}
     >
-      {role}
+      {role === "owner" ? t("teams.roles.owner") : role === "manager" ? t("teams.roles.manager") : t("teams.roles.employee")}
     </span>
   );
 }
@@ -203,11 +234,12 @@ export function RangeSeg({
   /** Optional human labels; defaults to the raw key ("7d"). */
   labels?: Partial<Record<TeamRange, string>>;
 }) {
+  const t = useT();
   return (
     <div
       className="ui-seg inline-flex gap-px rounded-[9px] border border-white/[0.06] bg-black/35 p-[3px]"
       role="group"
-      aria-label="Date range"
+      aria-label={t("teams.range.dateRange")}
     >
       {options.map((r) => (
         <button
@@ -221,7 +253,7 @@ export function RangeSeg({
               : "text-white/[0.48] hover:text-white/75"
           }`}
         >
-          {labels?.[r] ?? r}
+          {labels?.[r] ?? teamRangeLabel(r, t)}
         </button>
       ))}
     </div>
@@ -290,13 +322,69 @@ export function Skeleton({ width, height = 11 }: { width?: number | string; heig
 
 /* ── disclosure ───────────────────────────────────────────────────────── */
 
+const SHARED_KEYS = [
+  "teams.disclosure.shared.tokenTotals",
+  "teams.disclosure.shared.activeAgentTime",
+  "teams.disclosure.shared.sessionActivityCounts",
+  "teams.disclosure.shared.toolCallsByKind",
+  "teams.disclosure.shared.failedToolCalls",
+  "teams.disclosure.shared.fileAndLineCounts",
+  "teams.disclosure.shared.peakSessions",
+  "teams.disclosure.shared.providerAndModelNames",
+  "teams.disclosure.shared.projectIdentifiers",
+  "teams.disclosure.shared.afterHoursAndWeekendShare",
+  "teams.disclosure.shared.approvalWaitTime",
+  "teams.disclosure.shared.lastUploadTime",
+  "teams.disclosure.shared.pullRequestCounts",
+  "teams.disclosure.shared.teamAccountCredentials",
+  "teams.disclosure.shared.sessionAccountUsage",
+];
+
+const SHARED_SHORT_KEYS = [
+  "teams.disclosure.sharedShort.tokenCountsAndEstimatedCost",
+  "teams.disclosure.sharedShort.activeTimeByHour",
+  "teams.disclosure.sharedShort.sessionTurnAndToolCounts",
+  "teams.disclosure.sharedShort.toolCallsByKind",
+  "teams.disclosure.sharedShort.failedToolCallCounts",
+  "teams.disclosure.sharedShort.fileAndLineCounts",
+  "teams.disclosure.sharedShort.peakSessions",
+  "teams.disclosure.sharedShort.providersAndModels",
+  "teams.disclosure.sharedShort.projectIdentifiers",
+  "teams.disclosure.sharedShort.afterHoursAndWeekendShare",
+  "teams.disclosure.sharedShort.approvalWaitTime",
+  "teams.disclosure.sharedShort.pullRequestCounts",
+  "teams.disclosure.sharedShort.teamAccountCredentials",
+  "teams.disclosure.sharedShort.sessionAccountUsage",
+];
+
+const NEVER_KEYS = [
+  "teams.disclosure.never.promptsAndReplies",
+  "teams.disclosure.never.diffsCodeAndFiles",
+  "teams.disclosure.never.absolutePathsAndNames",
+  "teams.disclosure.never.terminalOutputAndSecrets",
+  "teams.disclosure.never.personalCredentials",
+  "teams.disclosure.never.keystrokesAndRecordings",
+  "teams.disclosure.never.liveSessionViewing",
+  "teams.disclosure.never.externalSessions",
+];
+
+const NEVER_SHORT_KEYS = [
+  "teams.disclosure.neverShort.promptsAndReplies",
+  "teams.disclosure.neverShort.diffsCodeAndFiles",
+  "teams.disclosure.neverShort.absolutePaths",
+  "teams.disclosure.neverShort.terminalOutputAndSecrets",
+  "teams.disclosure.neverShort.personalCredentials",
+  "teams.disclosure.neverShort.liveSessionViewing",
+  "teams.disclosure.neverShort.externalSessions",
+];
+
 /** Always two columns, always the same order and wording. */
 export function DisclosureBlock({
   shared = SHARED,
   never = NEVER,
   stacked = false,
-  sharedTitle = "Shared with owner & managers",
-  neverTitle = "Never collected or shown",
+  sharedTitle,
+  neverTitle,
 }: {
   shared?: string[];
   never?: string[];
@@ -304,18 +392,21 @@ export function DisclosureBlock({
   sharedTitle?: string;
   neverTitle?: string;
 }) {
+  const t = useT();
+  const sharedKeys = shared === SHARED ? SHARED_KEYS : shared === SHARED_SHORT ? SHARED_SHORT_KEYS : null;
+  const neverKeys = never === NEVER ? NEVER_KEYS : never === NEVER_SHORT ? NEVER_SHORT_KEYS : null;
   return (
     <div className={`grid gap-3 ${stacked ? "grid-cols-1" : "grid-cols-2"}`}>
       <div className="rounded-[11px] border border-[#60a5fa]/[0.28] bg-[#60a5fa]/[0.12] p-3.5">
         <div className="mb-2.5 flex items-center gap-2 text-[12.5px] font-semibold text-[var(--text-primary)]">
           <ShieldCheck size={14} className="text-[var(--status-blue)]" />
-          {sharedTitle}
+          {sharedTitle ?? t("teams.disclosure.sharedTitle")}
         </div>
         <ul className="m-0 flex list-none flex-col gap-[7px] p-0">
-          {shared.map((line) => (
+          {shared.map((line, index) => (
             <li key={line} className="flex gap-2 text-[12px] leading-snug text-[var(--text-tertiary)]">
               <span className="mt-1.5 h-[5px] w-[5px] shrink-0 rounded-full bg-current opacity-60" />
-              {line}
+              {sharedKeys ? t(sharedKeys[index]) : line}
             </li>
           ))}
         </ul>
@@ -323,13 +414,13 @@ export function DisclosureBlock({
       <div className="rounded-[11px] border border-[#f87171]/20 bg-[#f87171]/[0.05] p-3.5">
         <div className="mb-2.5 flex items-center gap-2 text-[12.5px] font-semibold text-[var(--text-primary)]">
           <EyeOff size={14} className="text-[var(--status-red)]" />
-          {neverTitle}
+          {neverTitle ?? t("teams.disclosure.neverTitle")}
         </div>
         <ul className="m-0 flex list-none flex-col gap-[7px] p-0">
-          {never.map((line) => (
+          {never.map((line, index) => (
             <li key={line} className="flex gap-2 text-[12px] leading-snug text-[#e4b4b4]">
               <span className="mt-1.5 h-[5px] w-[5px] shrink-0 rounded-full bg-current opacity-60" />
-              {line}
+              {neverKeys ? t(neverKeys[index]) : line}
             </li>
           ))}
         </ul>

@@ -1,0 +1,17 @@
+{
+  "update.available": "Update available",
+  "update.installingLine": "agmux {{version}} — installing…",
+  "update.update": "Update",
+  "update.downloading": "Downloading update…",
+  "update.ready": "Update ready",
+  "update.restarting": "Restarting…",
+  "update.restartToApply": "Restart to apply the update",
+  "update.restart": "Restart",
+  "update.manualDownloadNeeded": "Manual download needed",
+  "update.manualDownloadDescription": "Auto-update isn't available for this install — get the latest from the website.",
+  "update.download": "Download",
+  "update.failed": "Update failed",
+  "update.failedFallback": "Something went wrong while updating.",
+  "update.retry": "Retry",
+  "update.restart.failed": "Failed to restart: {{error}}"
+}

@@ -41,10 +41,6 @@ export function focusSince(now: number, windowMinutes: number): number {
   return now - windowMinutes * 60 * 1000;
 }
 
-export function formatFocusWindow(minutes: number): string {
-  return minutes === 1 ? "minute" : `${minutes} minutes`;
-}
-
 /**
  * Oldest row time still shown when Focus lists `shown` rows, newest first.
  * `timestamps` holds each project's qualifying row times; rows older than the

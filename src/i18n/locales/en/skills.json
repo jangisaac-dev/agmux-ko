@@ -1,0 +1,16 @@
+{
+  "skills.official": "Official",
+  "skills.community": "Community",
+  "skills.remove": "Remove",
+  "skills.installed": "Installed",
+  "skills.install": "Install",
+  "skills.searchPlaceholder": "Search skills...",
+  "skills.refresh": "Refresh skills",
+  "skills.installedCount_one": "{{count}} installed",
+  "skills.installedCount_other": "{{count}} installed",
+  "skills.availableCount_one": "{{count}} available",
+  "skills.availableCount_other": "{{count}} available",
+  "skills.categories": "Categories",
+  "skills.category.all": "All",
+  "skills.category.mcp": "MCP Servers"
+}
