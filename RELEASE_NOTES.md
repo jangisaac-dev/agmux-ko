@@ -26,7 +26,6 @@ See `/release` (`.claude/commands/release.md`) for how this file is consumed and
 
 ### New
 - **Korean interface** — agmux can show most of its interface in Korean: sidebar, home, chats and terminals, settings, tasks, Teams, usage and the What's New window. It follows your Mac's language, or choose System, English or 한국어 in Settings → General.
-
 - **Tab shortcuts** — With tabs on, Cmd+1 to Cmd+9 jump to that tab, and Cmd+W closes the current tab instead of hiding the whole window.
 
 ### Improved
