@@ -166,6 +166,7 @@ function findParentSplit(
 
 // Stable empty constant — never return a new [] from a selector.
 const EMPTY_TABS: TabItem[] = [];
+const MAX_CLOSED_TABS = 20;
 
 interface SplitViewState {
   layout: LayoutNode;
@@ -175,6 +176,10 @@ interface SplitViewState {
   openInFocusedPane: (tab: TabItem) => void;
   splitPane: (paneId: PaneId, direction: SplitDirection, tab: TabItem) => void;
   closeTab: (paneId: PaneId, tabId: string) => void;
+  /** Tabs closed with closeTab, newest last (in memory only). */
+  closedTabs: TabItem[];
+  /** Reopen the most recently closed tab in the focused pane (Cmd+Shift+T). */
+  reopenClosedTab: () => void;
   closePane: (paneId: PaneId) => void;
   setActiveTab: (paneId: PaneId, tabId: string) => void;
   setFocusedPane: (paneId: PaneId) => void;
@@ -190,6 +195,7 @@ export const useSplitViewStore = create<SplitViewState>()(
   persist(
     (set, get) => ({
   ...buildInitialState(),
+  closedTabs: [],
 
   // -------------------------------------------------------------------------
   openInFocusedPane: (tab) =>
@@ -288,7 +294,12 @@ export const useSplitViewStore = create<SplitViewState>()(
     }),
 
   // -------------------------------------------------------------------------
-  closeTab: (paneId, tabId) =>
+  closeTab: (paneId, tabId) => {
+    // Drafts are unsaved composers, so there is nothing to reopen.
+    const closed = get().panes[paneId]?.tabs.find((t) => t.id === tabId);
+    if (closed && closed.type !== "draft") {
+      set((s) => ({ closedTabs: [...s.closedTabs, closed].slice(-MAX_CLOSED_TABS) }));
+    }
     set((s) => {
       const pane = s.panes[paneId];
       if (!pane) return s;
@@ -339,7 +350,16 @@ export const useSplitViewStore = create<SplitViewState>()(
           [paneId]: { ...pane, tabs: remainingTabs, activeTabId: newActiveTabId },
         },
       };
-    }),
+    });
+  },
+
+  reopenClosedTab: () => {
+    const { closedTabs } = get();
+    const tab = closedTabs[closedTabs.length - 1];
+    if (!tab) return;
+    set((s) => ({ closedTabs: s.closedTabs.slice(0, -1) }));
+    get().openInFocusedPane(tab);
+  },
 
   // -------------------------------------------------------------------------
   closePane: (paneId) =>
