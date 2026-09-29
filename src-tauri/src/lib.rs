@@ -73,6 +73,10 @@ use window_vibrancy::apply_vibrancy;
 /// going through Tauri ExitRequested (so prevent_exit never runs).
 const MENU_QUIT_ID: &str = "app-quit";
 
+/// Cmd+W closes the active tab (frontend `close-tab-requested`) instead of
+/// the predefined Close Window item, which hid the whole window.
+const MENU_CLOSE_TAB_ID: &str = "close-tab";
+
 /// Show, unminimize and focus the main window. Used when it was hidden by a
 /// close request and the user reopens from the Dock or asks to quit.
 fn reveal_main_window(app: &tauri::AppHandle) {
@@ -534,9 +538,13 @@ pub fn run() {
                 .select_all()
                 .build()?;
 
+            let close_tab_item = MenuItemBuilder::with_id(MENU_CLOSE_TAB_ID, "Close Tab")
+                .accelerator("CmdOrCtrl+W")
+                .build(app)?;
+
             let window_menu = SubmenuBuilder::new(app, "Window")
                 .minimize()
-                .close_window()
+                .item(&close_tab_item)
                 .build()?;
 
             let menu = MenuBuilder::new(app)
@@ -554,6 +562,8 @@ pub fn run() {
                     if app.try_state::<AppState>().is_none() { app.exit(0); return; }
                     reveal_main_window(app);
                     let _ = app.emit("quit-requested", ());
+                } else if event.id() == MENU_CLOSE_TAB_ID {
+                    let _ = app.emit("close-tab-requested", ());
                 }
             });
 
@@ -992,8 +1002,8 @@ pub fn run() {
         .build(tauri::generate_context!())
         .expect("error while building agmux")
         .run(|app, event| {
-            // Dock click with no visible window (main was hidden by Cmd+W /
-            // the close button): bring it back instead of doing nothing.
+            // Dock click with no visible window (main was hidden by the close
+            // button): bring it back instead of doing nothing.
             #[cfg(target_os = "macos")]
             if let tauri::RunEvent::Reopen { has_visible_windows, .. } = event {
                 if !has_visible_windows {
@@ -1011,7 +1021,7 @@ pub fn run() {
                 // Some(code) and continue into cleanup below.
                 if code.is_none() {
                     api.prevent_exit();
-                    // The window may be hidden (closed via Cmd+W); the dialog
+                    // The window may be hidden (closed via the close button); the dialog
                     // must be visible or the quit appears to do nothing.
                     if app.try_state::<AppState>().is_none() { app.exit(0); return; }
                     reveal_main_window(app);
