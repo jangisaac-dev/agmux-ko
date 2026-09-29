@@ -31,6 +31,13 @@ describe("ThinkingBlock", () => {
     expect(screen.getByTestId("codex-think-row")).toBeTruthy();
   });
 
+  it("stops the indicator for finished thinking whose text was omitted", () => {
+    render(<ThinkingBlock thinking="" streaming={false} />);
+    expect(screen.getByText("Thought")).toBeTruthy();
+    expect(screen.queryByText("Thinking")).toBeNull();
+    expect(screen.getByTestId("thinking-block").getAttribute("data-streaming")).toBe("false");
+  });
+
   it("hides thinking content when collapsed (showThinking false)", () => {
     render(<ThinkingBlock thinking="I am reasoning about this." />);
     expect(screen.getByText("Thought")).toBeTruthy();

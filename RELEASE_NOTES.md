@@ -27,8 +27,11 @@ See `/release` (`.claude/commands/release.md`) for how this file is consumed and
 ### New
 
 ### Improved
+- **Claude thinking summaries** — Claude chats now show a short thinking summary instead of an empty Thinking row.
 
 ### Fixed
+- **Claude chats finish their answers** — Opening Usage or reloading the chat while Claude is working no longer stops its reply.
+- **Thinking stops spinning** — In Claude chats, a Thinking row stops spinning once Claude has finished thinking.
 
 ## v4.3.0 — 2026-09-26
 
