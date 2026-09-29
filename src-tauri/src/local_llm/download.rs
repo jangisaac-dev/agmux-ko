@@ -340,20 +340,50 @@ pub async fn download_server_binary(app_handle: AppHandle) -> anyhow::Result<()>
     };
 
     // Find matching asset
-    let assets = release["assets"]
-        .as_array()
-        .ok_or_else(|| anyhow!("No assets in release"))?;
+    let find_asset = |release: &serde_json::Value| -> Option<serde_json::Value> {
+        release["assets"].as_array()?.iter().find(|a| {
+            a["name"].as_str().is_some_and(|n| {
+                n.contains(platform_substr) && (n.ends_with(".tar.gz") || n.ends_with(".zip"))
+            })
+        }).cloned()
+    };
+    let mut asset = find_asset(&release);
 
-    let asset = assets
-        .iter()
-        .find(|a| {
-            a["name"]
-                .as_str()
-                .map(|n| {
-                    n.contains(platform_substr) && (n.ends_with(".tar.gz") || n.ends_with(".zip"))
-                })
-                .unwrap_or(false)
-        })
+    // Versioned releases (v0.x) ship only `nightly-tag.txt`, naming the bNNNN
+    // prerelease that carries the binaries.
+    if asset.is_none() {
+        let tag_url = release["assets"]
+            .as_array()
+            .and_then(|a| a.iter().find(|a| a["name"] == "nightly-tag.txt"))
+            .and_then(|a| a["browser_download_url"].as_str())
+            .ok_or_else(|| anyhow!("No llama.cpp release asset found for {}", platform_substr))?;
+        let tag = client
+            .get(tag_url)
+            .send()
+            .await
+            .context("Failed to fetch llama.cpp nightly tag")?
+            .text()
+            .await
+            .context("Failed to read llama.cpp nightly tag")?;
+        let tag = tag.trim();
+        if tag.is_empty() || !tag.chars().all(|c| c.is_ascii_alphanumeric()) {
+            return Err(anyhow!("Unexpected llama.cpp nightly tag: {:?}", tag));
+        }
+        let tagged: serde_json::Value = client
+            .get(format!(
+                "https://api.github.com/repos/{}/releases/tags/{}",
+                LLAMA_CPP_REPO, tag
+            ))
+            .send()
+            .await
+            .context("Failed to fetch llama.cpp nightly release info")?
+            .json()
+            .await
+            .context("Failed to parse llama.cpp nightly release JSON")?;
+        asset = find_asset(&tagged);
+    }
+
+    let asset = asset
         .ok_or_else(|| anyhow!("No llama.cpp release asset found for {}", platform_substr))?;
 
     let download_url = asset["browser_download_url"]

@@ -29,6 +29,7 @@ See `/release` (`.claude/commands/release.md`) for how this file is consumed and
 ### Improved
 
 ### Fixed
+- **Local model download works again** — Setting up a local model no longer stops with "No llama.cpp release asset found" on the Mac.
 
 ## v4.3.0 — 2026-09-26
 
