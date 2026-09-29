@@ -262,7 +262,16 @@ function App() {
         return;
       }
 
-      // Cmd+Shift+T — toggle between agent and task modes (hardware-gated).
+      // Cmd+Shift+T — reopen the last closed tab while the tab bar is on
+      // screen, as in browsers. e.code: with a Korean input source e.key is ㅅ.
+      if (e.metaKey && e.shiftKey && e.code === "KeyT" && visibleFocusedPane()) {
+        e.preventDefault();
+        e.stopPropagation();
+        useSplitViewStore.getState().reopenClosedTab();
+        return;
+      }
+
+      // Cmd+Shift+T elsewhere — toggle between agent and task modes (hardware-gated).
       if (e.shiftKey && e.key === "T") {
         const ui = useUiStore.getState();
         if (!ui.taskViewAllowed) return; // silently ignore on unauthorized machines
@@ -275,8 +284,8 @@ function App() {
       // Task mode shortcuts
       const currentAppMode = useUiStore.getState().appMode;
       if (currentAppMode === "task") {
-        // Cmd+N → new task
-        if (e.metaKey && !e.shiftKey && e.key === "n") {
+        // Cmd+N / Cmd+T → new task
+        if (e.metaKey && !e.shiftKey && (e.key === "n" || e.code === "KeyT")) {
           e.preventDefault();
           e.stopPropagation();
           window.dispatchEvent(new CustomEvent("agmux-new-task"));
@@ -332,8 +341,9 @@ function App() {
       }
 
 
-      // Cmd+N — new thread using default pairing
-      if (key === "n" && !e.shiftKey) {
+      // Cmd+N / Cmd+T — new thread using default pairing (opens as a new tab
+      // in the focused pane when tabs are on)
+      if ((key === "n" || (e.metaKey && e.code === "KeyT")) && !e.shiftKey) {
         e.preventDefault();
         e.stopPropagation();
         const ui = useUiStore.getState();

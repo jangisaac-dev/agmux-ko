@@ -234,3 +234,42 @@ describe("splitViewStore actions", () => {
     expect(pane.tabs).toHaveLength(1);
   });
 });
+
+describe("splitViewStore — reopen closed tabs (Cmd+Shift+T)", () => {
+  beforeEach(() => {
+    reset();
+    useSplitViewStore.setState({ closedTabs: [] });
+  });
+
+  it("reopens the most recently closed tab in the focused pane", () => {
+    const store = useSplitViewStore.getState();
+    store.openInFocusedPane(makeTab({ threadId: "a", label: "A" }));
+    store.openInFocusedPane(makeTab({ threadId: "b", label: "B" }));
+    const s = useSplitViewStore.getState();
+    const pane = s.panes[s.focusedPaneId]!;
+    const tabB = pane.tabs.find((t) => t.threadId === "b")!;
+
+    useSplitViewStore.getState().closeTab(pane.id, tabB.id);
+    expect(useSplitViewStore.getState().panes[pane.id]!.tabs.map((t) => t.threadId)).toEqual(["a"]);
+
+    useSplitViewStore.getState().reopenClosedTab();
+    const after = useSplitViewStore.getState();
+    const reopened = after.panes[after.focusedPaneId]!;
+    expect(reopened.tabs.map((t) => t.threadId)).toEqual(["a", "b"]);
+    expect(reopened.tabs.find((t) => t.id === reopened.activeTabId)?.threadId).toBe("b");
+    expect(after.closedTabs).toEqual([]);
+  });
+
+  it("does not remember draft tabs and does nothing with an empty history", () => {
+    const store = useSplitViewStore.getState();
+    store.openInFocusedPane(makeTab({ type: "draft", threadId: undefined, label: "New" }));
+    const s = useSplitViewStore.getState();
+    const pane = s.panes[s.focusedPaneId]!;
+    useSplitViewStore.getState().closeTab(pane.id, pane.tabs[0]!.id);
+    expect(useSplitViewStore.getState().closedTabs).toEqual([]);
+
+    const before = useSplitViewStore.getState().panes;
+    useSplitViewStore.getState().reopenClosedTab();
+    expect(useSplitViewStore.getState().panes).toBe(before);
+  });
+});
