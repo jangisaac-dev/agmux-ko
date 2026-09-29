@@ -26,7 +26,7 @@ See `/release` (`.claude/commands/release.md`) for how this file is consumed and
 
 ### New
 
-- **Tab shortcuts** — With tabs on, Cmd+1 to Cmd+9 jump to that tab, Cmd+W closes the current tab instead of hiding the whole window, Cmd+T opens a new session tab, and Cmd+Shift+T reopens the tab you last closed.
+- **Tab shortcuts** — With tabs on, Cmd+1 to Cmd+9 jump to that tab, Cmd+W closes the current tab instead of hiding the whole window, Cmd+T opens a new session tab, Cmd+Shift+T reopens the tab you last closed, and Cmd+Shift+[ or ] moves to the previous or next tab.
 
 ### Improved
 

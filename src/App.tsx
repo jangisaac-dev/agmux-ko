@@ -260,6 +260,18 @@ function App() {
         return;
       }
 
+      // Cmd+Shift+[ / ] — previous / next tab of the focused pane, wrapping.
+      if (
+        e.metaKey && e.shiftKey && !e.ctrlKey && !e.altKey &&
+        (e.code === "BracketLeft" || e.code === "BracketRight") &&
+        visibleFocusedPane()
+      ) {
+        e.preventDefault();
+        e.stopPropagation();
+        useSplitViewStore.getState().selectAdjacentTab(e.code === "BracketRight" ? 1 : -1);
+        return;
+      }
+
       // Cmd+Shift+T — reopen the last closed tab while the tab bar is on
       // screen, as in browsers. e.code: with a Korean input source e.key is ㅅ.
       if (e.metaKey && e.shiftKey && e.code === "KeyT" && visibleFocusedPane()) {
