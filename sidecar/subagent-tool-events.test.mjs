@@ -48,6 +48,25 @@ test("emits nested tool events with parent tool association", () => {
   assert.equal(pendingToolIds.size, 0);
 });
 
+test("server tool results (advisor) clear their pending server_tool_use", () => {
+  const seenToolIds = new Set();
+  const pendingToolIds = new Map();
+  const activeAgentToolIds = new Set();
+
+  const events = extractToolEventsFromBlocks({
+    blocks: [
+      { type: "server_tool_use", id: "srvtoolu_adv", name: "advisor", input: {} },
+      { type: "advisor_tool_result", tool_use_id: "srvtoolu_adv", content: { type: "advisor_result", text: "ok" } },
+    ],
+    seenToolIds,
+    pendingToolIds,
+    activeAgentToolIds,
+  });
+
+  assert.equal(pendingToolIds.size, 0);
+  assert.deepEqual(events.map((e) => e.event), ["tool.started", "tool.completed"]);
+});
+
 test("deduplicates repeated tool_use blocks while preserving completion", () => {
   const seenToolIds = new Set(["toolu_repeat"]);
   const pendingToolIds = new Map([["toolu_repeat", "Read"]]);
