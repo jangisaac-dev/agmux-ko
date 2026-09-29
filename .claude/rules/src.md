@@ -55,6 +55,7 @@ paths:
 - English source text: `src/i18n/locales/en/<area>.json`, flat keys prefixed with the file's area (`setup.welcome.title` lives in `setup.json`). Korean: `locales/ko/<area>.json`; missing Korean falls back to English. English plurals use `_one`/`_other` keys with a numeric `count`.
 - `settings.uiLanguage` is `system` | `en` | `ko`; `system` follows `navigator.language`. `src-tauri/Info.plist` declares en/ko, otherwise WKWebView reports English on a Korean Mac.
 - Never translate product/provider names, model IDs, paths, commands, shortcuts, provider-produced text, or values used as IDs/logic keys. Compare IDs, not labels. Module-level label constants store keys and translate at render. Do not call `t` in `settingsStore` or its imports (circular import).
+- Korean in terminals: the installed app's WebKit sends Hangul to xterm's helper textarea with no composition events (first jamo `insertText`, then in-place `insertReplacementText`, keydown 229 after the input; xterm.js #6084). xterm 5.5 forwards only `insertText`, so `lib/xtermHangulIme.ts` (installed from `attachCanvas`) mirrors each Hangul edit to the PTY as DELs plus the new tail and blocks xterm's own handling of that input. Composer Enter handlers skip `e.nativeEvent.isComposing` (Japanese/Chinese conversion) but must not gate on keyCode 229.
 - Tests run in English (`src/stores/__tests__/setup.ts` pins `navigator.language`); `src/i18n/__tests__` checks every Korean key and its `{{placeholders}}` against English.
 
 ## Components

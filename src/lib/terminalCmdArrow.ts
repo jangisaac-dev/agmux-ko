@@ -6,6 +6,7 @@
  * - Cmd+Right → Ctrl+E (end of line)
  * - Cmd+Up    → Ctrl+Home (start of multi-line prompt / buffer, when supported)
  * - Cmd+Down  → Ctrl+End  (end of multi-line prompt / buffer, when supported)
+ * - Cmd+Backspace → Ctrl+U (delete to line start, as iTerm2 and Ghostty send)
  *
  * Home/End use the H/F form xterm itself emits for Ctrl+Home/End
  * (`CSI 1;5 H` / `CSI 1;5 F`), not the `1~`/`4~` form — many TUIs only
@@ -40,6 +41,8 @@ export function ptyBytesForCmdArrow(e: {
     case "ArrowDown":
       // Ctrl+End — end of prompt / editing buffer
       return "\x1b[1;5F";
+    case "Backspace":
+      return "\x15"; // Ctrl+U — delete from the cursor to line start
     default:
       return null;
   }

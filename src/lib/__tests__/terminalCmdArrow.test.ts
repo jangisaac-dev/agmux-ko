@@ -20,6 +20,15 @@ describe("ptyBytesForCmdArrow", () => {
     ).toBe("\x1b[1;5F");
   });
 
+  it("maps Cmd+Backspace to Ctrl+U (delete to line start); plain Backspace stays with xterm", () => {
+    expect(
+      ptyBytesForCmdArrow({ key: "Backspace", metaKey: true, ctrlKey: false, altKey: false }),
+    ).toBe("\x15");
+    expect(
+      ptyBytesForCmdArrow({ key: "Backspace", metaKey: false, ctrlKey: false, altKey: false }),
+    ).toBeNull();
+  });
+
   it("ignores non-meta, ctrl-chord, alt-chord, shift-chord, and non-arrow keys", () => {
     expect(
       ptyBytesForCmdArrow({ key: "ArrowLeft", metaKey: false, ctrlKey: false, altKey: false }),

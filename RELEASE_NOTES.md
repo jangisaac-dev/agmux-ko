@@ -30,6 +30,8 @@ See `/release` (`.claude/commands/release.md`) for how this file is consumed and
 ### Improved
 
 ### Fixed
+- **Korean typing in terminals** — Typing Korean in a Claude, Codex or other terminal session no longer drops vowels and final consonants.
+- **⌘⌫ deletes to the start of the line** — In terminal sessions ⌘⌫ now clears back to the start of the line, and in a chat's message box it no longer denies a pending tool request.
 
 ## v4.3.0 — 2026-09-26
 
