@@ -55,7 +55,11 @@ export function extractToolEventsFromBlocks({
       continue;
     }
 
-    if (block.type === "tool_result" && pendingToolIds.has(block.tool_use_id)) {
+    // Server tools (advisor, web search, MCP connector …) answer with their own
+    // `<name>_tool_result` block. Left pending, they made the bridge drop the
+    // turn's result as a "subagent boundary", so the chat never finished.
+    const isToolResult = block.type === "tool_result" || block.type?.endsWith?.("_tool_result");
+    if (isToolResult && pendingToolIds.has(block.tool_use_id)) {
       events.push({
         event: "tool.completed",
         toolUseId: block.tool_use_id,

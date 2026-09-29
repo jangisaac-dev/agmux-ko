@@ -39,6 +39,7 @@ See `/release` (`.claude/commands/release.md`) for how this file is consumed and
 - **⌘⌫ deletes to the start of the line** — In terminal sessions ⌘⌫ now clears back to the start of the line, and in a chat's message box it no longer denies a pending tool request.
 - **Claude chats finish their answers** — Opening Usage or reloading the chat while Claude is working no longer stops its reply.
 - **Thinking stops spinning** — In Claude chats, a Thinking row stops spinning once Claude has finished thinking.
+- **Chats finish after using the advisor** — A Claude chat no longer keeps showing Claude as working after it has already answered, when Claude used a built-in tool such as the advisor during the turn.
 
 ## v4.3.0 — 2026-09-26
 
