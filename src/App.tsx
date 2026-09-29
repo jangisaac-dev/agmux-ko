@@ -53,6 +53,16 @@ function dismissSplash() {
   setTimeout(() => el.remove(), 550);
 }
 
+/** Focused split-view pane, but only while its tab bar is on screen — not
+ *  behind task mode, the Usage panel or the Skills/Memory/Issues overlay. */
+function visibleFocusedPane() {
+  const ui = useUiStore.getState();
+  if (!useSettingsStore.getState().settings.multiViewEnabled) return null;
+  if ((ui.appMode === "task" && ui.taskViewAllowed) || ui.usagePanelOpen || ui.sidebarTab !== "agents") return null;
+  const sv = useSplitViewStore.getState();
+  return sv.panes[sv.focusedPaneId] ?? null;
+}
+
 function App() {
   useDebugHeartbeat();
   useThreadDiffUpdates();
@@ -184,6 +194,31 @@ function App() {
     };
   }, []);
 
+  // Native menu Close Tab (Cmd+W) — close the focused pane's active tab, like
+  // its X button. Only this path handles Cmd+W, so one press closes one tab.
+  useEffect(() => {
+    let unlisten: (() => void) | undefined;
+    let cancelled = false;
+    import("@tauri-apps/api/event")
+      .then(({ listen }) =>
+        listen("close-tab-requested", () => {
+          const pane = visibleFocusedPane();
+          if (pane?.activeTabId) useSplitViewStore.getState().closeTab(pane.id, pane.activeTabId);
+        }),
+      )
+      .then((fn) => {
+        if (cancelled) fn();
+        else unlisten = fn;
+      })
+      .catch((err) => {
+        console.error("Failed to subscribe to close-tab-requested:", err);
+      });
+    return () => {
+      cancelled = true;
+      unlisten?.();
+    };
+  }, []);
+
   // Global keyboard shortcuts — capture phase to intercept before terminal swallows events
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -209,6 +244,19 @@ function App() {
             // Silent — no UI tell on unauthorized machines.
           });
         });
+        return;
+      }
+
+      // Cmd+1…9 — switch to the Nth tab of the focused pane. PaneTabBar syncs
+      // the sidebar selection when activeTabId changes, as for a click.
+      const digit = /^Digit([1-9])$/.exec(e.code);
+      if (digit && e.metaKey && !e.ctrlKey && !e.altKey && !e.shiftKey) {
+        const pane = visibleFocusedPane();
+        const tab = pane?.tabs[Number(digit[1]) - 1];
+        if (!pane || !tab) return;
+        e.preventDefault();
+        e.stopPropagation();
+        useSplitViewStore.getState().setActiveTab(pane.id, tab.id);
         return;
       }
 

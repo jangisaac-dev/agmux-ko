@@ -26,6 +26,8 @@ See `/release` (`.claude/commands/release.md`) for how this file is consumed and
 
 ### New
 
+- **Tab shortcuts** — With tabs on, Cmd+1 to Cmd+9 jump to that tab, and Cmd+W closes the current tab instead of hiding the whole window.
+
 ### Improved
 
 ### Fixed
