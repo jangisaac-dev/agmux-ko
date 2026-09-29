@@ -343,7 +343,7 @@ pub async fn summarize_thread_names_batch(
         // Cap here so a bad client cannot blow a tiny local context window.
         const MAX_PREVIEW: usize = 480;
         let truncated = if cleaned.len() > MAX_PREVIEW {
-            format!("{}...", &cleaned[..MAX_PREVIEW])
+            format!("{}...", crate::text::byte_prefix(&cleaned, MAX_PREVIEW))
         } else {
             cleaned
         };

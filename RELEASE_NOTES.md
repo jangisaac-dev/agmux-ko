@@ -29,6 +29,9 @@ See `/release` (`.claude/commands/release.md`) for how this file is consumed and
 ### Improved
 
 ### Fixed
+- **No more crash on launch with non-English Codex chats** — With phone remote control turned on, the app no longer quits a few seconds after opening (including during first-time setup) when one of your past Codex chats starts with a long message containing Korean, Japanese, Chinese, emoji or accented letters.
+- **No more crash when naming sessions** — The app no longer quits while it names a session whose first message is long and written in Korean or another non-Latin script.
+- **No more crash on large diffs** — Viewing a very large set of changes that contains Korean or other non-Latin text no longer closes the app.
 
 ## v4.3.0 — 2026-09-26
 
