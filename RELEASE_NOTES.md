@@ -28,6 +28,7 @@ See `/release` (`.claude/commands/release.md`) for how this file is consumed and
 - **Korean interface** — agmux can show most of its interface in Korean: sidebar, home, chats and terminals, settings, tasks, Teams, usage and the What's New window. It follows your Mac's language, or choose System, English or 한국어 in Settings → General.
 
 ### Improved
+- **Claude thinking summaries** — Claude chats now show a short thinking summary instead of an empty Thinking row.
 
 ### Fixed
 - **No more crash on launch with non-English Codex chats** — With phone remote control turned on, the app no longer quits a few seconds after opening (including during first-time setup) when one of your past Codex chats starts with a long message containing Korean, Japanese, Chinese, emoji or accented letters.
@@ -36,6 +37,8 @@ See `/release` (`.claude/commands/release.md`) for how this file is consumed and
 - **Local model download works again** — Setting up a local model no longer stops with "No llama.cpp release asset found" on the Mac.
 - **Korean typing in terminals** — Typing Korean in a Claude, Codex or other terminal session no longer drops vowels and final consonants.
 - **⌘⌫ deletes to the start of the line** — In terminal sessions ⌘⌫ now clears back to the start of the line, and in a chat's message box it no longer denies a pending tool request.
+- **Claude chats finish their answers** — Opening Usage or reloading the chat while Claude is working no longer stops its reply.
+- **Thinking stops spinning** — In Claude chats, a Thinking row stops spinning once Claude has finished thinking.
 
 ## v4.3.0 — 2026-09-26
 

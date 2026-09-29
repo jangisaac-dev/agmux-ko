@@ -517,6 +517,30 @@ function finalizePendingTools(items: ClaudeChatItem[]): ClaudeChatItem[] {
 
 /** Module-level cache: SDK slash commands per session survive component remounts */
 const sdkSlashCommandsCache = new Map<string, string[]>();
+const mountedClaudeSdkSessionViews = new Map<string, number>();
+
+function stopSdkSessionAfterTurn(sessionId: string) {
+  let unlisten: UnlistenFn | null = null;
+  let endedBeforeListenResolved = false;
+  let handledEndEvent = false;
+
+  void listen<SdkEvent>(`sdk-event-${sessionId}`, (event) => {
+    const type = event.payload.type;
+    if (handledEndEvent) return;
+    if (type !== "turn.completed" && type !== "session.ended" && type !== "error") return;
+    handledEndEvent = true;
+
+    if (unlisten) unlisten();
+    else endedBeforeListenResolved = true;
+
+    if ((mountedClaudeSdkSessionViews.get(sessionId) ?? 0) > 0) return;
+    useUiStore.getState().setClaudeProcessing(sessionId, false);
+    sdkStopSession(sessionId).catch(() => {});
+  }).then((stopListening) => {
+    unlisten = stopListening;
+    if (endedBeforeListenResolved) stopListening();
+  }).catch(() => {});
+}
 
 export function ClaudeSdkSessionView({ sessionId, cwd, isNew, compact, hideTopBar, transport: providedTransport, renderThinkingIndicator, externalSessionReady, providerOverride, bypassActive: bypassActiveProp, onToggleBypass, bypassTooltip, externalContextUsage, initialPermissionMode, initialPlanMode }: Props) {
   const t = useT();
@@ -583,6 +607,8 @@ export function ClaudeSdkSessionView({ sessionId, cwd, isNew, compact, hideTopBa
   const [_lastUsage, setLastUsage] = useState<SdkTurnCompleted["usage"] | null>(null);
   const [runningUsage, setRunningUsage] = useState<{ inputTokens: number; outputTokens: number; cacheCreationTokens: number; cacheReadTokens: number } | null>(null);
   const [isWorking, setIsWorking] = useState(false);
+  const isWorkingForUnmountRef = useRef(isWorking);
+  isWorkingForUnmountRef.current = isWorking;
   const [contextUsage, setContextUsage] = useState<ContextUsage | null>(null);
   // Cursor SDKUsageMessage reports whole-turn billing totals, not the last
   // model call's context occupancy. Neither cache arithmetic nor a window
@@ -1029,27 +1055,37 @@ export function ClaudeSdkSessionView({ sessionId, cwd, isNew, compact, hideTopBa
         clearInterval(streamRevealIntervalRef.current);
         streamRevealIntervalRef.current = null;
       }
-      // If the component unmounts while the state machine has a pending
-      // awaiting_stop timer, that timer will never fire and the sidebar
-      // processing indicator stays stuck. Clear it on unmount.
-      if (useUiStore.getState().claudeProcessingById[sessionId]) {
+      // If idle, the state machine's pending awaiting_stop timer will never
+      // fire after unmount, so clear its sidebar processing indicator here.
+      if (!isWorkingForUnmountRef.current && useUiStore.getState().claudeProcessingById[sessionId]) {
         useUiStore.getState().setClaudeProcessing(sessionId, false);
       }
     };
   }, [sessionId]);
 
-  // Kill the SDK sidecar subtree on unmount (thread switch / multiview close)
-  // so the sidecar node → claude CLI → MCP servers → rust-analyzer chain
-  // stops leaking RAM. The backend `sdk_stop_session` is idempotent, and on
-  // the next mount the spawn useEffect below will call `sdkResumeSession`
-  // using the stored `sdk_session_id` from the DB — which passes --resume to
-  // the Claude SDK so the conversation transparently picks up where it left off.
+  // Stop the Claude process on unmount only when no view still owns it. During
+  // a turn, wait for its terminal event so a remount can resume the live process.
   useEffect(() => {
     if (externallyManaged) return;
+    mountedClaudeSdkSessionViews.set(
+      sessionId,
+      (mountedClaudeSdkSessionViews.get(sessionId) ?? 0) + 1,
+    );
     return () => {
-      sdkStopSession(sessionId).catch(() => {
-        // Best-effort cleanup — ignore errors (session may already be gone).
-      });
+      const mountedCount = (mountedClaudeSdkSessionViews.get(sessionId) ?? 1) - 1;
+      if (mountedCount > 0) {
+        mountedClaudeSdkSessionViews.set(sessionId, mountedCount);
+        return;
+      }
+      mountedClaudeSdkSessionViews.delete(sessionId);
+
+      if (isWorkingForUnmountRef.current) {
+        stopSdkSessionAfterTurn(sessionId);
+      } else {
+        sdkStopSession(sessionId).catch(() => {
+          // Best-effort cleanup — ignore errors (session may already be gone).
+        });
+      }
     };
   }, [sessionId, externallyManaged]);
 
@@ -3275,6 +3311,9 @@ export function ClaudeSdkSessionView({ sessionId, cwd, isNew, compact, hideTopBa
       : [],
   ), [messages, getBackgroundTask]);
 
+  // Only the newest item of a running turn can still be thinking.
+  const lastMessageUuid = messages[messages.length - 1]?.uuid;
+
   const renderChatItem = useCallback(
     (item: ClaudeChatItem, glassIn: string) => {
       const space = sdkItemSpacingClass(item.itemType);
@@ -3325,7 +3364,11 @@ export function ClaudeSdkSessionView({ sessionId, cwd, isNew, compact, hideTopBa
         case "AssistantThinking":
           return (
             <div key={item.uuid} className={space}>
-              <ThinkingBlock thinking={item.thinking} onExpand={handleThinkingExpand} />
+              <ThinkingBlock
+                thinking={item.thinking}
+                onExpand={handleThinkingExpand}
+                streaming={isWorking && item.uuid === lastMessageUuid}
+              />
             </div>
           );
 
@@ -3498,7 +3541,7 @@ export function ClaudeSdkSessionView({ sessionId, cwd, isNew, compact, hideTopBa
           return null;
       }
     },
-    [sessionId, cwd, isWorking, handleForkFromMessage, getBackgroundTask, compactedExpanded, isCowork, turnIdByUserUuid, t],
+    [sessionId, cwd, isWorking, lastMessageUuid, handleForkFromMessage, getBackgroundTask, compactedExpanded, isCowork, turnIdByUserUuid, t],
   );
 
   const renderMessage = useCallback(

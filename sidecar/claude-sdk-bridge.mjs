@@ -619,7 +619,11 @@ async function handleRequest({ id, method, params }) {
           // plausible flag making `--resume` fail in worktrees; only pass
           // it on fresh spawns so existing transcripts can be re-hydrated
           // by the CLI without it rejecting the resume target.
-          ...(params.resume ? {} : { extraArgs: { "replay-user-messages": null } }),
+          // Show summarized thinking content in SDK chats.
+          extraArgs: {
+            "thinking-display": "summarized",
+            ...(!params.resume ? { "replay-user-messages": null } : {}),
+          },
           // Capture the underlying claude CLI's stderr so crash reasons
           // surface in sidecar logs instead of being silently discarded.
           stderr: (chunk) => log("[claude-cli stderr]", String(chunk).trimEnd()),

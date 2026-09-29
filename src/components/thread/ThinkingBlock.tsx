@@ -29,11 +29,12 @@ export function ThinkingBlock({ thinking, onExpand, elapsed, streaming }: Thinki
     if (next) onExpand?.();
   };
 
-  // Streaming with no body yet — still show the row so the turn feels alive.
+  // No body: streaming, or finished with the text omitted (Claude's default in
+  // SDK mode) — which must stop spinning once the caller says it is done.
   if (!hasContent) {
     return (
-      <div data-testid="thinking-block" data-streaming="true">
-        <CodexThinkRow content="" streaming open={false} onToggle={() => {}} />
+      <div data-testid="thinking-block" data-streaming={isStreaming ? "true" : "false"}>
+        <CodexThinkRow content="" streaming={isStreaming} open={false} onToggle={() => {}} />
         {elapsed ? (
           <div className="mb-1 ml-[23px] text-[13px] text-[var(--text-muted)]">{elapsed}</div>
         ) : null}

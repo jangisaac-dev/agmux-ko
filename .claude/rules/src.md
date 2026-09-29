@@ -87,6 +87,7 @@ paths:
 - Listen to `sdk-event-{threadId}` for structured SDK events
 - `sdkSessionAdapter.ts` adapts SDK events into renderable chat messages
 - SDK events include: content deltas, tool starts/completions, approval requests, turn completions
+- Unmounting mid-turn defers `sdkStopSession` until `turn.completed`, `session.ended`, or `error`; skip stopping while another view for the session remains mounted. A remounted view reattaches through `sdkResumeSession`.
 
 ## Codex Events
 - Sidebar Recalculate diff uses `recalculate_session_diff` for the exact selected owner/session. Publish returned absolute totals only if no newer live store update arrived; keep shell ledger totals separate. A saved-only refresh must not replace native history counters or clear capture guards.

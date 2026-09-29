@@ -126,7 +126,9 @@ vi.mock("../ToolActivityGroup", () => ({
   ToolActivityGroup: () => <div data-testid="tool-activity-group" />,
 }));
 vi.mock("../ThinkingBlock", () => ({
-  ThinkingBlock: () => <div data-testid="thinking-block" />,
+  ThinkingBlock: ({ streaming }: { streaming?: boolean }) => (
+    <div data-testid="thinking-block" data-streaming={String(streaming)} />
+  ),
 }));
 vi.mock("../MarkdownContent", () => ({
   MarkdownContent: ({ content }: { content: string }) => <div>{content}</div>,
@@ -1159,17 +1161,21 @@ describe("ClaudeSdkSessionView — deep coverage (SDK event handlers)", () => {
   type Listener = (event: { payload: unknown }) => void;
 
   function captureListeners() {
-    const handlers: Record<string, Listener> = {};
+    const handlers: Record<string, Listener[]> = {};
     // Lazily import the mocked listen so we get the same module instance vitest aliased.
     return { handlers };
   }
 
   async function setupCapture() {
     const eventModule = await import("@tauri-apps/api/event");
-    const handlers: Record<string, Listener> = {};
+    const handlers: Record<string, Listener[]> = {};
     vi.mocked(eventModule.listen).mockImplementation(((channel: string, cb: Listener) => {
-      handlers[channel] = cb;
-      return Promise.resolve(() => {});
+      const listeners = (handlers[channel] ??= []);
+      listeners.push(cb);
+      return Promise.resolve(() => {
+        const index = listeners.indexOf(cb);
+        if (index >= 0) listeners.splice(index, 1);
+      });
     }) as never);
     return handlers;
   }
@@ -1179,10 +1185,9 @@ describe("ClaudeSdkSessionView — deep coverage (SDK event handlers)", () => {
     await new Promise((r) => setTimeout(r, 0));
   }
 
-  function fireSdk(handlers: Record<string, Listener>, sessionId: string, payload: unknown) {
+  function fireSdk(handlers: Record<string, Listener[]>, sessionId: string, payload: unknown) {
     const channel = `sdk-event-${sessionId}`;
-    const h = handlers[channel];
-    if (h) h({ payload });
+    for (const handler of [...(handlers[channel] ?? [])]) handler({ payload });
   }
 
   beforeEach(() => {
@@ -1673,6 +1678,113 @@ describe("ClaudeSdkSessionView — deep coverage (SDK event handlers)", () => {
     fireSdk(handlers, "dc29", { type: "content.delta", contentType: "text", text: "post-unmount" });
     await flush();
     expect(true).toBe(true);
+  });
+
+  it("marks thinking as streaming only while it is the newest item of a running turn", async () => {
+    const handlers = await setupCapture();
+    render(<ClaudeSdkSessionView sessionId="dc34" cwd="/tmp/repo" isNew />);
+    await flush();
+    fireEvent.click(screen.getByTestId("ib-send"));
+    await flush();
+
+    fireSdk(handlers, "dc34", { type: "content.delta", contentType: "thinking", text: "hmm" });
+    await waitFor(() =>
+      expect(screen.getByTestId("thinking-block").getAttribute("data-streaming")).toBe("true"),
+    );
+
+    fireSdk(handlers, "dc34", {
+      type: "tool.started",
+      toolUseId: "tu34",
+      name: "Bash",
+      input: { command: "ls" },
+    });
+    await waitFor(() =>
+      expect(screen.getByTestId("thinking-block").getAttribute("data-streaming")).toBe("false"),
+    );
+  });
+
+  it("stops an idle SDK session when its last view unmounts", async () => {
+    await setupCapture();
+    const cmd = await import("../../../lib/commands");
+    vi.mocked(cmd.sdkStopSession).mockClear();
+    const { unmount } = render(
+      <ClaudeSdkSessionView sessionId="dc31" cwd="/tmp/repo" isNew />
+    );
+    await flush();
+
+    unmount();
+
+    expect(cmd.sdkStopSession).toHaveBeenCalledWith("dc31");
+    expect(cmd.sdkStopSession).toHaveBeenCalledTimes(1);
+  });
+
+  it("keeps processing until turn.completed after the last in-flight view unmounts", async () => {
+    const handlers = await setupCapture();
+    const cmd = await import("../../../lib/commands");
+    vi.mocked(cmd.sdkStopSession).mockClear();
+    const sessionId = "dc32";
+    const { unmount } = render(
+      <ClaudeSdkSessionView sessionId={sessionId} cwd="/tmp/repo" isNew />
+    );
+    await flush();
+    fireEvent.click(screen.getByTestId("ib-send"));
+    await waitFor(() =>
+      expect(useUiStore.getState().claudeProcessingById[sessionId]).toBe(true),
+    );
+
+    unmount();
+    expect(useUiStore.getState().claudeProcessingById[sessionId]).toBe(true);
+    expect(cmd.sdkStopSession).not.toHaveBeenCalled();
+
+    act(() => fireSdk(handlers, sessionId, {
+      type: "turn.completed",
+      usage: {
+        inputTokens: 0,
+        outputTokens: 0,
+        cacheCreationTokens: 0,
+        cacheReadTokens: 0,
+        totalCostUsd: 0,
+        numTurns: 1,
+      },
+    }));
+
+    expect(useUiStore.getState().claudeProcessingById[sessionId]).toBe(false);
+    expect(cmd.sdkStopSession).toHaveBeenCalledWith(sessionId);
+    expect(cmd.sdkStopSession).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not stop a deferred SDK session when a view remounts before turn end", async () => {
+    const handlers = await setupCapture();
+    const cmd = await import("../../../lib/commands");
+    vi.mocked(cmd.sdkStopSession).mockClear();
+    const sessionId = "dc33";
+    const first = render(
+      <ClaudeSdkSessionView sessionId={sessionId} cwd="/tmp/repo" isNew />
+    );
+    await flush();
+    fireEvent.click(screen.getByTestId("ib-send"));
+    await waitFor(() =>
+      expect(useUiStore.getState().claudeProcessingById[sessionId]).toBe(true),
+    );
+    first.unmount();
+
+    render(<ClaudeSdkSessionView sessionId={sessionId} cwd="/tmp/repo" isNew />);
+    await flush();
+
+    act(() => fireSdk(handlers, sessionId, {
+      type: "turn.completed",
+      usage: {
+        inputTokens: 0,
+        outputTokens: 0,
+        cacheCreationTokens: 0,
+        cacheReadTokens: 0,
+        totalCostUsd: 0,
+        numTurns: 1,
+      },
+    }));
+
+    expect(cmd.sdkStopSession).not.toHaveBeenCalled();
+    expect(useUiStore.getState().claudeProcessingById[sessionId]).toBe(false);
   });
 
   it("dispatches events for non-isNew (resumed) thread", async () => {
