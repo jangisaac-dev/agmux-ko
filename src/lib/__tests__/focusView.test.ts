@@ -2,11 +2,11 @@ import { describe, it, expect } from "vitest";
 import {
   focusCutoff,
   focusSince,
-  formatFocusWindow,
   resolveFocusThreadsVisible,
   resolveFocusWindowMinutes,
   FOCUS_WINDOW_MINUTES_OPTIONS,
 } from "../focusView";
+import { t } from "../../i18n";
 
 describe("focusView", () => {
   it("computes the start of the Focus window", () => {
@@ -27,7 +27,7 @@ describe("focusView", () => {
   });
 
   it("formats every offered window for the empty state", () => {
-    expect(FOCUS_WINDOW_MINUTES_OPTIONS.map(formatFocusWindow)).toEqual([
+    expect(FOCUS_WINDOW_MINUTES_OPTIONS.map((count) => t("sidebar.focus.window", { count }))).toEqual([
       "5 minutes",
       "10 minutes",
       "15 minutes",

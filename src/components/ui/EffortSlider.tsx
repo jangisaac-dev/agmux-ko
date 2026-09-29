@@ -1,4 +1,5 @@
 import { useCallback, useRef } from "react";
+import { useT } from "../../i18n";
 
 export interface EffortSliderOption {
   value: string;
@@ -34,16 +35,19 @@ export function EffortSlider({
   options,
   value,
   onChange,
-  minLabel = "Faster",
-  maxLabel = "Smarter",
+  minLabel,
+  maxLabel,
   compact = false,
 }: EffortSliderProps) {
+  const t = useT();
   const trackRef = useRef<HTMLDivElement>(null);
   const draggingRef = useRef(false);
 
   const count = options.length;
   const currentIndex = Math.max(0, options.findIndex((o) => o.value === value));
   const selected = options[currentIndex] ?? options[0];
+  const displayedMinLabel = minLabel ?? t("labels.effort.faster");
+  const displayedMaxLabel = maxLabel ?? t("labels.effort.smarter");
   // A single-option ladder has no travel; pin the knob to the end.
   const ratio = count > 1 ? currentIndex / (count - 1) : 1;
 
@@ -126,12 +130,12 @@ export function EffortSlider({
         ref={trackRef}
         role="slider"
         tabIndex={0}
-        aria-label="Reasoning effort"
+        aria-label={t("labels.effort.reasoning")}
         aria-valuemin={1}
         aria-valuemax={count}
         aria-valuenow={currentIndex + 1}
         aria-valuetext={selected?.label}
-        title={selected ? `Reasoning effort: ${value}` : "Reasoning effort"}
+        title={selected ? t("labels.effort.reasoningWithValue", { value }) : t("labels.effort.reasoning")}
         onPointerDown={handlePointerDown}
         onPointerMove={handlePointerMove}
         onPointerUp={endDrag}
@@ -172,8 +176,8 @@ export function EffortSlider({
 
       {!compact && (
         <div className="mt-1.5 flex items-center justify-between ui-eyebrow text-[var(--text-tertiary)]">
-          <span>{minLabel}</span>
-          <span>{maxLabel}</span>
+          <span>{displayedMinLabel}</span>
+          <span>{displayedMaxLabel}</span>
         </div>
       )}
     </div>

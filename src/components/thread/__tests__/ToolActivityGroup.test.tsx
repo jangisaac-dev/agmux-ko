@@ -4,8 +4,13 @@ import { render, screen, cleanup, fireEvent, waitFor } from "@testing-library/re
 import type { ClaudeChatItemToolUse } from "../../../lib/types";
 
 vi.mock("../../../stores/settingsStore", () => ({
-  useSettingsStore: (selector: (s: { settings: { sdkAutoExpandToolCalls: boolean } }) => unknown) =>
-    selector({ settings: { sdkAutoExpandToolCalls: false } }),
+  useSettingsStore: (() => {
+    const state = { settings: { uiLanguage: "en", sdkAutoExpandToolCalls: false } };
+    return Object.assign((selector: (s: typeof state) => unknown) => selector(state), {
+      getState: () => state,
+      subscribe: () => () => {},
+    });
+  })(),
 }));
 
 const openFile = vi.hoisted(() => vi.fn());

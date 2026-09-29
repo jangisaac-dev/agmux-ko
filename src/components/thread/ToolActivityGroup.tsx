@@ -1,4 +1,5 @@
 import { useState, useMemo } from "react";
+import { t as translate, useT } from "../../i18n";
 import {
   ExternalLink,
   FileEdit,
@@ -60,25 +61,25 @@ type Kind = "edit" | "write" | "read" | "bash" | "search" | "agent" | "other";
 type AgentAction = "spawn" | "wait" | "sendInput" | "close" | "other";
 type AgentStatusTone = "running" | "waiting" | "done";
 
-const KIND_LABEL: Record<Kind, [string, string]> = {
-  edit: ["edit", "edits"],
-  write: ["write", "writes"],
-  read: ["read", "reads"],
-  bash: ["bash", "bash"],
-  search: ["search", "searches"],
-  agent: ["agent", "agents"],
-  other: ["tool", "tools"],
+const KIND_LABEL: Record<Kind, string> = {
+  edit: "tools.activityGroup.kind.edit",
+  write: "tools.activityGroup.kind.write",
+  read: "tools.activityGroup.kind.read",
+  bash: "tools.activityGroup.kind.bash",
+  search: "tools.activityGroup.kind.search",
+  agent: "tools.activityGroup.kind.agent",
+  other: "tools.activityGroup.kind.tool",
 };
 
 // Display name for the child row's kind label. Capitalised to match design.
 const KIND_DISPLAY: Record<Kind, string> = {
-  edit: "Edit",
-  write: "Write",
-  read: "Read",
-  bash: "Bash",
-  search: "Search",
-  agent: "Agent",
-  other: "Tool",
+  edit: "tools.activityGroup.display.edit",
+  write: "tools.activityGroup.display.write",
+  read: "tools.activityGroup.display.read",
+  bash: "tools.activityGroup.display.bash",
+  search: "tools.activityGroup.display.search",
+  agent: "tools.activityGroup.display.agent",
+  other: "tools.activityGroup.display.tool",
 };
 
 function isAgentToolName(name: string): boolean {
@@ -161,13 +162,14 @@ function receiverThreadIdsFromInput(input: Record<string, unknown>): string[] {
 function agentDisplayName(input: Record<string, unknown>): string {
   const names = agentNamesFromInput(input);
   if (names.length === 1) return names[0];
-  if (names.length > 1) return `${names[0]} +${names.length - 1} more`;
-  return "Agent";
+  if (names.length > 1) return translate("tools.activityGroup.agentNamesMore", { name: names[0], count: names.length - 1 });
+  return translate("tools.activityGroup.agentName");
 }
 
 function agentTargetName(input: Record<string, unknown>): string {
-  const displayName = agentDisplayName(input);
-  return displayName === "Agent" ? "agent" : displayName;
+  return agentNamesFromInput(input).length === 0
+    ? translate("tools.activityGroup.agentNameLower")
+    : agentDisplayName(input);
 }
 
 function normalizedStatus(value: unknown): string {
@@ -189,13 +191,13 @@ function getAgentToolLabel(name: string, input: Record<string, unknown>): string
   const targetName = agentTargetName(input);
   switch (action) {
     case "spawn":
-      return `${displayName} started`;
+      return translate("tools.activityGroup.agentStarted", { name: displayName });
     case "wait":
-      return `Waiting on ${targetName}`;
+      return translate("tools.activityGroup.waitingOnAgent", { name: targetName });
     case "sendInput":
-      return `Sent input to ${targetName}`;
+      return translate("tools.activityGroup.sentInputToAgent", { name: targetName });
     case "close":
-      return `Closed ${targetName}`;
+      return translate("tools.activityGroup.closedAgent", { name: targetName });
     case "other":
       return typeof input.description === "string" ? input.description : name;
   }
@@ -217,13 +219,13 @@ function collabAgentGroupSummary(tools: ClaudeChatItemToolUse[]): {
 
   const identityCount = names.length || ids.length;
   const kindText = identityCount > 0
-    ? `${identityCount} Agent${identityCount === 1 ? "" : "s"}`
+    ? translate("tools.activityGroup.agentCount", { count: identityCount })
     : tools.length === 1
-      ? "1 Agent"
-      : `${tools.length} Agent actions`;
+      ? translate("tools.activityGroup.agentCount", { count: 1 })
+      : translate("tools.activityGroup.agentActions", { count: tools.length });
 
   if (tools.length !== 1) {
-    return { kindText, detailText: `${tools.length} tool calls` };
+    return { kindText, detailText: translate("tools.activityGroup.toolCalls", { count: tools.length }) };
   }
 
   const tool = tools[0];
@@ -235,7 +237,7 @@ function collabAgentGroupSummary(tools: ClaudeChatItemToolUse[]): {
   const status = normalizedStatus(tool.input.status);
   const lifecycleStatus = normalizedStatus(tool.input.agentLifecycleStatus ?? tool.input.agent_lifecycle_status);
   if (failed) {
-    return { kindText, detailText: `${displayName} failed` };
+    return { kindText, detailText: translate("tools.activityGroup.agentFailed", { name: displayName }) };
   }
 
   switch (action) {
@@ -243,56 +245,58 @@ function collabAgentGroupSummary(tools: ClaudeChatItemToolUse[]): {
       if (lifecycleStatus === "closed") {
         return {
           kindText,
-          detailText: `${displayName} closed`,
-          status: { label: "Closed", tone: "done" },
+          detailText: translate("tools.activityGroup.agentClosed", { name: displayName }),
+          status: { label: translate("tools.activityGroup.status.closed"), tone: "done" },
         };
       }
       if (isFinishedStatus(lifecycleStatus)) {
         return {
           kindText,
-          detailText: `${displayName} finished`,
-          status: { label: "Finished", tone: "done" },
+          detailText: translate("tools.activityGroup.agentFinished", { name: displayName }),
+          status: { label: translate("tools.activityGroup.status.finished"), tone: "done" },
         };
       }
       return {
         kindText,
-        detailText: `${displayName} running`,
-        status: { label: "Running", tone: "running", spin: true },
+        detailText: translate("tools.activityGroup.agentRunning", { name: displayName }),
+        status: { label: translate("tools.activityGroup.status.running"), tone: "running", spin: true },
       };
     }
     case "wait":
       return pending || isActiveStatus(status)
         ? {
             kindText,
-            detailText: `waiting on ${targetName}`,
-            status: { label: "Waiting", tone: "waiting", spin: true },
+            detailText: translate("tools.activityGroup.waitingOnAgentDetail", { name: targetName }),
+            status: { label: translate("tools.activityGroup.status.waiting"), tone: "waiting", spin: true },
           }
         : {
             kindText,
-            detailText: `${displayName} finished`,
-            status: { label: "Finished", tone: "done" },
+            detailText: translate("tools.activityGroup.agentFinished", { name: displayName }),
+            status: { label: translate("tools.activityGroup.status.finished"), tone: "done" },
           };
     case "close":
       return pending || isActiveStatus(status)
         ? {
             kindText,
-            detailText: `closing ${targetName}`,
-            status: { label: "Closing", tone: "waiting", spin: true },
+            detailText: translate("tools.activityGroup.closingAgent", { name: targetName }),
+            status: { label: translate("tools.activityGroup.status.closing"), tone: "waiting", spin: true },
           }
         : {
             kindText,
-            detailText: `${displayName} closed`,
-            status: { label: "Closed", tone: "done" },
+            detailText: translate("tools.activityGroup.agentClosed", { name: displayName }),
+            status: { label: translate("tools.activityGroup.status.closed"), tone: "done" },
           };
     case "sendInput":
       return {
         kindText,
-        detailText: pending ? `sending input to ${targetName}` : `input sent to ${targetName}`,
-        status: pending ? { label: "Sending", tone: "waiting", spin: true } : undefined,
+        detailText: pending
+          ? translate("tools.activityGroup.sendingInputToAgent", { name: targetName })
+          : translate("tools.activityGroup.inputSentToAgent", { name: targetName }),
+        status: pending ? { label: translate("tools.activityGroup.status.sending"), tone: "waiting", spin: true } : undefined,
       };
     case "other":
     case null:
-      return { kindText, detailText: "agent activity" };
+      return { kindText, detailText: translate("tools.activityGroup.agentActivity") };
   }
 }
 
@@ -309,19 +313,19 @@ function getToolLabel(
     const paths = Array.isArray(input.paths)
       ? input.paths.filter((path): path is string => typeof path === "string" && path.length > 0)
       : [];
-    if (paths.length === 0) return "read files";
+    if (paths.length === 0) return translate("tools.activityGroup.readFiles");
     if (paths.length === 1) return shortenPath(paths[0], workDir);
-    return `${shortenPath(paths[0], workDir)} +${paths.length - 1} more`;
+    return `${shortenPath(paths[0], workDir)}${translate("tools.activityGroup.morePaths", { count: paths.length - 1 })}`;
   }
   if (EDIT_NAMES.has(name) || WRITE_NAMES.has(name) || READ_NAMES.has(name)) {
     if (name === "rename_path") {
       const from = typeof input.from === "string" ? input.from : "";
       const to = typeof input.to === "string" ? input.to : "";
       const label = [shortenPath(from, workDir), shortenPath(to, workDir)].filter(Boolean).join(" -> ");
-      return label || "rename";
+      return label || translate("tools.activityGroup.rename");
     }
     const fp = filePathFromToolInput(input);
-    return fp ? shortenPath(fp, workDir) : name === "view_file" ? "view file" : name;
+    return fp ? shortenPath(fp, workDir) : name === "view_file" ? translate("tools.activityGroup.viewFile") : name;
   }
   if (BASH_NAMES.has(name)) {
     const desc = typeof input.description === "string" ? input.description : null;
@@ -330,7 +334,7 @@ function getToolLabel(
   }
   if (name === "list_dir" || name === "list_files") {
     const path = typeof input.path === "string" ? input.path : ".";
-    return path === "." ? name.replace("_", " ") : shortenPath(path, workDir);
+    return path === "." ? translate(name === "list_dir" ? "tools.activityGroup.listDir" : "tools.activityGroup.listFiles") : shortenPath(path, workDir);
   }
   if (name === "find_path" || name === "find_file") {
     const pattern =
@@ -343,7 +347,7 @@ function getToolLabel(
     if (pattern) return `"${pattern.length > 40 ? pattern.slice(0, 40) + "..." : pattern}"`;
     const dir = filePathFromToolInput(input);
     if (dir) return shortenPath(dir, workDir);
-    return name === "find_file" ? "find file" : "find path";
+    return translate(name === "find_file" ? "tools.activityGroup.findFile" : "tools.activityGroup.findPath");
   }
   if (name === "git_status") {
     return "git status";
@@ -353,11 +357,11 @@ function getToolLabel(
   }
   if (name === "web_fetch") {
     const url = typeof input.url === "string" ? input.url : "";
-    return url ? (url.length > 60 ? url.slice(0, 60) + "..." : url) : "web fetch";
+    return url ? (url.length > 60 ? url.slice(0, 60) + "..." : url) : translate("tools.activityGroup.webFetch");
   }
   if (name === "web_search") {
     const query = typeof input.query === "string" ? input.query : "";
-    return query ? (query.length > 60 ? query.slice(0, 60) + "..." : query) : "web search";
+    return query ? (query.length > 60 ? query.slice(0, 60) + "..." : query) : translate("tools.activityGroup.webSearch");
   }
   if (SEARCH_NAMES.has(name)) {
     const pattern = typeof input.pattern === "string" ? input.pattern : "";
@@ -373,7 +377,7 @@ function getToolLabel(
   }
   if (name === "todo_write") {
     const list = typeof input.list === "string" ? input.list : "";
-    return list.split("\n").find((line) => line.trim().length > 0) ?? "todo";
+    return list.split("\n").find((line) => line.trim().length > 0) ?? translate("tools.activityGroup.todo");
   }
   return name;
 }
@@ -391,8 +395,7 @@ function countByKind(tools: ClaudeChatItemToolUse[]): Array<{ kind: Kind; count:
 }
 
 function pluralKind(kind: Kind, count: number): string {
-  const [singular, plural] = KIND_LABEL[kind];
-  return `${count} ${count === 1 ? singular : plural}`;
+  return translate(KIND_LABEL[kind], { count });
 }
 
 function kindIcon(kind: Kind) {
@@ -420,6 +423,7 @@ function toolRowIcon(tool: ClaudeChatItemToolUse) {
 
 /** Compact child row with details revealed in the conversation. */
 function ToolRow({ tool }: { tool: ClaudeChatItemToolUse }) {
+  const t = useT();
   const [expanded, setExpanded] = useState(false);
   const workDir = useWorkDir();
   const pending = !tool.result;
@@ -435,7 +439,7 @@ function ToolRow({ tool }: { tool: ClaudeChatItemToolUse }) {
     <div className="min-w-0">
       <CodexToolRow
         icon={toolRowIcon(tool)}
-        lead={KIND_DISPLAY[kind]}
+        lead={t(KIND_DISPLAY[kind])}
         subject={label}
         subjectMono={kind !== "agent"}
         subjectClassName={
@@ -450,11 +454,11 @@ function ToolRow({ tool }: { tool: ClaudeChatItemToolUse }) {
                   : undefined
         }
         status={status}
-        detail={hasError ? "error" : undefined}
+        detail={hasError ? t("tools.status.error.lowercase") : undefined}
         toggle={{
           open: expanded,
-          openLabel: "hide",
-          closedLabel: "show",
+          openLabel: t("tools.activityGroup.hide"),
+          closedLabel: t("tools.activityGroup.show"),
           onToggle: () => setExpanded((value) => !value),
         }}
         trailing={isFileTool && fullFilePath ? (
@@ -462,7 +466,7 @@ function ToolRow({ tool }: { tool: ClaudeChatItemToolUse }) {
             type="button"
             className="rounded p-1 text-[var(--text-muted)] hover:text-[var(--text-secondary)]"
             onClick={() => useUiStore.getState().openFile(fullFilePath)}
-            aria-label={`Open ${fullFilePath}`}
+            aria-label={t("tools.activityGroup.openFile", { path: fullFilePath })}
             title={fullFilePath}
           >
             <ExternalLink size={12} />
@@ -470,10 +474,10 @@ function ToolRow({ tool }: { tool: ClaudeChatItemToolUse }) {
         ) : undefined}
       />
       <CodexCollapse open={expanded}>
-        <CodexOutputBlock title={`${tool.name} · Input`} body={JSON.stringify(tool.input, null, 2)} />
+        <CodexOutputBlock title={t("tools.activityGroup.toolInput", { name: tool.name })} body={JSON.stringify(tool.input, null, 2)} />
         <CodexOutputBlock
-          title={pending ? "Running" : hasError ? "Error output" : "Output"}
-          body={pending ? "Tool is currently executing…" : tool.result?.content ?? ""}
+          title={pending ? t("tools.activityGroup.running") : hasError ? t("tools.activityGroup.errorOutput") : t("tools.activityGroup.output")}
+          body={pending ? t("tools.activityGroup.toolExecuting") : tool.result?.content ?? ""}
           isError={hasError}
         />
       </CodexCollapse>
@@ -484,6 +488,7 @@ function ToolRow({ tool }: { tool: ClaudeChatItemToolUse }) {
 const DEFAULT_VISIBLE = 8;
 
 export function ToolActivityGroup({ tools }: Props) {
+  const t = useT();
   const workDir = useWorkDir();
   const autoExpand = useSettingsStore((s) => s.settings.sdkAutoExpandToolCalls);
   const [expanded, setExpanded] = useState(autoExpand);
@@ -501,14 +506,14 @@ export function ToolActivityGroup({ tools }: Props) {
   const agentSummary = homogeneousKind === "agent" ? collabAgentGroupSummary(tools) : null;
   const kindText = isHomogeneous
     ? agentSummary?.kindText ?? pluralKind(breakdown[0].kind, breakdown[0].count)
-    : `${tools.length} tool call${tools.length === 1 ? "" : "s"}`;
+    : translate("tools.activityGroup.toolCalls", { count: tools.length });
 
   const subjectText = isHomogeneous
     ? agentSummary?.detailText ?? (tools.length === 1
         ? getToolLabel(tools[0].name, tools[0].input, workDir)
         : "")
     : breakdown
-        .map(({ kind, count }) => `${count} ${count === 1 ? KIND_LABEL[kind][0] : KIND_LABEL[kind][1]}`)
+        .map(({ kind, count }) => pluralKind(kind, count))
         .join(" · ");
 
   const statusLabel = agentSummary?.status
@@ -516,9 +521,9 @@ export function ToolActivityGroup({ tools }: Props) {
     : pendingCount > 0
       ? String(pendingCount)
       : errorCount > 0
-        ? `${errorCount} error${errorCount > 1 ? "s" : ""}`
+        ? t("tools.activityGroup.errorCount", { count: errorCount })
         : allDone
-          ? "Done"
+          ? t("tools.activityGroup.done")
           : undefined;
 
   const rowStatus: CodexRowStatus =
@@ -541,8 +546,8 @@ export function ToolActivityGroup({ tools }: Props) {
         status={rowStatus}
         toggle={{
           open: expanded,
-          openLabel: "hide",
-          closedLabel: "show",
+          openLabel: t("tools.activityGroup.hide"),
+          closedLabel: t("tools.activityGroup.show"),
           onToggle: () => setExpanded((e) => !e),
         }}
       />
@@ -558,7 +563,7 @@ export function ToolActivityGroup({ tools }: Props) {
               onClick={() => setShowAll((v) => !v)}
               className="ml-[23px] mt-1 mb-1 text-[11px] ui-meta text-[var(--text-muted)] transition-colors hover:text-[var(--text-secondary)]"
             >
-              {showAll ? "Show less" : `Show all ${tools.length} tool calls`}
+              {showAll ? t("tools.activityGroup.showLess") : t("tools.activityGroup.showAll", { count: tools.length })}
             </button>
           )}
         </div>

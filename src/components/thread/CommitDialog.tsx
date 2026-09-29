@@ -25,6 +25,7 @@ import { getWorktreeChanges } from "../../lib/taskCommands";
 import type { ChangedFile } from "../../lib/types";
 import { useUiStore } from "../../stores/uiStore";
 import { useSettingsStore } from "../../stores/settingsStore";
+import { useT } from "../../i18n";
 import {
   getCommitOpState,
   hasActiveCommitOp,
@@ -233,6 +234,7 @@ function FileRow({
    */
   committed?: boolean;
 }) {
+  const t = useT();
   const meta = statusMeta(file.status, flat);
   const ink = flat ? FLAT_INK : TOK;
   const total = file.added + file.removed || 1;
@@ -290,9 +292,9 @@ function FileRow({
                   lineHeight: 1.2,
                 }
           }
-          title="Already committed — will be pushed, not re-committed"
+          title={t("git.commit.alreadyCommittedTitle")}
         >
-          Committed
+          {t("git.commit.committed")}
         </span>
       ) : (
         <>
@@ -411,6 +413,7 @@ function FileRow({
 }
 
 export function CommitDialog({ open, onClose, workDir, hideCreatePrButton = false }: CommitDialogProps) {
+  const t = useT();
   const sidebarWidth = useUiStore((s) => s.sidebarWidth);
   const sidebarCollapsed = useUiStore((s) => s.sidebarCollapsed);
   const overlayLeft = sidebarCollapsed ? 52 : sidebarWidth;
@@ -583,21 +586,21 @@ export function CommitDialog({ open, onClose, workDir, hideCreatePrButton = fals
 
   const progressTitle = (a: Action) =>
     a === "commit"
-      ? "Committing changes"
+      ? t("git.commit.committingChanges")
       : a === "push"
-        ? "Pushing changes"
+        ? t("git.commit.pushingChanges")
       : a === "commit-push"
-        ? "Pushing changes"
-        : "Creating pull request";
+        ? t("git.commit.pushingChanges")
+        : t("git.commit.creatingPullRequest");
 
   const successTitle = (a: Action) =>
     a === "commit"
-      ? "Changes committed"
+      ? t("git.commit.changesCommitted")
       : a === "push"
-        ? "Pushed committed changes"
+        ? t("git.commit.pushedCommittedChanges")
       : a === "commit-push"
-        ? "Committed and pushed changes"
-        : "Committed and created PR";
+        ? t("git.commit.committedAndPushedChanges")
+        : t("git.commit.committedAndCreatedPr");
 
   /* ──────────────────────────────── Form view ───────────────────────────── */
   const renderForm = () => {
@@ -653,7 +656,7 @@ export function CommitDialog({ open, onClose, workDir, hideCreatePrButton = fals
                     }
               }
             >
-              Commit changes
+              {t("git.commit.commitChanges")}
             </div>
             <div
               style={{
@@ -687,7 +690,7 @@ export function CommitDialog({ open, onClose, workDir, hideCreatePrButton = fals
           </div>
           <button
             onClick={handleClose}
-            aria-label="Close commit dialog"
+            aria-label={t("git.commit.closeDialog")}
             style={{
               width: 26,
               height: 26,
@@ -762,11 +765,11 @@ export function CommitDialog({ open, onClose, workDir, hideCreatePrButton = fals
                 ) : (
                   <Sparkles size={flat ? 12 : 10} style={flat ? { color: "var(--accent)" } : undefined} />
                 )}
-                <span>{isGenerating ? "Generating…" : "Generate from diff"}</span>
+                <span>{t(isGenerating ? "git.commit.generating" : "git.commit.generateFromDiff")}</span>
               </button>
             }
           >
-            Message
+            {t("git.commit.message")}
           </Eyebrow>
 
           <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
@@ -774,7 +777,7 @@ export function CommitDialog({ open, onClose, workDir, hideCreatePrButton = fals
               <input
                 value={subject}
                 onChange={(e) => setCommitSubject(workDir, e.target.value)}
-                placeholder="Commit summary — leave blank to autogenerate"
+                placeholder={t("git.commit.summaryPlaceholder")}
                 className="fx-input"
                 style={{
                   width: "100%",
@@ -808,9 +811,7 @@ export function CommitDialog({ open, onClose, workDir, hideCreatePrButton = fals
             <textarea
               value={body}
               onChange={(e) => setCommitBody(workDir, e.target.value)}
-              placeholder={
-                "Optional extended description\n\nUse conventional commit format: type(scope): summary"
-              }
+              placeholder={t("git.commit.bodyPlaceholder")}
               rows={5}
               className="fx-input"
               style={{
@@ -860,7 +861,7 @@ export function CommitDialog({ open, onClose, workDir, hideCreatePrButton = fals
                     fontVariantNumeric: "tabular-nums",
                   }}
                 >
-                  {stagedCount}/{files.length} files ·{" "}
+                  {stagedCount}/{t("git.commit.fileCount", { count: files.length })} ·{" "}
                   <span style={{ color: ink.add }}>+{totals.add}</span>{" "}
                   {!flat && (
                     <>
@@ -875,12 +876,12 @@ export function CommitDialog({ open, onClose, workDir, hideCreatePrButton = fals
                   className={flat ? "fx-quiet" : undefined}
                   style={flat ? { ...quietBtn, height: 26 } : { ...glassBtn, padding: "3px 9px", fontSize: 10.5 }}
                 >
-                  {allStaged ? "Unstage all" : "Stage all"}
+                  {t(allStaged ? "git.commit.unstageAll" : "git.commit.stageAll")}
                 </button>
               </div>
             }
           >
-            Uncommitted changes
+            {t("git.commit.uncommittedChanges")}
           </Eyebrow>
 
           <div
@@ -906,7 +907,7 @@ export function CommitDialog({ open, onClose, workDir, hideCreatePrButton = fals
                   color: TOK.fg.mut,
                 }}
               >
-                {status === null ? "Loading changes…" : "No uncommitted changes"}
+                {t(status === null ? "git.commit.loadingChanges" : "git.commit.noUncommittedChanges")}
               </div>
             ) : (
               files.map((f) => (
@@ -933,7 +934,7 @@ export function CommitDialog({ open, onClose, workDir, hideCreatePrButton = fals
                       fontVariantNumeric: "tabular-nums",
                     }}
                   >
-                    {committedFiles.length} file{committedFiles.length !== 1 ? "s" : ""} ·{" "}
+                    {t("git.commit.fileCount", { count: committedFiles.length })} ·{" "}
                     <span style={{ color: ink.add }}>
                       +{committedFiles.reduce((n, f) => n + f.added, 0)}
                     </span>{" "}
@@ -948,7 +949,7 @@ export function CommitDialog({ open, onClose, workDir, hideCreatePrButton = fals
                   </span>
                 }
               >
-                Committed · unpushed
+                {t("git.commit.committedUnpushed")}
               </Eyebrow>
               <div
                 style={{
@@ -1017,14 +1018,14 @@ export function CommitDialog({ open, onClose, workDir, hideCreatePrButton = fals
                 animation: flat ? "none" : "cd-pulse 1.6s cubic-bezier(0.16,1,0.3,1) infinite",
               }}
             />
-            {stagedCount > 0 ? "Pre-commit hooks will run" : "Existing commits will be pushed"}
+            {t(stagedCount > 0 ? "git.commit.preCommitHooksWillRun" : "git.commit.existingCommitsWillBePushed")}
           </div>
           <button
             onClick={handleClose}
             className={flat ? "fx-quiet" : undefined}
             style={flat ? quietBtnLg : glassBtn}
           >
-            Cancel
+            {t("git.commit.cancel")}
           </button>
           <button
             disabled={!canCommit}
@@ -1039,7 +1040,7 @@ export function CommitDialog({ open, onClose, workDir, hideCreatePrButton = fals
             }}
           >
             <GitCommitHorizontal size={flat ? 14 : 13} />
-            {stagedCount > 0 ? `Commit (${stagedCount})` : "Commit"}
+            {stagedCount > 0 ? t("git.commit.commitCount", { count: stagedCount }) : t("git.commit.commit")}
           </button>
           <button
             disabled={!canPush}
@@ -1052,7 +1053,7 @@ export function CommitDialog({ open, onClose, workDir, hideCreatePrButton = fals
             }}
           >
             <ArrowUp size={flat ? 14 : 13} />
-            {stagedCount > 0 ? "Commit + Push" : "Push"}
+            {t(stagedCount > 0 ? "git.commit.commitAndPush" : "git.commit.push")}
           </button>
           {!isOnMainOrMaster && !hideCreatePrButton && (
             <button
@@ -1064,10 +1065,10 @@ export function CommitDialog({ open, onClose, workDir, hideCreatePrButton = fals
                 opacity: canCommit ? 1 : 0.35,
                 pointerEvents: canCommit ? "auto" : "none",
               }}
-              title="Commits, pushes, and opens a pull request"
+              title={t("git.commit.createPrTitle")}
             >
               <GitPullRequest size={13} />
-              Create PR
+              {t("git.commit.createPr")}
             </button>
           )}
         </div>
@@ -1128,7 +1129,7 @@ export function CommitDialog({ open, onClose, workDir, hideCreatePrButton = fals
         {progressTitle(action)}
       </div>
       <div style={{ fontSize: flat ? 12.5 : 11, color: TOK.fg.mut, marginBottom: 18 }}>
-        Hold tight, this may take a few moments…
+        {t("git.commit.progressMessage")}
       </div>
       <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
         {steps.map((s, i) => (
@@ -1235,7 +1236,7 @@ export function CommitDialog({ open, onClose, workDir, hideCreatePrButton = fals
         </div>
         <button
           onClick={handleClose}
-          aria-label="Close commit dialog"
+          aria-label={t("git.commit.closeDialog")}
           style={{
             width: 26,
             height: 26,
@@ -1264,7 +1265,7 @@ export function CommitDialog({ open, onClose, workDir, hideCreatePrButton = fals
 
       {/* Body — uses the same Eyebrow + boxed-list chrome as the form */}
       <div style={{ padding: "4px 20px 16px" }}>
-        <Eyebrow>Summary</Eyebrow>
+        <Eyebrow>{t("git.commit.summary")}</Eyebrow>
         <div
           style={{
             background: "var(--glass-card)",
@@ -1285,7 +1286,7 @@ export function CommitDialog({ open, onClose, workDir, hideCreatePrButton = fals
               fontSize: 12,
             }}
           >
-            <span style={{ color: TOK.fg.mut }}>Branch</span>
+            <span style={{ color: TOK.fg.mut }}>{t("git.commit.branch")}</span>
             <span
               style={{
                 color: TOK.fg.sec,
@@ -1307,7 +1308,7 @@ export function CommitDialog({ open, onClose, workDir, hideCreatePrButton = fals
               fontSize: 12,
             }}
           >
-            <span style={{ color: TOK.fg.mut }}>Changes</span>
+            <span style={{ color: TOK.fg.mut }}>{t("git.commit.changes")}</span>
             <span
               style={{
                 color: TOK.fg.sec,
@@ -1317,7 +1318,7 @@ export function CommitDialog({ open, onClose, workDir, hideCreatePrButton = fals
               }}
             >
               <span>
-                {summaryStagedCount} file{summaryStagedCount !== 1 ? "s" : ""}
+                {t("git.commit.fileCount", { count: summaryStagedCount })}
               </span>
               {summaryTotals.add > 0 && (
                 <span style={{ color: ink.add, fontVariantNumeric: "tabular-nums" }}>+{summaryTotals.add}</span>
@@ -1346,12 +1347,12 @@ export function CommitDialog({ open, onClose, workDir, hideCreatePrButton = fals
           <button
             type="button"
             onClick={() => void openCommitOnGithub()}
-            aria-label="View commit on GitHub"
+            aria-label={t("git.commit.viewCommitOnGithub")}
             className={flat ? "fx-quiet" : undefined}
             style={flat ? quietBtnLg : { ...glassBtn, padding: "8px 14px" }}
           >
             <ExternalLink size={12} />
-            View commit
+            {t("git.commit.viewCommit")}
           </button>
         ) : (
           <span />
@@ -1361,7 +1362,7 @@ export function CommitDialog({ open, onClose, workDir, hideCreatePrButton = fals
           className={flat ? "fx-quiet" : undefined}
           style={flat ? quietBtnLg : { ...glassBtn, padding: "8px 14px" }}
         >
-          Close
+          {t("git.commit.close")}
         </button>
       </div>
     </>
@@ -1416,7 +1417,7 @@ export function CommitDialog({ open, onClose, workDir, hideCreatePrButton = fals
             : { fontSize: 15, fontWeight: 600, color: "var(--text-primary)", marginBottom: 8 }
         }
       >
-        Something went wrong
+        {t("git.commit.somethingWentWrong")}
       </div>
       <div
         style={{
@@ -1444,7 +1445,7 @@ export function CommitDialog({ open, onClose, workDir, hideCreatePrButton = fals
               : { ...glassBtn, flex: 1, justifyContent: "center", padding: "10px 14px" }
           }
         >
-          Back
+          {t("git.commit.back")}
         </button>
         <button
           onClick={handleClose}
@@ -1455,7 +1456,7 @@ export function CommitDialog({ open, onClose, workDir, hideCreatePrButton = fals
               : { ...glassBtn, flex: 1, justifyContent: "center", padding: "10px 14px" }
           }
         >
-          Close
+          {t("git.commit.close")}
         </button>
       </div>
     </div>

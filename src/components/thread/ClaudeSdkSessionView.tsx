@@ -74,6 +74,7 @@ import { mapSdkEventToSessionEvent } from "../../lib/sdkSessionAdapter";
 import type { Effect, SessionEvent } from "../../lib/sessionStateMachine";
 import { sendNotification } from "../../lib/notifications";
 import { markTurnStart } from "../../lib/agentToast";
+import { localeTag, t as translate, useT } from "../../i18n";
 import { cleanMessageContent } from "../../lib/messageFilters";
 import { useUiStore } from "../../stores/uiStore";
 import { useThreadStore } from "../../stores/threadStore";
@@ -283,9 +284,12 @@ function normalizeAskQuestions(raw: unknown): AskQuestion[] {
 /** Convert agent_log rows into renderable ClaudeChatItem[]. Shared by initial load and pagination. */
 // Curated verb pool from the "claude-thinking-ambient" design exploration (variant A1).
 // Cycles in order rather than randomly — matches the design's intentional, calm cadence.
-const WORKING_VERBS = [
-  "Thinking", "Mulling", "Considering", "Weighing", "Untangling",
-  "Composing", "Reasoning", "Drafting", "Reaching", "Turning it over",
+const WORKING_VERB_KEYS = [
+  "session.sdk.workingVerb.thinking", "session.sdk.workingVerb.mulling",
+  "session.sdk.workingVerb.considering", "session.sdk.workingVerb.weighing",
+  "session.sdk.workingVerb.untangling", "session.sdk.workingVerb.composing",
+  "session.sdk.workingVerb.reasoning", "session.sdk.workingVerb.drafting",
+  "session.sdk.workingVerb.reaching", "session.sdk.workingVerb.turningItOver",
 ];
 
 const STARBURST_AMBER = "#fb923c";
@@ -305,18 +309,19 @@ function sameTurnMapping(a: Record<string, string>, b: Record<string, string>): 
 }
 
 function SdkThinkingIndicator({ usage }: { usage?: { inputTokens: number; outputTokens: number; cacheCreationTokens: number; cacheReadTokens: number } | null }) {
+  const t = useT();
   const [verbIdx, setVerbIdx] = useState(0);
   const appForeground = useAppForeground();
 
   useEffect(() => {
     if (!appForeground) return;
     const interval = setInterval(() => {
-      setVerbIdx((i) => (i + 1) % WORKING_VERBS.length);
+      setVerbIdx((i) => (i + 1) % WORKING_VERB_KEYS.length);
     }, 2400);
     return () => clearInterval(interval);
   }, [appForeground]);
 
-  const verb = WORKING_VERBS[verbIdx];
+  const verb = t(WORKING_VERB_KEYS[verbIdx]);
   const totalTokens = usage ? usage.inputTokens + usage.outputTokens : 0;
 
   return (
@@ -330,9 +335,9 @@ function SdkThinkingIndicator({ usage }: { usage?: { inputTokens: number; output
       </span>
       {totalTokens > 0 && (
         <span className="ml-auto text-[11px] tabular-nums text-white/20">
-          {usage!.inputTokens.toLocaleString()} in · {usage!.outputTokens.toLocaleString()} out
+          {usage!.inputTokens.toLocaleString(localeTag())} {t("session.sdk.tokens.in")} · {usage!.outputTokens.toLocaleString(localeTag())} {t("session.sdk.tokens.out")}
           {(usage!.cacheReadTokens > 0 || usage!.cacheCreationTokens > 0) && (
-            <> · {usage!.cacheReadTokens > 0 && <>{usage!.cacheReadTokens.toLocaleString()} cache read</>}{usage!.cacheReadTokens > 0 && usage!.cacheCreationTokens > 0 && " · "}{usage!.cacheCreationTokens > 0 && <>{usage!.cacheCreationTokens.toLocaleString()} cache write</>}</>
+            <> · {usage!.cacheReadTokens > 0 && <>{usage!.cacheReadTokens.toLocaleString(localeTag())} {t("session.sdk.tokens.cacheRead")}</>}{usage!.cacheReadTokens > 0 && usage!.cacheCreationTokens > 0 && " · "}{usage!.cacheCreationTokens > 0 && <>{usage!.cacheCreationTokens.toLocaleString(localeTag())} {t("session.sdk.tokens.cacheWrite")}</>}</>
           )}
         </span>
       )}
@@ -363,6 +368,7 @@ function SdkVirtuosoHeader({ context }: { context?: SdkVirtuosoContext }) {
 }
 
 function SdkCompactingIndicator() {
+  const t = useT();
   return (
     <div className="flex min-w-0 items-center gap-2 py-2 animate-glass-in">
       <div className="relative flex h-9 w-9 items-center justify-center">
@@ -371,7 +377,7 @@ function SdkCompactingIndicator() {
       <span className="min-w-0 truncate text-sm font-medium text-amber-300/90 tracking-wide animate-pulse"
         style={{ animationDuration: "2s" }}
       >
-        Compacting context…
+        {t("session.sdk.compactingContext")}
       </span>
     </div>
   );
@@ -513,6 +519,7 @@ function finalizePendingTools(items: ClaudeChatItem[]): ClaudeChatItem[] {
 const sdkSlashCommandsCache = new Map<string, string[]>();
 
 export function ClaudeSdkSessionView({ sessionId, cwd, isNew, compact, hideTopBar, transport: providedTransport, renderThinkingIndicator, externalSessionReady, providerOverride, bypassActive: bypassActiveProp, onToggleBypass, bypassTooltip, externalContextUsage, initialPermissionMode, initialPlanMode }: Props) {
+  const t = useT();
   const transport = providedTransport ?? claudeTransport;
   // When a non-Claude transport is supplied (e.g. MLX), the parent component
   // owns session lifecycle and uses its own backend. Calling Claude SDK
@@ -792,11 +799,25 @@ export function ClaudeSdkSessionView({ sessionId, cwd, isNew, compact, hideTopBa
           }
           break;
         }
-        case "send_notification":
+        case "send_notification": {
           // OS / history only — agent-complete toast is driven by the
           // sessionFinishedAt watcher when set_processing(false) stamps.
-          sendNotification(effect.title, effect.body, { threadId: sessionId });
+          if (effect.title.startsWith("agmux — ") && effect.title.endsWith(" Approval")) {
+            const tool = effect.title.slice("agmux — ".length, -" Approval".length);
+            sendNotification(translate("session.notification.approvalTitle", { tool }), effect.body, {
+              threadId: sessionId,
+              kind: "approval",
+            });
+          } else if (effect.title === "agmux — Claude Finished") {
+            sendNotification(translate("session.notification.claudeFinishedTitle"), translate("session.notification.claudeFinishedBody"), {
+              threadId: sessionId,
+              kind: "complete",
+            });
+          } else {
+            sendNotification(effect.title, effect.body, { threadId: sessionId });
+          }
           break;
+        }
         case "summarize_prompt":
           if (effect.text) {
             useSessionNameStore.getState().summarize(sessionId, effect.text, "sdk");
@@ -804,7 +825,7 @@ export function ClaudeSdkSessionView({ sessionId, cwd, isNew, compact, hideTopBa
           break;
       }
     }
-  }, [sessionId]);
+  }, [sessionId, t]);
 
   const dispatchStateMachineEvent = useCallback((event: SessionEvent) => {
     const effects = useUiStore.getState().transitionSession(sessionId, event);
@@ -1313,7 +1334,7 @@ export function ClaudeSdkSessionView({ sessionId, cwd, isNew, compact, hideTopBa
             errStr.includes("ProcessTransport is not ready"));
         if (recoverable) {
           appendSystemMessage(
-            "Couldn't resume the previous Claude session in this worktree — started a fresh one. Your chat history above is preserved but the agent won't have memory of it.",
+            `${translate("session.sdk.resumeFailedFirstSentence")} ${translate("session.sdk.resumeFailedSecondSentence")}`,
           );
           // Match the runtime-recovery pattern at the "error" SDK event below:
           // stop any partially-registered session on the bridge before spawning
@@ -2084,7 +2105,7 @@ export function ClaudeSdkSessionView({ sessionId, cwd, isNew, compact, hideTopBa
           setMessages((prev) => {
             const lastUser = [...prev].reverse().find((m) => m.itemType === "UserMessage");
             if (lastUser && lastUser.content.trim() === "/clear") {
-              return [{ itemType: "SystemMessage" as const, text: "Conversation cleared.", timestamp: new Date().toISOString(), uuid: crypto.randomUUID() }];
+              return [{ itemType: "SystemMessage" as const, text: translate("session.sdk.conversationCleared"), timestamp: new Date().toISOString(), uuid: crypto.randomUUID() }];
             }
             return prev;
           });
@@ -2164,7 +2185,7 @@ export function ClaudeSdkSessionView({ sessionId, cwd, isNew, compact, hideTopBa
         }
 
         case "task.started": {
-          const desc = sdkEvent.description || "Background task started";
+          const desc = sdkEvent.description || translate("session.sdk.backgroundTaskStarted");
           const taskId = sdkEvent.taskId;
 
           if (taskId) {
@@ -2247,7 +2268,7 @@ export function ClaudeSdkSessionView({ sessionId, cwd, isNew, compact, hideTopBa
         }
 
         case "rate.limit": {
-          const msg = sdkEvent.message ?? "Rate limit reached";
+          const msg = sdkEvent.message ?? translate("session.sdk.rateLimitReached");
           setRateLimitWarning(msg);
           appendSystemMessage(msg);
           // Auto-dismiss after 30s
@@ -2308,11 +2329,11 @@ export function ClaudeSdkSessionView({ sessionId, cwd, isNew, compact, hideTopBa
             // after auto-compact and the silent restart is fine.
             if (isNoConversation && pendingRetrySendRef.current) {
               appendSystemMessage(
-                "Session transcript expired — starting a fresh session. Your message will be resent.",
+                `${translate("session.sdk.transcriptExpired")} ${translate("session.sdk.messageWillBeResent")}`,
               );
             } else if (isProcessExited) {
               appendSystemMessage(
-                "Couldn't resume the previous Claude session in this worktree — started a fresh one. Your chat history above is preserved but the agent won't have memory of it.",
+                `${translate("session.sdk.resumeFailedFirstSentence")} ${translate("session.sdk.resumeFailedSecondSentence")}`,
               );
             }
 
@@ -2357,7 +2378,7 @@ export function ClaudeSdkSessionView({ sessionId, cwd, isNew, compact, hideTopBa
           setIsWorking(false);
           useThreadStore.getState().updateThreadStatus(sessionId, "Error");
           setErrorMessage(sdkEvent.message);
-          appendSystemMessage(sdkEvent.message ?? "Unknown error");
+          appendSystemMessage(sdkEvent.message ?? translate("session.common.unknownError"));
           break;
         }
       }
@@ -3288,7 +3309,7 @@ export function ClaudeSdkSessionView({ sessionId, cwd, isNew, compact, hideTopBa
                           type="button"
                           onClick={() => handleForkFromMessage(msgIndex, item.content)}
                           className={PROMPT_ACTION_BTN}
-                          title="Edit & branch from this message"
+                          title={t("session.sdk.editAndBranch")}
                         >
                           <Pencil size={13} />
                         </button>
@@ -3415,14 +3436,14 @@ export function ClaudeSdkSessionView({ sessionId, cwd, isNew, compact, hideTopBa
               <div className="flex items-center gap-3 text-[11px] text-white/20">
                 <div className="flex-1 border-t border-white/[0.04]" />
                 <span>
-                  {item.input_tokens.toLocaleString()} in · {item.output_tokens.toLocaleString()} out
+                  {item.input_tokens.toLocaleString(localeTag())} {t("session.sdk.tokens.in")} · {item.output_tokens.toLocaleString(localeTag())} {t("session.sdk.tokens.out")}
                   {(item.cache_read_input_tokens > 0 || item.cache_creation_input_tokens > 0) && (
                     <>
-                      {item.cache_read_input_tokens > 0 && ` · ${item.cache_read_input_tokens.toLocaleString()} cache read`}
-                      {item.cache_creation_input_tokens > 0 && ` · ${item.cache_creation_input_tokens.toLocaleString()} cache write`}
+                      {item.cache_read_input_tokens > 0 && ` · ${item.cache_read_input_tokens.toLocaleString(localeTag())} ${t("session.sdk.tokens.cacheRead")}`}
+                      {item.cache_creation_input_tokens > 0 && ` · ${item.cache_creation_input_tokens.toLocaleString(localeTag())} ${t("session.sdk.tokens.cacheWrite")}`}
                     </>
                   )}
-                  {` · Turn ${item.num_turns}`}
+                  {` · ${t("session.sdk.turnNumber", { count: item.num_turns, value: item.num_turns.toLocaleString(localeTag()) })}`}
                 </span>
                 <div className="flex-1 border-t border-white/[0.04]" />
               </div>
@@ -3448,11 +3469,11 @@ export function ClaudeSdkSessionView({ sessionId, cwd, isNew, compact, hideTopBa
                   onClick={() => setCompactedExpanded((prev) => !prev)}
                   className="flex items-center gap-1.5 rounded-full border border-amber-400/15 bg-amber-400/[0.06] px-3 py-1 hover:bg-amber-400/10 transition-colors"
                 >
-                  <span>Context compacted</span>
+                  <span>{t("session.sdk.contextCompacted")}</span>
                   {item.preTokens != null && (
-                    <span className="text-white/25">· {item.preTokens.toLocaleString()} tokens</span>
+                    <span className="text-white/25">· {t("session.sdk.tokenCount", { count: item.preTokens, value: item.preTokens.toLocaleString(localeTag()) })}</span>
                   )}
-                  <span className="text-white/30">{compactedExpanded ? "▲ Hide" : "▼ Show"} earlier</span>
+                  <span className="text-white/30">{compactedExpanded ? t("session.sdk.hideEarlier") : t("session.sdk.showEarlier")}</span>
                 </button>
                 <div className="flex-1 border-t border-amber-400/15" />
               </div>
@@ -3477,7 +3498,7 @@ export function ClaudeSdkSessionView({ sessionId, cwd, isNew, compact, hideTopBa
           return null;
       }
     },
-    [sessionId, cwd, isWorking, handleForkFromMessage, getBackgroundTask, compactedExpanded, isCowork, turnIdByUserUuid],
+    [sessionId, cwd, isWorking, handleForkFromMessage, getBackgroundTask, compactedExpanded, isCowork, turnIdByUserUuid, t],
   );
 
   const renderMessage = useCallback(
@@ -3498,12 +3519,12 @@ export function ClaudeSdkSessionView({ sessionId, cwd, isNew, compact, hideTopBa
           >
             <CodexToolRow
               icon={<Sparkles size={13} />}
-              lead={`Thought for ${formatTurnDuration(entry.durationMs)}`}
+              lead={t("session.common.thoughtFor", { duration: formatTurnDuration(entry.durationMs) })}
               tone="thinking"
               toggle={{
                 open,
-                openLabel: "hide",
-                closedLabel: `${entry.items.length} step${entry.items.length === 1 ? "" : "s"}`,
+                openLabel: t("session.common.hide"),
+                closedLabel: t("session.common.stepCount", { count: entry.items.length, value: entry.items.length.toLocaleString(localeTag()) }),
                 onToggle: () =>
                   setExpandedTurns((prev) => ({ ...prev, [entry.id]: !prev[entry.id] })),
               }}
@@ -3523,7 +3544,7 @@ export function ClaudeSdkSessionView({ sessionId, cwd, isNew, compact, hideTopBa
       const glassIn = isFirstRender ? " animate-glass-in" : "";
       return chrome(renderChatItem(item, glassIn));
     },
-    [expandedTurns, renderChatItem],
+    [expandedTurns, renderChatItem, t],
   );
 
   // Hide live presentation chrome (thinking spinner / verb cycle) while this
@@ -3562,7 +3583,7 @@ export function ClaudeSdkSessionView({ sessionId, cwd, isNew, compact, hideTopBa
       {isDragging && (
         <div className="drag-drop-overlay pointer-events-none absolute inset-0 z-30 flex items-center justify-center rounded-lg border-2 border-dashed border-blue-500/50 bg-blue-500/10 backdrop-blur-sm">
           <p className="text-sm font-medium text-blue-400">
-            Drop files — images attach, other files paste their path
+            {t("session.sdk.dropFiles")}
           </p>
         </div>
       )}
@@ -3571,7 +3592,7 @@ export function ClaudeSdkSessionView({ sessionId, cwd, isNew, compact, hideTopBa
       {rateLimitWarning && (
         <div className="rate-limit-banner absolute inset-x-0 top-0 z-30 flex items-center justify-between border-b border-amber-500/30 bg-amber-950/30 px-4 py-2 backdrop-blur-sm">
           <span className="text-xs text-amber-300">{rateLimitWarning}</span>
-          <button onClick={() => setRateLimitWarning(null)} className="text-xs text-zinc-400 hover:text-zinc-200">Dismiss</button>
+          <button onClick={() => setRateLimitWarning(null)} className="text-xs text-zinc-400 hover:text-zinc-200">{t("session.common.dismiss")}</button>
         </div>
       )}
 
@@ -3630,12 +3651,12 @@ export function ClaudeSdkSessionView({ sessionId, cwd, isNew, compact, hideTopBa
             <div className="mx-auto max-w-[780px] w-full px-6 mt-4 animate-glass-in">
               <div className="flex items-center gap-2.5 rounded-2xl border border-red-500/15 bg-red-500/[0.07] px-4 py-3 text-sm text-red-300/90">
                 <AlertTriangle size={14} className="shrink-0" />
-                <span className="flex-1 truncate">{errorMessage ?? "SDK session error"}</span>
+                <span className="flex-1 truncate">{errorMessage ?? t("session.sdk.error")}</span>
                 <button
                   onClick={handleRestart}
                   className="flex items-center gap-1.5 rounded-lg border border-red-500/20 bg-red-500/10 px-3 py-1.5 text-xs text-red-300 hover:bg-red-500/20 transition-colors"
                 >
-                  <RotateCcw size={12} /> Restart
+                  <RotateCcw size={12} /> {t("session.common.restart")}
                 </button>
               </div>
             </div>
@@ -3658,7 +3679,7 @@ export function ClaudeSdkSessionView({ sessionId, cwd, isNew, compact, hideTopBa
                 {renderableMessages.length === 0 && !isWorking ? (
                   <div className="flex h-full flex-col items-center justify-center gap-3 text-zinc-400">
                     <Bot size={32} className="text-zinc-700" />
-                    <p className="text-sm">No messages yet. Start typing to begin.</p>
+                    <p className="text-sm">{t("session.empty.noMessagesYet")} {t("session.empty.startTypingToBegin")}</p>
                   </div>
                 ) : (
                   <Virtuoso
@@ -3688,7 +3709,7 @@ export function ClaudeSdkSessionView({ sessionId, cwd, isNew, compact, hideTopBa
                     className="absolute bottom-3 left-1/2 z-20 flex -translate-x-1/2 items-center gap-1.5 rounded-full border border-white/10 bg-zinc-800/90 px-3 py-1.5 text-xs text-white/60 shadow-lg backdrop-blur transition-all hover:bg-zinc-700 hover:text-white/90"
                   >
                     <ChevronDown size={14} />
-                    Jump to latest
+                  {t("session.common.jumpToLatest")}
                   </button>
                 )}
               </div>

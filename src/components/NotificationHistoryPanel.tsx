@@ -4,20 +4,22 @@ import { Bell, X, Trash2, CheckCheck } from "lucide-react";
 import { useNotificationHistoryStore } from "../stores/notificationHistoryStore";
 import { useUiStore } from "../stores/uiStore";
 import { navigateToSession } from "../lib/navigateToSession";
+import { t as translate, useT } from "../i18n";
 
 function relativeTime(ts: number): string {
   const diff = Date.now() - ts;
   const secs = Math.floor(diff / 1000);
-  if (secs < 60) return "just now";
+  if (secs < 60) return translate("notify.history.justNow");
   const mins = Math.floor(secs / 60);
-  if (mins < 60) return `${mins}m ago`;
+  if (mins < 60) return translate("notify.history.minutesAgo", { count: mins });
   const hrs = Math.floor(mins / 60);
-  if (hrs < 24) return `${hrs}h ago`;
+  if (hrs < 24) return translate("notify.history.hoursAgo", { count: hrs });
   const days = Math.floor(hrs / 24);
-  return `${days}d ago`;
+  return translate("notify.history.daysAgo", { count: days });
 }
 
 export function NotificationHistoryPanel() {
+  const t = useT();
   const open = useUiStore((s) => s.showNotificationHistory);
   const setOpen = useUiStore((s) => s.setShowNotificationHistory);
   const entries = useNotificationHistoryStore((s) => s.entries);
@@ -79,7 +81,7 @@ export function NotificationHistoryPanel() {
           <div className="flex items-center gap-2">
             <Bell size={14} className="text-zinc-400" />
             <span id="notification-history-title" className="text-sm font-medium text-zinc-200">
-              Notifications
+              {t("notify.history.title")}
             </span>
             {unreadCount > 0 && (
               <span className="rounded-full bg-blue-600 px-1.5 py-0.5 text-[10px] font-medium text-white fx-accent">
@@ -93,16 +95,16 @@ export function NotificationHistoryPanel() {
                 <button
                   onClick={markAllRead}
                   className="rounded p-1 text-zinc-500 hover:bg-white/5 hover:text-zinc-300 transition-colors"
-                  title="Mark all read"
-                  aria-label="Mark all notifications as read"
+                  title={t("notify.history.markAllRead.title")}
+                  aria-label={t("notify.history.markAllRead.aria")}
                 >
                   <CheckCheck size={13} />
                 </button>
                 <button
                   onClick={clearHistory}
                   className="rounded p-1 text-zinc-500 hover:bg-white/5 hover:text-red-400 transition-colors"
-                  title="Clear all"
-                  aria-label="Clear all notifications"
+                  title={t("notify.history.clearAll.title")}
+                  aria-label={t("notify.history.clearAll.aria")}
                 >
                   <Trash2 size={13} />
                 </button>
@@ -111,7 +113,7 @@ export function NotificationHistoryPanel() {
             <button
               onClick={() => setOpen(false)}
               className="rounded p-1 text-zinc-500 hover:bg-white/5 hover:text-zinc-300 transition-colors"
-              aria-label="Close notifications"
+              aria-label={t("notify.history.close")}
             >
               <X size={14} />
             </button>
@@ -122,7 +124,7 @@ export function NotificationHistoryPanel() {
           {entries.length === 0 ? (
             <div className="flex flex-col items-center justify-center gap-2 py-10">
               <Bell size={24} className="text-zinc-700" />
-              <p className="text-sm text-zinc-500">No notifications yet</p>
+              <p className="text-sm text-zinc-500">{t("notify.history.empty")}</p>
             </div>
           ) : (
             entries.map((entry) => {
@@ -147,7 +149,7 @@ export function NotificationHistoryPanel() {
                   className={`border-b border-white/[0.04] px-4 py-3 transition-colors ${
                     entry.read ? "bg-transparent" : "bg-blue-500/[0.04]"
                   } ${canOpen ? "cursor-pointer hover:bg-white/[0.03]" : ""}`}
-                  title={canOpen ? "Open thread" : undefined}
+                  title={canOpen ? t("notify.history.openThread") : undefined}
                 >
                   <div className="flex items-start justify-between gap-2">
                     <div className="flex-1 min-w-0">

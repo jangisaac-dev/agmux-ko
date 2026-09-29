@@ -7,8 +7,10 @@ import { AddMcpServerDialog } from "./AddMcpServerDialog";
 import { handleWindowDragStart } from "../../lib/windowDrag";
 import claudeIcon from "../../assets/claude-ai-icon.svg";
 import chatgptIcon from "../../assets/chatgpt-icon.svg";
+import { useT } from "../../i18n";
 
 export function SkillsMainPanel() {
+  const t = useT();
   const skills = useSkillsStore((s) => s.skills);
   const loading = useSkillsStore((s) => s.loading);
   const error = useSkillsStore((s) => s.error);
@@ -88,7 +90,7 @@ export function SkillsMainPanel() {
       <div className="flex h-full flex-col items-center justify-center gap-3 panel-bg">
         <div data-tauri-drag-region className="absolute inset-x-0 top-0 h-7" onMouseDown={handleWindowDragStart} />
         <Loader2 size={24} className="animate-spin text-zinc-400" />
-        <span className="text-sm text-zinc-400">Loading skills...</span>
+        <span className="text-sm text-zinc-400">{t("chat.skills.loading")}</span>
       </div>
     );
   }
@@ -98,12 +100,12 @@ export function SkillsMainPanel() {
       <div className="flex h-full flex-col items-center justify-center gap-3 panel-bg">
         <div data-tauri-drag-region className="absolute inset-x-0 top-0 h-7" onMouseDown={handleWindowDragStart} />
         <AlertCircle size={24} className="text-red-400/60" />
-        <span className="text-sm text-zinc-400">Failed to load skills</span>
+        <span className="text-sm text-zinc-400">{t("chat.skills.loadFailed")}</span>
         <button
           onClick={fetchSkills}
           className="rounded-md bg-zinc-800 px-4 py-1.5 text-xs font-medium text-zinc-300 transition-colors hover:bg-zinc-700"
         >
-          Retry
+          {t("chat.skills.retry")}
         </button>
       </div>
     );
@@ -121,9 +123,9 @@ export function SkillsMainPanel() {
             <Puzzle size={20} className="text-blue-400" />
           </div>
           <div>
-            <h1 className="text-lg font-semibold text-zinc-100">Skills</h1>
+            <h1 className="text-lg font-semibold text-zinc-100">{t("chat.skills.title")}</h1>
             <p className="text-xs text-zinc-400">
-              Extend Claude Code with plugins, agents, and integrations
+              {t("chat.skills.description")}
             </p>
           </div>
         </div>
@@ -138,7 +140,7 @@ export function SkillsMainPanel() {
               <div className="flex flex-col items-center justify-center py-16 text-zinc-500">
                 <Puzzle size={32} strokeWidth={1} className="mb-3 opacity-40" />
                 <span className="text-sm">
-                  {searchQuery.trim() ? "No matching skills" : "No skills in this category"}
+                  {searchQuery.trim() ? t("chat.skills.noMatchingSkills") : t("chat.skills.noSkillsCategory")}
                 </span>
               </div>
             ) : (
@@ -169,7 +171,7 @@ export function SkillsMainPanel() {
             <div className="mb-4 flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <Server size={16} className="text-zinc-400" />
-                <h2 className="text-sm font-semibold text-zinc-200">MCP Servers</h2>
+                <h2 className="text-sm font-semibold text-zinc-200">{t("chat.skills.mcpServers")}</h2>
                 <span className="rounded-full bg-zinc-800 px-2 py-0.5 text-[10px] font-medium text-zinc-400">
                   {filteredMcp.length}
                 </span>
@@ -182,7 +184,7 @@ export function SkillsMainPanel() {
                   onClick={fetchMcpServers}
                   disabled={mcpLoading || mcpLoading}
                   className="flex items-center gap-1.5 rounded-lg border border-white/[0.06] bg-zinc-800/60 px-2.5 py-1.5 text-xs font-medium text-zinc-400 transition-colors hover:border-white/[0.1] hover:bg-zinc-700/60 hover:text-zinc-300"
-                  title="Refresh"
+                  title={t("chat.skills.refresh")}
                 >
                   <RefreshCw size={12} className={mcpLoading ? "animate-spin" : ""} />
                 </button>
@@ -191,7 +193,7 @@ export function SkillsMainPanel() {
                   className="flex items-center gap-1.5 rounded-lg border border-white/[0.06] bg-zinc-800/60 px-3 py-1.5 text-xs font-medium text-zinc-300 transition-colors hover:border-white/[0.1] hover:bg-zinc-700/60 hover:text-zinc-100"
                 >
                   <Plus size={12} />
-                  Add Server
+                  {t("chat.skills.addServer")}
                 </button>
               </div>
             </div>
@@ -209,14 +211,14 @@ export function SkillsMainPanel() {
                 <div className="flex flex-col items-center justify-center py-8 text-zinc-500">
                   <Server size={24} strokeWidth={1} className="mb-2 opacity-40" />
                   <span className="text-xs">
-                    {searchQuery.trim() ? "No matching servers" : "No Claude Code MCP servers configured"}
+                    {searchQuery.trim() ? t("chat.skills.noMatchingServers") : t("chat.skills.noClaudeMcpServers")}
                   </span>
                   {!searchQuery.trim() && (
                     <button
                       onClick={() => setShowAddMcp(true)}
                       className="mt-2 rounded-lg bg-blue-600/20 px-3 py-1 text-xs font-medium text-blue-400 transition-colors hover:bg-blue-600/30"
                     >
-                      Add your first server
+                      {t("chat.skills.addFirstServer")}
                     </button>
                   )}
                 </div>
@@ -247,7 +249,7 @@ export function SkillsMainPanel() {
                 <div className="flex flex-col items-center justify-center py-8 text-zinc-500">
                   <Server size={24} strokeWidth={1} className="mb-2 opacity-40" />
                   <span className="text-xs">
-                    {mcpLoading ? "Loading..." : "No Codex MCP servers configured"}
+                    {mcpLoading ? t("chat.skills.loading") : t("chat.skills.noCodexMcpServers")}
                   </span>
                 </div>
               ) : (

@@ -78,6 +78,7 @@ import {
   SEND_BTN_ACTIVE,
   SEND_BTN_IDLE,
 } from "./composerChrome";
+import { useT } from "../../i18n";
 import {
   densityIsCompact,
   useComposerDensity,
@@ -128,6 +129,7 @@ interface Props {
 }
 
 export function DraftChatView({ draft }: Props) {
+  const t = useT();
   const defaultProvider = useSettingsStore((s) => s.settings.defaultProvider);
   const lastUsedModel = useSettingsStore((s) => s.settings.lastUsedModel);
   const lastUsedEffort = useSettingsStore((s) => s.settings.lastUsedEffort);
@@ -667,8 +669,8 @@ export function DraftChatView({ draft }: Props) {
       : provider === "Gemini" ? (selectedEffort === "xhigh" || selectedEffort === "max" ? null : selectedEffort)
       : isClaude ? selectedEffort : null,
   };
-  const restrictionError = teams.loading ? "Loading team restrictions…" : teams.error
-    ?? (teams.policy ? teamRestrictionReason(teams.policy, restrictionChoice) : "Team restrictions are unavailable.");
+  const restrictionError = teams.loading ? t("chat.draft.loadingTeamRestrictions") : teams.error
+    ?? (teams.policy ? teamRestrictionReason(teams.policy, restrictionChoice) : t("chat.draft.teamRestrictionsUnavailable"));
 
   const handleSubmit = useCallback(async () => {
     const trimmed = input.trim();
@@ -701,7 +703,7 @@ export function DraftChatView({ draft }: Props) {
           projectId: draft.projectId,
           name:
             claudeProfile === "cowork"
-              ? "New Claude Cowork Thread"
+              ? t("chat.draft.newClaudeCoworkThread")
               : defaultThreadName(provider),
           provider,
           model: selectedModel,
@@ -745,7 +747,7 @@ export function DraftChatView({ draft }: Props) {
         const workPrompt = isCoworkDraft ? CHATGPT_WORK_SYSTEM_PROMPT : null;
         const result = await codexStartThread(draft.repoPath, codexModelForOverride, workPrompt) as { thread?: { id?: string } };
         const threadId = result?.thread?.id;
-        if (!threadId) throw new Error("Failed to create Codex thread");
+        if (!threadId) throw new Error(t("chat.draft.failedToCreateCodexThread"));
 
         // Lock the view mode: DraftChatView always opens Codex in chat-only view.
         // Mode can't be switched after creation.
@@ -810,7 +812,7 @@ export function DraftChatView({ draft }: Props) {
             await mlxGatewayStatus();
           } catch (err) {
             console.error("[draft] local model gateway failed to start", err);
-            setSubmitError(`Could not start the local model gateway: ${String(err)}`);
+            setSubmitError(t("chat.draft.gatewayStartFailed", { message: String(err) }));
             return;
           }
         }
@@ -856,7 +858,7 @@ export function DraftChatView({ draft }: Props) {
         const cap = await mlxCapability().catch(() => null);
         const resolvedModel = resolveLocalModelId(mlxModels, model);
         if (model && resolvedModel && localModelSlug(resolvedModel) !== localModelSlug(model)) {
-          setSubmitError("The selected local model is unavailable. Choose an installed model explicitly.");
+          setSubmitError(`${t("chat.draft.localModelUnavailable")} ${t("chat.draft.chooseInstalledModel")}`);
           return;
         }
         if (!resolvedModel || (cap && !cap.available)) {
@@ -872,7 +874,7 @@ export function DraftChatView({ draft }: Props) {
           await mlxGatewayStatus();
         } catch (err) {
           console.error("[draft] local model gateway failed to start", err);
-          setSubmitError(`Could not start the local model gateway: ${String(err)}`);
+          setSubmitError(t("chat.draft.gatewayStartFailed", { message: String(err) }));
           return;
         }
         const slug = localModelSlug(resolvedModel);
@@ -935,7 +937,7 @@ export function DraftChatView({ draft }: Props) {
         }
         const thread = await addThread({
           projectId: draft.projectId,
-          name: isCoworkDraft ? "New Grok Cowork Thread" : defaultThreadName(provider),
+          name: isCoworkDraft ? t("chat.draft.newGrokCoworkThread") : defaultThreadName(provider),
           provider,
           model: model ?? undefined,
           // Persist the effort on the thread so ClaudeInputBar's effort pill
@@ -1058,9 +1060,12 @@ export function DraftChatView({ draft }: Props) {
       submittingRef.current = false;
       setLoading(false);
     }
-  }, [input, loading, provider, model, selectedModel, isClaude, permissionMode, claudeProfile, isCoworkDraft, codexEffort, codexEffortOverride, codexModelOverride, codexPermissionMode, codexPlanMode, codexFastMode, opencodePermissionMode, opencodeAgent, selectedEffort, interactionMode, workMode, currentBranch, worktreeRoot, draft.projectId, draft.repoPath, addThread, startThread, selectThread, selectClaudeSession, setDraftChat, updateSettings, attachedImages, clearImages, restrictionError]);
+  }, [input, loading, provider, model, selectedModel, isClaude, permissionMode, claudeProfile, isCoworkDraft, codexEffort, codexEffortOverride, codexModelOverride, codexPermissionMode, codexPlanMode, codexFastMode, opencodePermissionMode, opencodeAgent, selectedEffort, interactionMode, workMode, currentBranch, worktreeRoot, draft.projectId, draft.repoPath, addThread, startThread, selectThread, selectClaudeSession, setDraftChat, updateSettings, attachedImages, clearImages, restrictionError, t]);
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    // IME composition (Japanese/Chinese): Enter confirms the conversion. macOS
+    // WebKit sends Korean without composition, so isComposing stays false there.
+    if (e.nativeEvent.isComposing) return;
     if (handleTextFieldCmdArrowNav(e, e.currentTarget)) return;
 
     // Slash command popup navigation
@@ -1140,26 +1145,26 @@ export function DraftChatView({ draft }: Props) {
           <div className="flex flex-1 flex-col items-center justify-center gap-3">
             {restrictionError ? (
               <div role="status" className="max-w-md rounded-lg border border-[var(--accent-border)] bg-[var(--surface-1)] px-4 py-3 text-center text-[var(--text-primary)]">
-                <div className="text-sm font-medium">Team restrictions</div>
+                <div className="text-sm font-medium">{t("chat.draft.teamRestrictions")}</div>
                 <p className="mt-1 text-xs text-[var(--text-secondary)]">{restrictionError}</p>
-                {!teams.loading && <button type="button" onClick={() => void teams.refresh()} className="mt-2 text-xs underline underline-offset-4">Refresh rules</button>}
+                {!teams.loading && <button type="button" onClick={() => void teams.refresh()} className="mt-2 text-xs underline underline-offset-4">{t("chat.draft.refreshRules")}</button>}
               </div>
             ) : submitError ? (
               <>
                 <div className="max-w-md rounded-lg border border-red-500/30 bg-red-950/20 px-4 py-3 text-center text-red-300">
-                  <div className="text-sm font-medium text-red-400">Failed to start session</div>
+                  <div className="text-sm font-medium text-red-400">{t("chat.draft.failedToStartSession")}</div>
                   <div className="mt-1 text-xs">{submitError}</div>
                 </div>
               </>
             ) : loading ? (
               <>
                 <Loader2 size={36} strokeWidth={1.2} className="text-zinc-500 animate-spin" />
-                <p className="text-sm text-zinc-500">Starting session...</p>
+                <p className="text-sm text-zinc-500">{t("chat.draft.startingSession")}</p>
               </>
             ) : (
               <>
                 <MessageSquarePlus size={36} strokeWidth={1.2} className="text-zinc-700" />
-                <p className="text-sm text-zinc-500">Send a message to get started</p>
+                <p className="text-sm text-zinc-500">{t("chat.draft.sendMessageToStart")}</p>
               </>
             )}
           </div>
@@ -1214,7 +1219,7 @@ export function DraftChatView({ draft }: Props) {
                     onFocus={() => setComposerFocused(true)}
                     onBlur={() => setComposerFocused(false)}
                     onKeyDown={handleKeyDown}
-                    placeholder="Type your message..."
+                    placeholder={t("chat.draft.messagePlaceholder")}
                     rows={1}
                     className={`composer-input w-full resize-none bg-transparent text-[15px] leading-[1.55] outline-none disabled:opacity-50 min-h-[26px] antialiased focus:ring-0 ${
                       slashCommandPrefix ? "text-blue-400 caret-white" : "text-[var(--text-primary)]"
@@ -1314,8 +1319,8 @@ export function DraftChatView({ draft }: Props) {
                         className={`${toolbarCompact ? CBTN_SQ : CBTN} ${interactionMode === "plan" ? CBTN_PLAN : ""}`}
                         title={
                           interactionMode === "plan"
-                            ? "Plan mode — click to switch to Chat"
-                            : "Chat mode — click to switch to Plan"
+                            ? t("chat.draft.planModeSwitch")
+                            : t("chat.draft.chatModeSwitch")
                         }
                       >
                         {interactionMode === "plan" ? (
@@ -1324,7 +1329,7 @@ export function DraftChatView({ draft }: Props) {
                           <Bot size={15} className="shrink-0" />
                         )}
                         {!toolbarCompact && (
-                          <span>{interactionMode === "plan" ? "Plan" : "Chat"}</span>
+                          <span>{interactionMode === "plan" ? t("chat.draft.plan") : t("chat.draft.chat")}</span>
                         )}
                       </button>
 
@@ -1343,10 +1348,10 @@ export function DraftChatView({ draft }: Props) {
                           }`}
                           title={
                             permissionMode === "full"
-                              ? "Full access — Cursor runs tools without sandbox"
+                              ? t("chat.draft.cursorFullAccessDescription")
                               : permissionMode === "auto"
-                                ? "Auto — Cursor Auto-review classifier"
-                                : "Supervised — sandboxed tool runs"
+                                ? t("chat.draft.cursorAutoDescription")
+                                : t("chat.draft.cursorSupervisedDescription")
                           }
                         >
                           {permissionMode === "full" ? (
@@ -1360,10 +1365,10 @@ export function DraftChatView({ draft }: Props) {
                             <>
                               <span>
                                 {permissionMode === "full"
-                                  ? "Full access"
+                                  ? t("chat.draft.fullAccess")
                                   : permissionMode === "auto"
-                                    ? "Auto"
-                                    : "Supervised"}
+                                    ? t("chat.draft.auto")
+                                    : t("chat.draft.supervised")}
                               </span>
                               <ChevronDown size={12} className="-ml-0.5 shrink-0 opacity-45" />
                             </>
@@ -1380,7 +1385,7 @@ export function DraftChatView({ draft }: Props) {
                               style={{ width: 280 }}
                             >
                               <DropdownPopover>
-                                <DropdownHeader title="Mode" />
+                                <DropdownHeader title={t("chat.draft.mode")} />
                                 <DropdownRow
                                   selected={permissionMode === "default"}
                                   onClick={() => {
@@ -1398,8 +1403,8 @@ export function DraftChatView({ draft }: Props) {
                                       <Lock size={14} />
                                     </span>
                                   }
-                                  title="Supervised"
-                                  meta="Sandbox tool runs (Cursor local policy)"
+                                  title={t("chat.draft.supervised")}
+                                  meta={t("chat.draft.cursorSupervisedMeta")}
                                 />
                                 <DropdownRow
                                   selected={permissionMode === "auto"}
@@ -1418,8 +1423,8 @@ export function DraftChatView({ draft }: Props) {
                                       <Zap size={14} />
                                     </span>
                                   }
-                                  title="Auto"
-                                  meta="Cursor Auto-review classifier"
+                                  title={t("chat.draft.auto")}
+                                  meta={t("chat.draft.cursorAutoMeta")}
                                 />
                                 <DropdownRow
                                   selected={permissionMode === "full"}
@@ -1438,8 +1443,8 @@ export function DraftChatView({ draft }: Props) {
                                       <LockOpen size={14} />
                                     </span>
                                   }
-                                  title="Full access"
-                                  meta="No sandbox — full local tools"
+                                  title={t("chat.draft.fullAccess")}
+                                  meta={t("chat.draft.fullAccessLocalTools")}
                                 />
                               </DropdownPopover>
                             </motion.div>
@@ -1465,8 +1470,8 @@ export function DraftChatView({ draft }: Props) {
                             className={`${toolbarCompact ? CBTN_SQ : CBTN} ${claudeProfile === "cowork" ? CBTN_PLAN : ""}`}
                             title={
                               claudeProfile === "cowork"
-                                ? "Cowork — knowledge work (docs, files, research). Uses your Claude subscription with a non-coding prompt and limited tools."
-                                : "Code — full Claude Code agent. Click to switch to Cowork."
+                                ? `${t("chat.draft.coworkDescription")} ${t("chat.draft.coworkSubscriptionDescription")}`
+                                : `${t("chat.draft.codeDescription")} ${t("chat.draft.codeSwitchDescription")}`
                             }
                           >
                             {claudeProfile === "cowork" ? (
@@ -1475,7 +1480,7 @@ export function DraftChatView({ draft }: Props) {
                               <Code2 size={15} className="shrink-0" />
                             )}
                             {!toolbarCompact && (
-                              <span>{claudeProfile === "cowork" ? "Cowork" : "Code"}</span>
+                              <span>{claudeProfile === "cowork" ? t("chat.draft.cowork") : t("chat.draft.code")}</span>
                             )}
                           </button>
                         </>
@@ -1489,7 +1494,7 @@ export function DraftChatView({ draft }: Props) {
                               provider: chromeProvider,
                               model: chromeModel,
                             }),
-                        ).map((e) => ({ value: e.value, label: e.label }));
+                        ).map((e) => ({ value: e.value, label: t("composer.reasoning.claude.label." + e.value) }));
                         if (effortOptions.length === 0) return null;
                         return (
                           <EffortSelector
@@ -1512,11 +1517,11 @@ export function DraftChatView({ draft }: Props) {
                       <button
                         onClick={() => setInteractionMode((m) => (m === "plan" ? "chat" : "plan"))}
                         className={`${toolbarCompact ? CBTN_SQ : CBTN} ${interactionMode === "plan" ? CBTN_PLAN : ""}`}
-                        title={interactionMode === "plan" ? "Plan mode — click to switch to Chat" : "Chat mode — click to switch to Plan"}
+                        title={interactionMode === "plan" ? t("chat.draft.planModeSwitch") : t("chat.draft.chatModeSwitch")}
                       >
                         {interactionMode === "plan" ? <Map size={15} className="shrink-0" /> : <Bot size={15} className="shrink-0" />}
                         {!toolbarCompact && (
-                          <span>{interactionMode === "plan" ? "Plan" : "Chat"}</span>
+                          <span>{interactionMode === "plan" ? t("chat.draft.plan") : t("chat.draft.chat")}</span>
                         )}
                       </button>
 
@@ -1534,12 +1539,12 @@ export function DraftChatView({ draft }: Props) {
                           }`}
                           title={
                             permissionMode === "full"
-                              ? "Full access — skip approval prompts"
+                              ? t("chat.draft.fullAccessSkipApprovals")
                               : permissionMode === "auto"
                                 ? isGemini
-                                  ? "Auto-accept edits — file changes go through; commands still ask"
-                                  : "Auto — classifier-supervised autonomous execution (SDK only)"
-                                : "Supervised — approve tool use"
+                                  ? t("chat.draft.autoAcceptEditsDescription")
+                                  : t("chat.draft.autoExecutionDescription")
+                                : t("chat.draft.supervisedToolUseDescription")
                           }
                         >
                           {permissionMode === "full" ? (
@@ -1553,12 +1558,12 @@ export function DraftChatView({ draft }: Props) {
                             <>
                               <span>
                                 {permissionMode === "full"
-                                  ? "Full access"
+                                  ? t("chat.draft.fullAccess")
                                   : permissionMode === "auto"
                                     ? isGemini
-                                      ? "Auto-accept edits"
-                                      : "Auto"
-                                    : "Supervised"}
+                                      ? t("chat.draft.autoAcceptEdits")
+                                      : t("chat.draft.auto")
+                                    : t("chat.draft.supervised")}
                               </span>
                               <ChevronDown size={12} className="-ml-0.5 shrink-0 opacity-45" />
                             </>
@@ -1575,7 +1580,7 @@ export function DraftChatView({ draft }: Props) {
                               style={{ width: 260 }}
                             >
                               <DropdownPopover>
-                                <DropdownHeader title="Mode" />
+                                <DropdownHeader title={t("chat.draft.mode")} />
                                 <DropdownRow
                                   selected={permissionMode === "default"}
                                   onClick={() => { setPermissionMode("default"); setShowPermMenu(false); }}
@@ -1584,8 +1589,8 @@ export function DraftChatView({ draft }: Props) {
                                       <Lock size={14} />
                                     </span>
                                   }
-                                  title="Supervised"
-                                  meta="Approve every tool call"
+                                  title={t("chat.draft.supervised")}
+                                  meta={t("chat.draft.approveEveryToolCall")}
                                 />
                                 <DropdownRow
                                   selected={permissionMode === "auto"}
@@ -1595,11 +1600,11 @@ export function DraftChatView({ draft }: Props) {
                                       <Zap size={14} />
                                     </span>
                                   }
-                                  title={isGemini ? "Auto-accept edits" : "Auto"}
+                                  title={isGemini ? t("chat.draft.autoAcceptEdits") : t("chat.draft.auto")}
                                   meta={
                                     isGemini
-                                      ? "File changes go through; commands still ask"
-                                      : "Classifier-supervised autonomy"
+                                      ? t("chat.draft.fileChangesCommandsAsk")
+                                      : t("chat.draft.classifierSupervisedAutonomy")
                                   }
                                 />
                                 <DropdownRow
@@ -1610,8 +1615,8 @@ export function DraftChatView({ draft }: Props) {
                                       <LockOpen size={14} />
                                     </span>
                                   }
-                                  title="Full access"
-                                  meta="Skip all approval prompts"
+                                  title={t("chat.draft.fullAccess")}
+                                  meta={t("chat.draft.skipAllApprovalPrompts")}
                                 />
                               </DropdownPopover>
                             </motion.div>
@@ -1632,7 +1637,7 @@ export function DraftChatView({ draft }: Props) {
                         const effortOptions = codexEffortsForModel(codexModelForEfforts).map(
                           (e) => ({
                             value: e.value,
-                            label: e.label,
+                            label: t("composer.reasoning.codex.label." + e.value),
                           }),
                         );
                         if (effortOptions.length === 0) return null;
@@ -1666,10 +1671,10 @@ export function DraftChatView({ draft }: Props) {
                           }`}
                           title={
                             codexPermissionMode === "full"
-                              ? "Full Permissions — auto-approves all actions"
+                              ? t("chat.draft.codexFullPermissionsDescription")
                               : codexPermissionMode === "auto"
-                                ? "Auto Review — Codex reviews risky actions for you"
-                                : "Default — asks for approval"
+                                ? t("chat.draft.codexAutoReviewDescription")
+                                : t("chat.draft.codexDefaultDescription")
                           }
                         >
                           {codexPermissionMode === "full" ? (
@@ -1683,10 +1688,10 @@ export function DraftChatView({ draft }: Props) {
                             <>
                               <span>
                                 {codexPermissionMode === "full"
-                                  ? "Full Perms"
+                                  ? t("chat.draft.fullPerms")
                                   : codexPermissionMode === "auto"
-                                    ? "Auto"
-                                    : "Default"}
+                                    ? t("chat.draft.auto")
+                                    : t("chat.draft.default")}
                               </span>
                               <ChevronDown size={12} className="-ml-0.5 shrink-0 opacity-45" />
                             </>
@@ -1703,7 +1708,7 @@ export function DraftChatView({ draft }: Props) {
                               style={{ width: 280 }}
                             >
                               <DropdownPopover>
-                                <DropdownHeader title="Permissions" />
+                                <DropdownHeader title={t("chat.draft.permissions")} />
                                 <DropdownRow
                                   selected={codexPermissionMode === "default"}
                                   onClick={() => { setCodexPermissionMode("default"); setShowCodexPermMenu(false); }}
@@ -1712,8 +1717,8 @@ export function DraftChatView({ draft }: Props) {
                                       <Shield size={14} />
                                     </span>
                                   }
-                                  title="Default"
-                                  meta="Approve each action"
+                                  title={t("chat.draft.default")}
+                                  meta={t("chat.draft.approveEachAction")}
                                 />
                                 <DropdownRow
                                   selected={codexPermissionMode === "auto"}
@@ -1723,8 +1728,8 @@ export function DraftChatView({ draft }: Props) {
                                       <Zap size={14} />
                                     </span>
                                   }
-                                  title="Auto Review"
-                                  meta="Subagent reviews risky actions"
+                                  title={t("chat.draft.autoReview")}
+                                  meta={t("chat.draft.subagentReviewsRiskyActions")}
                                 />
                                 <DropdownRow
                                   selected={codexPermissionMode === "full"}
@@ -1734,8 +1739,8 @@ export function DraftChatView({ draft }: Props) {
                                       <ShieldOff size={14} />
                                     </span>
                                   }
-                                  title="Full permissions"
-                                  meta="Auto-approve all actions"
+                                  title={t("chat.draft.fullPermissions")}
+                                  meta={t("chat.draft.autoApproveAllActions")}
                                 />
                               </DropdownPopover>
                             </motion.div>
@@ -1749,19 +1754,19 @@ export function DraftChatView({ draft }: Props) {
                       <button
                         onClick={() => setCodexPlanMode(!codexPlanMode)}
                         className={`${toolbarCompact ? CBTN_SQ : CBTN} ${codexPlanMode ? CBTN_PLAN : ""}`}
-                        title={codexPlanMode ? "Plan mode ON" : "Plan mode OFF"}
+                        title={codexPlanMode ? t("chat.draft.planModeOn") : t("chat.draft.planModeOff")}
                       >
                         <Map size={15} className="shrink-0" />
-                        {!toolbarCompact && <span>Plan</span>}
+                        {!toolbarCompact && <span>{t("chat.draft.plan")}</span>}
                       </button>
 
                       <button
                         onClick={() => setCodexFastMode(!codexFastMode)}
                         className={`${toolbarCompact ? CBTN_SQ : CBTN} ${codexFastMode ? CBTN_FAST : ""}`}
-                        title={codexFastMode ? "Fast mode ON" : "Fast mode OFF"}
+                        title={codexFastMode ? t("chat.draft.fastModeOn") : t("chat.draft.fastModeOff")}
                       >
                         <Bolt size={15} className="shrink-0" />
-                        {!toolbarCompact && <span>Fast</span>}
+                        {!toolbarCompact && <span>{t("chat.draft.fast")}</span>}
                       </button>
                     </>
                   )}
@@ -1779,12 +1784,12 @@ export function DraftChatView({ draft }: Props) {
                             <button
                               onClick={() => setShowOpencodeAgentMenu(!showOpencodeAgentMenu)}
                               className={`${toolbarCompact ? CBTN_SQ : CBTN} ${opencodeAgent === "plan" ? CBTN_PLAN : ""}`}
-                              title={opencodeAgent ? `Agent: ${opencodeAgent}` : "Default agent"}
+                              title={opencodeAgent ? t("chat.draft.agentName", { name: opencodeAgent }) : t("chat.draft.defaultAgent")}
                             >
                               {opencodeAgent === "plan" ? <Map size={15} className="shrink-0" /> : <Bot size={15} className="shrink-0" />}
                               {!toolbarCompact && (
                                 <>
-                                  <span className="capitalize">{opencodeAgent ?? "Default"}</span>
+                                  <span className="capitalize">{opencodeAgent ?? t("chat.draft.default")}</span>
                                   <ChevronDown size={12} className="-ml-0.5 shrink-0 opacity-45" />
                                 </>
                               )}
@@ -1800,13 +1805,13 @@ export function DraftChatView({ draft }: Props) {
                                   style={{ width: 280 }}
                                 >
                                   <DropdownPopover>
-                                    <DropdownHeader title="Agent" />
+                                    <DropdownHeader title={t("chat.draft.agent")} />
                                     <DropdownRow
                                       onClick={() => { setOpencodeAgent(undefined); setShowOpencodeAgentMenu(false); }}
                                       selected={!opencodeAgent}
                                       icon={<Bot size={14} />}
-                                      title="Default"
-                                      meta="Use the session's default agent"
+                                      title={t("chat.draft.default")}
+                                      meta={t("chat.draft.useDefaultAgent")}
                                     />
                                     {opencodeAgents.map((a) => (
                                       <DropdownRow
@@ -1838,15 +1843,15 @@ export function DraftChatView({ draft }: Props) {
                           className={`${toolbarCompact ? CBTN_SQ : CBTN} ${opencodePermissionMode === "full-access" ? CBTN_PERM_FULL : ""}`}
                           title={
                             opencodePermissionMode === "full-access"
-                              ? "Full access — all actions auto-approved"
-                              : "Supervised — approve each permission"
+                              ? t("chat.draft.fullAccessAllApproved")
+                              : t("chat.draft.supervisedEachPermission")
                           }
                         >
                           {opencodePermissionMode === "full-access" ? <LockOpen size={15} className="shrink-0" /> : <Lock size={15} className="shrink-0" />}
                           {!toolbarCompact && (
                             <>
                               <span>
-                                {opencodePermissionMode === "full-access" ? "Full access" : "Supervised"}
+                                {opencodePermissionMode === "full-access" ? t("chat.draft.fullAccess") : t("chat.draft.supervised")}
                               </span>
                               <ChevronDown size={12} className="-ml-0.5 shrink-0 opacity-45" />
                             </>
@@ -1871,8 +1876,8 @@ export function DraftChatView({ draft }: Props) {
                               >
                                 <Lock size={12} className="mt-0.5 shrink-0" />
                                 <div className="flex flex-col">
-                                  <span>Supervised</span>
-                                  <span className="text-[10px] text-zinc-500">Approve every bash/edit/webfetch call</span>
+                                  <span>{t("chat.draft.supervised")}</span>
+                                  <span className="text-[10px] text-zinc-500">{t("chat.draft.approveEveryBashEditWebfetchCall")}</span>
                                 </div>
                               </button>
                               <button
@@ -1885,8 +1890,8 @@ export function DraftChatView({ draft }: Props) {
                               >
                                 <LockOpen size={12} className="mt-0.5 shrink-0 text-[color:var(--accent)]" />
                                 <div className="flex flex-col">
-                                  <span>Full access</span>
-                                  <span className="text-[10px] text-zinc-500">Skip all approval prompts</span>
+                                  <span>{t("chat.draft.fullAccess")}</span>
+                                  <span className="text-[10px] text-zinc-500">{t("chat.draft.skipAllApprovalPrompts")}</span>
                                 </div>
                               </button>
                             </motion.div>
@@ -1902,7 +1907,7 @@ export function DraftChatView({ draft }: Props) {
                     onClick={handleSubmit}
                     disabled={!input.trim() || loading || !!restrictionError}
                     className={input.trim() && !loading ? SEND_BTN_ACTIVE : SEND_BTN_IDLE}
-                    title="Send message"
+                    title={t("chat.draft.sendMessage")}
                   >
                     <ArrowUp size={16} />
                   </button>
@@ -1919,10 +1924,10 @@ export function DraftChatView({ draft }: Props) {
                     <button
                       onClick={() => setShowWorkModeMenu(!showWorkModeMenu)}
                       className={CBTN}
-                      title="Workspace mode"
+                      title={t("chat.draft.workspaceMode")}
                     >
                       {workMode === "worktree" ? <GitBranchIcon size={15} className="shrink-0" /> : <FolderIcon size={15} className="shrink-0" />}
-                      <span>{workMode === "worktree" ? "Worktree" : "Local"}</span>
+                      <span>{workMode === "worktree" ? t("chat.draft.worktree") : t("chat.draft.local")}</span>
                       <ChevronDown size={12} className="-ml-0.5 shrink-0 opacity-45" />
                     </button>
                     <AnimatePresence>
@@ -1944,7 +1949,7 @@ export function DraftChatView({ draft }: Props) {
                               workMode === "local" ? "text-white bg-white/[0.06]" : "text-zinc-300 hover:bg-white/[0.05] hover:text-white"
                             }`}
                           >
-                            <FolderIcon size={14} /> Local
+                            <FolderIcon size={14} /> {t("chat.draft.local")}
                           </button>
                           <button
                             onClick={() => {
@@ -1956,7 +1961,7 @@ export function DraftChatView({ draft }: Props) {
                               workMode === "worktree" ? "text-white bg-white/[0.06]" : "text-zinc-300 hover:bg-white/[0.05] hover:text-white"
                             }`}
                           >
-                            <GitBranchIcon size={12} /> New worktree
+                            <GitBranchIcon size={12} /> {t("chat.draft.newWorktree")}
                           </button>
                         </motion.div>
                       )}
@@ -1971,7 +1976,7 @@ export function DraftChatView({ draft }: Props) {
                       <button
                         onClick={handleBranchMenuOpen}
                         className={CBTN}
-                        title="Switch branch"
+                        title={t("chat.draft.switchBranch")}
                       >
                         <GitBranchIcon size={15} className="shrink-0" />
                         <span>{currentBranch.length > 20 ? currentBranch.slice(0, 20) + "…" : currentBranch}</span>
@@ -1989,7 +1994,7 @@ export function DraftChatView({ draft }: Props) {
                             {branchLoading && (
                               <div className="flex items-center gap-2 px-3 py-2 text-xs text-zinc-400">
                                 <Loader2 size={12} className="animate-spin" />
-                                Loading branches…
+                                {t("chat.draft.loadingBranches")}
                               </div>
                             )}
                             {!branchLoading && (
@@ -1997,7 +2002,7 @@ export function DraftChatView({ draft }: Props) {
                                 {branches.filter((b) => !b.name.startsWith("remotes/")).length > 0 && (
                                   <>
                                     <div className="px-3 py-1 text-[10px] font-medium uppercase tracking-wider text-zinc-500">
-                                      Local
+                                      {t("chat.draft.local")}
                                     </div>
                                     {branches.filter((b) => !b.name.startsWith("remotes/")).map((b) => (
                                       <button
@@ -2018,7 +2023,7 @@ export function DraftChatView({ draft }: Props) {
                                 {branches.filter((b) => b.name.startsWith("remotes/")).length > 0 && (
                                   <>
                                     <div className="mt-1 border-t border-white/5 px-3 py-1 text-[10px] font-medium uppercase tracking-wider text-zinc-500">
-                                      Remote
+                                      {t("chat.draft.remote")}
                                     </div>
                                     {branches.filter((b) => b.name.startsWith("remotes/")).map((b) => (
                                       <button
@@ -2045,7 +2050,7 @@ export function DraftChatView({ draft }: Props) {
                                         if (e.key === "Enter") handleCreateBranch();
                                         if (e.key === "Escape") { setShowNewBranch(false); setNewBranchName(""); }
                                       }}
-                                      placeholder="branch-name"
+                                      placeholder={t("chat.draft.branchNamePlaceholder")}
                                       className="flex-1 rounded bg-white/5 px-2 py-1 text-xs text-zinc-200 placeholder-zinc-600 outline-none focus:ring-1 focus:ring-indigo-500/40"
                                     />
                                     <button
@@ -2061,7 +2066,7 @@ export function DraftChatView({ draft }: Props) {
                                     className="flex w-full items-center gap-2 px-3 py-1.5 text-left text-xs text-zinc-300 hover:bg-white/[0.05] hover:text-white transition-colors"
                                   >
                                     <Plus size={12} />
-                                    New branch…
+                                    {t("chat.draft.newBranch")}
                                   </button>
                                 )}
                               </>

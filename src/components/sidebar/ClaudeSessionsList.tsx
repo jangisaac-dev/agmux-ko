@@ -5,6 +5,7 @@ import { useUiStore } from "../../stores/uiStore";
 import { useSessionNameStore } from "../../stores/sessionNameStore";
 import { useSettingsStore } from "../../stores/settingsStore";
 import type { ClaudeSession } from "../../lib/types";
+import { localeTag, t as appT, useT } from "../../i18n";
 
 const EMPTY_SESSIONS: ClaudeSession[] = [];
 
@@ -54,17 +55,17 @@ function toDate(value: string | undefined | null): Date {
   return new Date(0);
 }
 
-export function formatTime(value: string | undefined | null): string {
+export function formatTime(value: string | undefined | null, translate: typeof appT = appT): string {
   try {
     const date = toDate(value);
     if (date.getTime() === 0) return "";
     const now = new Date();
     const diffMs = now.getTime() - date.getTime();
     const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
-    if (diffDays === 0) return "today";
-    if (diffDays === 1) return "yesterday";
-    if (diffDays < 7) return `${diffDays}d ago`;
-    return date.toLocaleDateString();
+    if (diffDays === 0) return translate("sidebar.time.today");
+    if (diffDays === 1) return translate("sidebar.time.yesterday");
+    if (diffDays < 7) return translate("sidebar.time.daysAgo", { count: diffDays });
+    return date.toLocaleDateString(localeTag());
   } catch {
     return "";
   }
@@ -86,6 +87,7 @@ export function ClaudeSessionsForProject({
   sessions: ClaudeSession[];
   resetKey?: number;
 }) {
+  const t = useT();
   const pageSize = useSettingsStore((s) => s.settings.defaultThreadsVisible ?? PAGE_SIZE_FALLBACK);
   const [visibleCount, setVisibleCount] = useState(pageSize);
   const selectedClaudeSessionId = useUiStore((s) => s.selectedClaudeSessionId);
@@ -202,12 +204,12 @@ export function ClaudeSessionsForProject({
                   setRenamingId(session.id);
                 }}
                 className="rounded p-0.5 text-zinc-500 opacity-0 transition-all hover:bg-zinc-700 hover:text-zinc-200 group-hover/sess:opacity-100"
-                aria-label="Rename session"
+                aria-label={t("sidebar.session.rename")}
               >
                 <Pencil size={11} />
               </button>
               <span className="text-[10px] text-zinc-400">
-                {formatTime(session.updated_at)}
+                {formatTime(session.updated_at, t)}
               </span>
             </span>
           </div>
@@ -219,7 +221,7 @@ export function ClaudeSessionsForProject({
           className="flex w-full items-center gap-1.5 rounded px-3 py-1 text-left text-xs text-zinc-400 hover:bg-zinc-800 hover:text-zinc-300"
         >
           <ChevronDown size={12} />
-          <span>Show more ({Math.min(remaining, pageSize)} of {remaining})</span>
+          <span>{t("sidebar.threads.showMoreCount", { shown: Math.min(remaining, pageSize), remaining })}</span>
         </button>
       )}
     </>

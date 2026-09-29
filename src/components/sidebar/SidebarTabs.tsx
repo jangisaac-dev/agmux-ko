@@ -1,5 +1,6 @@
 import { Home, Brain, Activity } from "lucide-react";
 import { useUiStore } from "../../stores/uiStore";
+import { useT } from "../../i18n";
 
 function goHome() {
   const store = useUiStore.getState();
@@ -24,6 +25,7 @@ export function SidebarTabs({
   /** `"horizontal"` for agent top-chrome (segmented control along the toolbar). */
   orientation?: "vertical" | "horizontal";
 }) {
+  const t = useT();
   const activeTab = useUiStore((s) => s.sidebarTab);
   const usagePanelOpen = useUiStore((s) => s.usagePanelOpen);
   const hasSelection = useUiStore(
@@ -38,7 +40,7 @@ export function SidebarTabs({
   const items = [
     {
       id: "home",
-      label: "Home",
+      label: t("sidebar.tab.home"),
       icon: Home,
       active: !usagePanelOpen && activeTab === "agents" && !hasSelection,
       onClick: goHome,
@@ -46,7 +48,7 @@ export function SidebarTabs({
     },
     {
       id: "memory",
-      label: "Memory",
+      label: t("sidebar.tab.memory"),
       icon: Brain,
       active: !usagePanelOpen && activeTab === "memory",
       onClick: goMemory,
@@ -54,7 +56,7 @@ export function SidebarTabs({
     },
     {
       id: "usage",
-      label: "Usage",
+      label: t("sidebar.tab.usage"),
       icon: Activity,
       active: usagePanelOpen,
       onClick: () => useUiStore.getState().toggleUsagePanel(),

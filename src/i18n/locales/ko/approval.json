@@ -1,0 +1,20 @@
+{
+  "approval.actions.edit": "편집",
+  "approval.actions.read": "읽기",
+  "approval.actions.write": "쓰기",
+  "approval.allowPatterns.label": "항상 허용",
+  "approval.allowPatterns.title": "패턴과 일치하는 향후 명령 자동 승인",
+  "approval.allowProject.label": "프로젝트에서 허용",
+  "approval.allowProject.title": "이 프로젝트의 모든 세션에서 이 도구 자동 승인",
+  "approval.answer.inputRequired": "입력 필요",
+  "approval.answer.placeholder": "답변 입력...",
+  "approval.answer.send": "전송",
+  "approval.awaitingShortcuts": "사용자 대기 중 · {{acceptShortcut}} 승인 · {{denyShortcut}} 거부",
+  "approval.dismiss": "닫기",
+  "approval.permissionRequired": "권한 필요",
+  "approval.runTool": "{{toolName}} 실행할까요?",
+  "approval.searchPath": "{{path}}에서",
+  "approval.shortcuts.accept": "승인 {{shortcut}}",
+  "approval.shortcuts.deny": "거부 {{shortcut}}",
+  "approval.timedOut": "승인 시간 초과"
+}

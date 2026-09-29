@@ -1,0 +1,21 @@
+{
+  "layout.pane.closeTab": "Close tab",
+  "layout.pane.splitPane": "Split pane",
+  "layout.pane.splitRight": "Split Right",
+  "layout.pane.splitDown": "Split Down",
+  "layout.pane.unsplit": "Unsplit",
+  "layout.pane.renameTab": "Rename Tab",
+  "layout.pane.closeTabMenu": "Close Tab",
+  "layout.splitPane.threadNotFound": "Thread not found",
+  "layout.splitPane.sessionDataMissing": "Session data missing",
+  "layout.splitPane.terminalDataMissing": "Terminal data missing",
+  "layout.splitPane.noTabOpen": "No tab open",
+  "layout.cowork.opening": "Opening Cowork",
+  "layout.cowork.title": "Cowork — Claude Cowork and ChatGPT Work chats",
+  "layout.tab.kind.chat": "Chat",
+  "layout.tab.kind.terminal": "Terminal",
+  "layout.tab.kind.cowork": "Cowork",
+  "layout.tab.kind.work": "Work",
+  "layout.tab.kind.draft": "Draft",
+  "layout.tab.kind.thread": "Thread"
+}

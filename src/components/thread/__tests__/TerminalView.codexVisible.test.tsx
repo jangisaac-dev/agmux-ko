@@ -22,8 +22,13 @@ vi.mock("../../ThemeProvider", () => ({
   useResolvedColorMode: () => false,
 }));
 vi.mock("../../../stores/settingsStore", () => ({
-  useSettingsStore: (selector: (state: unknown) => unknown) =>
-    selector({ settings: { monoFont: "geist-mono", terminalFontSize: 14 } }),
+  useSettingsStore: (() => {
+    const state = { settings: { uiLanguage: "en", monoFont: "geist-mono", terminalFontSize: 14 } };
+    return Object.assign((selector: (s: typeof state) => unknown) => selector(state), {
+      getState: () => state,
+      subscribe: () => () => {},
+    });
+  })(),
 }));
 vi.mock("../../../stores/uiStore", () => ({
   useUiStore: (selector: (state: unknown) => unknown) =>

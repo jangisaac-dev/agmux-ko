@@ -44,8 +44,14 @@ vi.mock("../../ThemeProvider", () => ({
 }));
 
 vi.mock("../../../stores/settingsStore", () => ({
-  useSettingsStore: (selector: (state: unknown) => unknown) =>
-    selector({ settings: { monoFont: "geist-mono", terminalFontSize: 14 } }),
+  useSettingsStore: Object.assign(
+    (selector: (state: unknown) => unknown) =>
+      selector({ settings: { monoFont: "geist-mono", terminalFontSize: 14, uiLanguage: "en" } }),
+    {
+      getState: () => ({ settings: { uiLanguage: "en" } }),
+      subscribe: () => () => {},
+    },
+  ),
 }));
 
 const ui = vi.hoisted(() => ({

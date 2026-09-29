@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Plus } from "lucide-react";
 import { pathToImageAttachment, type ImageAttachment } from "./ImageAttachmentBar";
+import { useT } from "../../i18n";
 
 interface Props {
   onPaths: (paths: string[]) => void;
@@ -11,6 +12,7 @@ interface Props {
 }
 
 export function FileAttachmentButton({ onPaths, onImages, disabled, className, children }: Props) {
+  const t = useT();
   const [picking, setPicking] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -38,7 +40,7 @@ export function FileAttachmentButton({ onPaths, onImages, disabled, className, c
       if (images.length > 0) onImages(images);
       if (files.length > 0) onPaths(files);
     } catch (err) {
-      setError(`Could not attach files: ${String(err)}`);
+      setError(t("thread.attachment.couldNotAttachFiles", { error: String(err) }));
     } finally {
       setPicking(false);
     }
@@ -46,7 +48,7 @@ export function FileAttachmentButton({ onPaths, onImages, disabled, className, c
 
   return (
     <>
-      <button type="button" onClick={pickFiles} disabled={disabled || picking} className={className} title="Attach files">
+      <button type="button" onClick={pickFiles} disabled={disabled || picking} className={className} title={t("thread.attachment.attachFiles")}>
         {children ?? <Plus size={15} />}
       </button>
       {error && <span role="alert" className="text-xs text-[var(--text-secondary)]">{error}</span>}

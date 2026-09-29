@@ -1,4 +1,5 @@
 import { InlineDiff } from "../InlineDiff";
+import { useT } from "../../../i18n";
 import type { ToolRendererProps } from "./types";
 
 interface RawEdit {
@@ -20,6 +21,7 @@ function pickStr(...candidates: unknown[]): string {
 }
 
 export function EditToolRenderer({ input }: ToolRendererProps): React.ReactElement {
+  const t = useT();
   // Accept snake_case (Claude), camelCase (OpenCode), and the bare `old`/`new`
   // shape used by the MLX in-process agent.
   const filePath = String(input.file_path ?? input.filePath ?? input.path ?? "unknown");
@@ -30,7 +32,7 @@ export function EditToolRenderer({ input }: ToolRendererProps): React.ReactEleme
     return (
       <div className="space-y-2">
         <div className="text-[10px] font-medium uppercase tracking-wider text-zinc-500">
-          {edits.length} edits
+          {t("tools.edit.editCount", { count: edits.length })}
         </div>
         {edits.map((e, i) => (
           <InlineDiff
@@ -47,11 +49,11 @@ export function EditToolRenderer({ input }: ToolRendererProps): React.ReactEleme
 
   // ── edit_lines: { path, start_line, end_line, new } ──
   if (input.start_line != null && input.end_line != null && typeof input.new === "string") {
-    const placeholder = `[lines ${input.start_line}-${input.end_line}]`;
+    const placeholder = t("tools.edit.linesPlaceholder", { start: String(input.start_line), end: String(input.end_line) });
     return (
       <div className="space-y-1.5">
         <span className="inline-block rounded-full bg-blue-500/10 border border-blue-500/20 px-1.5 py-0.5 text-[10px] font-medium text-blue-400">
-          Lines {String(input.start_line)}–{String(input.end_line)}
+          {t("tools.edit.linesRange", { start: String(input.start_line), end: String(input.end_line) })}
         </span>
         <InlineDiff filePath={filePath} oldStr={placeholder} newStr={input.new} hideHeader />
       </div>
@@ -67,7 +69,7 @@ export function EditToolRenderer({ input }: ToolRendererProps): React.ReactEleme
     <div className="space-y-1.5">
       {replaceAll && (
         <span className="inline-block rounded-full bg-purple-500/10 border border-purple-500/20 px-1.5 py-0.5 text-[10px] font-medium text-purple-400">
-          Replace All
+          {t("tools.edit.replaceAll")}
         </span>
       )}
       <InlineDiff filePath={filePath} oldStr={oldStr} newStr={newStr} hideHeader />

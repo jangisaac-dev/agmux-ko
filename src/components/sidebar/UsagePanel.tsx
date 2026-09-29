@@ -12,6 +12,7 @@ import {
   MousePointer2,
 } from "lucide-react";
 import { useSettingsStore, type UsageProvidersConfig } from "../../stores/settingsStore";
+import { useT } from "../../i18n";
 import {
   getUsageSummary,
   getModelBreakdown,
@@ -27,8 +28,6 @@ import {
   getPaceCell,
   shouldRefetchPace,
   fetchPaceIfStale,
-  grokCreditsLabel,
-  usageWindowLabel,
 } from "../../lib/providerUsageCache";
 import { useAccountUsage } from "../../hooks/useAccountUsage";
 import { AccountUsageRows } from "../usage/AccountUsageRows";
@@ -222,6 +221,54 @@ function formatActiveMs(ms: number): string {
   return `${Math.round(hours)}h`;
 }
 
+type WindowSlot = "session" | "weekly";
+
+function grokWindowId(window: PaceWindow | null): "credits" | "weekly" | "monthly" {
+  if (!window) return "credits";
+  let seconds: number | null = null;
+  if (window.windowMinutes != null && window.windowMinutes > 0) {
+    seconds = window.windowMinutes * 60;
+  } else if (window.resetsAt) {
+    const numeric = Number(window.resetsAt);
+    const target = Number.isFinite(numeric) && numeric > 1_000_000_000
+      ? (numeric < 10_000_000_000 ? numeric * 1000 : numeric)
+      : new Date(window.resetsAt).getTime();
+    if (Number.isFinite(target)) seconds = Math.max(0, (target - Date.now()) / 1000);
+  }
+  if (seconds == null || seconds <= 3600) return "credits";
+  const days = Math.round(seconds / 86_400);
+  if (days >= 4 && days <= 12) return "weekly";
+  if (days >= 20 && days <= 45) return "monthly";
+  return "credits";
+}
+
+function windowCopy(window: PaceWindow | null, slot: WindowSlot, isGrok: boolean, t: ReturnType<typeof useT>): { label: string; short: string } {
+  if (isGrok && slot === "weekly") {
+    const id = grokWindowId(window);
+    return { label: t(`usage.window.${id}`), short: id === "monthly" ? "mo" : id === "weekly" ? "wk" : "cr" };
+  }
+
+  const minutes = window?.windowMinutes;
+  if (minutes == null || minutes <= 0) {
+    return slot === "session"
+      ? { label: t("usage.window.fiveHour"), short: "5h" }
+      : { label: t("usage.window.weekly"), short: "wk" };
+  }
+  if (minutes < 60) {
+    const count = Math.max(1, Math.round(minutes));
+    return { label: t("usage.window.duration.minutes", { count }), short: `${count}m` };
+  }
+  if (minutes < 24 * 60) {
+    const count = Math.round(minutes / 60);
+    return { label: t("usage.window.duration.hours", { count }), short: `${count}h` };
+  }
+  const count = Math.round(minutes / (24 * 60));
+  if (count >= 4 && count <= 12) return { label: t("usage.window.weekly"), short: "wk" };
+  if (count >= 20 && count <= 45) return { label: t("usage.window.monthly"), short: slot === "session" ? "Monthly" : "mo" };
+  if (count === 1) return { label: t("usage.window.daily"), short: slot === "session" ? "Daily" : "Dai" };
+  return { label: t("usage.window.duration.days", { count }), short: slot === "session" ? `${count}-day` : `${count}-d`.slice(0, 3) };
+}
+
 function paceColor(status: PaceStatus): string {
   switch (status) {
     case "behind":
@@ -235,24 +282,24 @@ function paceColor(status: PaceStatus): string {
   }
 }
 
-function paceLabelWithDelta(w: PaceWindow): string {
+function paceLabelWithDelta(w: PaceWindow, t: ReturnType<typeof useT>): string {
   const pct = Math.abs(w.delta);
   const rounded = pct < 1 ? pct.toFixed(1) : Math.round(pct).toString();
   switch (w.paceStatus) {
     case "behind":
-      return `Behind pace by ${rounded}%`;
+      return t("usage.pace.behind", { percent: rounded });
     case "on_track":
-      return "On track";
+      return t("usage.pace.onTrack");
     case "ahead":
-      return `Ahead of pace by ${rounded}%`;
+      return t("usage.pace.ahead", { percent: rounded });
     case "well_over":
-      return `Well over pace by ${rounded}%`;
+      return t("usage.pace.wellOver", { percent: rounded });
     default:
       return w.paceLabel;
   }
 }
 
-function formatCountdown(resetIso: string | null): string | null {
+function formatCountdown(resetIso: string | null, t: ReturnType<typeof useT>): string | null {
   if (!resetIso) return null;
   // Codex/Grok report unix seconds (or ms) as a numeric string, not ISO.
   const numeric = Number(resetIso);
@@ -260,12 +307,12 @@ function formatCountdown(resetIso: string | null): string | null {
     ? (numeric < 10_000_000_000 ? numeric * 1000 : numeric)
     : new Date(resetIso).getTime();
   const ms = target - Date.now();
-  if (!Number.isFinite(ms) || ms <= 0) return "now";
+  if (!Number.isFinite(ms) || ms <= 0) return t("usage.time.now");
   const hours = Math.floor(ms / 3_600_000);
   const mins = Math.floor((ms % 3_600_000) / 60_000);
-  if (hours >= 48) return `${Math.floor(hours / 24)}d`;
-  if (hours >= 1) return `${hours}h ${mins}m`;
-  return `${mins}m`;
+  if (hours >= 48) return t("usage.time.days", { count: Math.floor(hours / 24) });
+  if (hours >= 1) return t("usage.time.hoursAndMinutes", { count: hours, hours, minutes: mins });
+  return t("usage.time.minutes", { count: mins });
 }
 
 /** Display label for model breakdown rows. Keep distinguishing suffixes
@@ -298,6 +345,7 @@ function densityFor(visibleCount: number): Density {
 
 // ─── Main panel ──────────────────────────────────────────────────────────
 export function UsagePanel() {
+  const t = useT();
   const { data: accountData, error: accountError } = useAccountUsage();
   const availabilityError = accountError ?? accountData?.teamError ?? accountData?.teams.find((team) => team.error)?.error;
   const providersCfg = useSettingsStore((s) => s.settings.usageProviders);
@@ -375,22 +423,22 @@ export function UsagePanel() {
       {/* Transparent over `.codex-glass` — `.codex-topbar` double-glass reads solid black. */}
       <div className="usage-topbar flex shrink-0 items-center gap-2 px-5 py-3.5">
         <Activity size={14} strokeWidth={1.7} className="text-[var(--text-muted)]" />
-        <SectionEyebrow label="Provider Usage" />
+        <SectionEyebrow label={t("usage.panel.title")} />
         <button
           type="button"
           onClick={() => openSettings("agentAccounts")}
           className="usage-manage-btn ml-auto"
         >
-          Accounts
+          {t("usage.panel.accounts")}
         </button>
         <button
           type="button"
           onClick={() => openSettings()}
           className="usage-manage-btn flex items-center gap-1.5"
-          title="Configure providers"
+          title={t("usage.panel.configureProviders")}
         >
           <Settings2 size={12} strokeWidth={1.7} />
-          Manage
+          {t("usage.panel.manage")}
         </button>
       </div>
 
@@ -452,6 +500,7 @@ function ProviderCard({
   teams?: AccountTeam[];
   accountsStale?: boolean;
 }) {
+  const t = useT();
   const pace = getPaceCell(meta.id);
   const stats = statsCache[meta.id];
   const cfg = meta.builtIn ? null : providersCfg[meta.id as OptionalProviderId];
@@ -469,7 +518,7 @@ function ProviderCard({
   if (!meta.builtIn && !cfg?.enabled) {
     return (
       <div className={`${paneBase} ${paneSpacing}`}>
-        <CardHeader meta={meta} status="Configure in Settings" muted />
+        <CardHeader meta={meta} status={t("usage.card.configureInSettings")} muted />
       </div>
     );
   }
@@ -479,7 +528,7 @@ function ProviderCard({
   if (pending) {
     return (
       <div className={`${paneBase} ${paneSpacing}`}>
-        <CardHeader meta={meta} status="Usage not available yet" muted />
+        <CardHeader meta={meta} status={t("usage.card.usageUnavailableYet")} muted />
       </div>
     );
   }
@@ -488,9 +537,9 @@ function ProviderCard({
   const session = info?.session ?? null;
   const weekly = info?.weekly ?? null;
   const extraWindows = meta.id === "claude" ? [
-    { label: "Sonnet", window: info?.sonnet }, { label: "Opus", window: info?.opus },
-    { label: "Designs", window: info?.design }, { label: "Routines", window: info?.routines },
-  ].filter((entry): entry is { label: string; window: PaceWindow } => entry.window != null) : [];
+    { id: "sonnet", label: "Sonnet", window: info?.sonnet }, { id: "opus", label: "Opus", window: info?.opus },
+    { id: "design", label: t("usage.window.designs"), window: info?.design }, { id: "routines", label: t("usage.window.routines"), window: info?.routines },
+  ].filter((entry): entry is { id: string; label: string; window: PaceWindow } => entry.window != null) : [];
   const hasData = Boolean(session || weekly || extraWindows.length);
   const stale = Boolean(info && pace.error);
 
@@ -499,36 +548,27 @@ function ProviderCard({
   if (!meta.builtIn && !hasData) {
     return (
       <div className={`${paneBase} ${paneSpacing}`}>
-        <CardHeader meta={meta} status="Usage not available yet" muted />
+        <CardHeader meta={meta} status={t("usage.card.usageUnavailableYet")} muted />
       </div>
     );
   }
 
   let statusNode: React.ReactNode = null;
   if (pace.rateLimited) {
-    statusNode = <Pill tone="warn" label="rate-limited" title={pace.error ?? undefined} />;
+    statusNode = <Pill tone="warn" label={t("usage.card.rateLimited")} title={pace.error ?? undefined} />;
   } else if (stale) {
-    statusNode = <Pill tone="muted" label="stale" title={pace.error ?? undefined} />;
+    statusNode = <Pill tone="muted" label={t("usage.card.stale")} title={pace.error ?? undefined} />;
   } else if (!hasData && pace.errorAt === 0) {
-    statusNode = <span className="ml-auto ui-meta text-[10px] text-zinc-600">loading…</span>;
+    statusNode = <span className="ml-auto ui-meta text-[10px] text-zinc-600">{t("usage.card.loading")}</span>;
   } else if (!hasData) {
-    statusNode = <span className="ml-auto ui-meta text-[10px] text-zinc-600">unavailable</span>;
+    statusNode = <span className="ml-auto ui-meta text-[10px] text-zinc-600">{t("usage.card.unavailable")}</span>;
   }
 
   // Grok: dynamic "Credits"/"Weekly"/"Monthly". Codex/Claude: duration-aware
   // labels so a weekly-only Codex account is not stuck under "5-hour".
   const isGrok = meta.id === "grok";
-  const sessionLabel = usageWindowLabel(session, "5-hour");
-  const weeklyLabel = isGrok ? grokCreditsLabel(weekly) : usageWindowLabel(weekly, "Weekly");
-  const sessionShort =
-    sessionLabel === "5-hour" ? "5h" : sessionLabel.replace(/-hour$/, "h").replace(/Weekly/i, "wk");
-  const weeklyShort = isGrok
-    ? (weeklyLabel === "Monthly" ? "mo" : weeklyLabel === "Weekly" ? "wk" : "cr")
-    : weeklyLabel === "Weekly"
-      ? "wk"
-      : weeklyLabel === "Monthly"
-        ? "mo"
-        : weeklyLabel.replace(/-hour$/, "h").slice(0, 3);
+  const sessionCopy = windowCopy(session, "session", false, t);
+  const weeklyCopy = windowCopy(weekly, "weekly", isGrok, t);
   const showSession = Boolean(session) || !meta.hideEmptyWindows;
   const showWeekly = Boolean(weekly) || !meta.hideEmptyWindows;
 
@@ -539,16 +579,16 @@ function ProviderCard({
         <AccountUsageRows accounts={accounts} teams={teams} stale={accountsStale} />
       ) : density === "ultra" ? (
         <div className="mt-1.5 flex flex-wrap gap-3">
-          {showSession && <MiniBar label={sessionShort} window={session} dimmed={stale} />}
-          {showWeekly && <MiniBar label={weeklyShort} window={weekly} dimmed={stale} />}
-          {extraWindows.map(({ label, window }) => <MiniBar key={label} label={label} window={window} dimmed={stale} />)}
+          {showSession && <MiniBar label={sessionCopy.short} window={session} dimmed={stale} />}
+          {showWeekly && <MiniBar label={weeklyCopy.short} window={weekly} dimmed={stale} />}
+          {extraWindows.map(({ id, label, window }) => <MiniBar key={id} label={label} window={window} dimmed={stale} />)}
         </div>
       ) : (
         <>
-          {showSession && <UsageBar label={sessionLabel} window={session} dimmed={stale} />}
+          {showSession && <UsageBar label={sessionCopy.label} window={session} dimmed={stale} />}
           {showWeekly && (
             <UsageBar
-              label={weeklyLabel}
+              label={weeklyCopy.label}
               window={weekly}
               dimmed={stale}
               className={showSession ? "mt-2" : "mt-2"}
@@ -556,8 +596,8 @@ function ProviderCard({
           )}
         </>
       )}
-      {!accounts?.length && density !== "ultra" && extraWindows.map(({ label, window }) => (
-        <UsageBar key={label} label={label} window={window} dimmed={stale} className="mt-2" />
+      {!accounts?.length && density !== "ultra" && extraWindows.map(({ id, label, window }) => (
+        <UsageBar key={id} label={label} window={window} dimmed={stale} className="mt-2" />
       ))}
       {density === "rich" && stats.summary && (
         <StatsStrip summary={stats.summary} models={stats.models ?? []} />
@@ -572,19 +612,20 @@ function ProviderCard({
  * never opens on a row of zeros.
  */
 function PanelSummary({ providers }: { providers: ProviderMeta[] }) {
+  const t = useT();
   const agg = aggregateUsage(providers.map((p) => statsCache[p.id]));
   if (!agg) return null;
 
   const partial = agg.reporting < agg.expected;
   return (
     <div className="mb-4 grid grid-cols-2 gap-3 rounded-lg border border-[var(--glass-border)] bg-[var(--surface-popover)] px-4 py-3 sm:grid-cols-4">
-      <Stat label={`Tokens ${DETAIL_DAYS}d`} value={formatTokens(agg.totalTokens)} />
-      <Stat label={`Time ${DETAIL_DAYS}d`} value={formatActiveMs(agg.totalActiveMs)} />
-      <Stat label={`Cost ${DETAIL_DAYS}d`} value={formatCost(agg.totalCostUsd)} />
+      <Stat label={t("usage.summary.tokensDays", { count: DETAIL_DAYS })} value={formatTokens(agg.totalTokens)} />
+      <Stat label={t("usage.summary.timeDays", { count: DETAIL_DAYS })} value={formatActiveMs(agg.totalActiveMs)} />
+      <Stat label={t("usage.summary.costDays", { count: DETAIL_DAYS })} value={formatCost(agg.totalCostUsd)} />
       <Stat
-        label="Providers"
+        label={t("usage.summary.providers")}
         value={`${agg.reporting}`}
-        detail={partial ? `of ${agg.expected} reporting` : "all reporting"}
+        detail={partial ? t("usage.summary.providersReporting", { count: agg.expected }) : t("usage.summary.allReporting")}
       />
     </div>
   );
@@ -650,11 +691,12 @@ function UsageBar({
   className?: string;
   dimmed?: boolean;
 }) {
+  const t = useT();
   const hasData = Boolean(w);
   const pct = w ? Math.min(100, Math.max(0, w.utilization)) : 0;
   const expected = w ? Math.min(100, Math.max(0, w.expectedUtilization)) : 0;
   const color = w ? paceColor(w.paceStatus) : "rgba(255,255,255,0.20)";
-  const reset = hasData && w ? formatCountdown(w.resetsAt) : null;
+  const reset = hasData && w ? formatCountdown(w.resetsAt, t) : null;
 
   return (
     <div className={`${className ?? ""} mt-2.5`} style={dimmed ? { opacity: 0.6 } : undefined}>
@@ -668,8 +710,8 @@ function UsageBar({
         <span className="ml-auto flex items-center gap-2 ui-meta text-[10px]">
           {hasData ? (
             <>
-              <span style={{ color }}>{paceLabelWithDelta(w!)}</span>
-              {reset && <span className="text-[var(--text-muted)]">· resets {reset}</span>}
+              <span style={{ color }}>{paceLabelWithDelta(w!, t)}</span>
+              {reset && <span className="text-[var(--text-muted)]">{t("usage.time.resetsInline", { time: reset })}</span>}
             </>
           ) : null}
         </span>
@@ -683,7 +725,7 @@ function UsageBar({
           <div
             className="absolute inset-y-0 w-px bg-white/25"
             style={{ left: `${expected}%` }}
-            title={`Expected pace ${expected.toFixed(0)}%`}
+            title={t("usage.pace.expected", { percent: expected.toFixed(0) })}
           />
         )}
       </div>
@@ -725,15 +767,16 @@ function MiniBar({
 
 // ─── Rich-density stats strip ────────────────────────────────────────────
 function StatsStrip({ summary, models }: { summary: UsageSummary; models: ModelUsage[] }) {
+  const t = useT();
   const totalTokens = summary.totalInputTokens + summary.totalOutputTokens;
   const topModel = models[0];
   return (
     <div className="mt-3 grid grid-cols-2 gap-3 border-t border-white/[0.04] pt-3 sm:grid-cols-4">
-      <Stat label="Tokens 30d" value={formatTokens(totalTokens)} />
-      <Stat label="Time 30d" value={formatActiveMs(summary.totalActiveMs ?? 0)} />
-      <Stat label="Cost 30d" value={formatCost(summary.totalCostUsd)} />
+      <Stat label={t("usage.stats.tokensDays", { count: DETAIL_DAYS })} value={formatTokens(totalTokens)} />
+      <Stat label={t("usage.stats.timeDays", { count: DETAIL_DAYS })} value={formatActiveMs(summary.totalActiveMs ?? 0)} />
+      <Stat label={t("usage.stats.costDays", { count: DETAIL_DAYS })} value={formatCost(summary.totalCostUsd)} />
       <Stat
-        label="Top model"
+        label={t("usage.stats.topModel")}
         value={topModel ? shortenModel(topModel.model) : "—"}
         detail={topModel ? `${topModel.percentage.toFixed(0)}%` : undefined}
       />
@@ -755,6 +798,7 @@ const DETAIL_ACCENT: Record<ProviderId, { primary: string; secondary: string }> 
 };
 
 function ProviderDetail({ meta }: { meta: ProviderMeta }) {
+  const t = useT();
   const stats = statsCache[meta.id];
   const summary = stats.summary;
   const models = stats.models ?? [];
@@ -767,7 +811,7 @@ function ProviderDetail({ meta }: { meta: ProviderMeta }) {
           <DetailHeader meta={meta} />
         </div>
         <p className="px-5 py-4 ui-meta text-[10.5px] text-[var(--text-muted)]">
-          {stats.error ? "Usage data unavailable" : "Loading usage data…"}
+          {stats.error ? t("usage.detail.usageUnavailable") : t("usage.detail.loading")}
         </p>
       </section>
     );
@@ -783,20 +827,20 @@ function ProviderDetail({ meta }: { meta: ProviderMeta }) {
 
       <div className="px-5 py-4">
         <div className="grid grid-cols-2 gap-x-4 gap-y-3 sm:grid-cols-3 lg:grid-cols-5">
-          <DetailStat label="Total tokens" value={formatTokens(totalTokens)} />
-          <DetailStat label="Active time" value={formatActiveMs(summary.totalActiveMs ?? 0)} />
-          <DetailStat label="Input" value={formatTokens(summary.totalInputTokens)} />
-          <DetailStat label="Output" value={formatTokens(summary.totalOutputTokens)} />
-          <DetailStat label="Cost" value={formatCost(summary.totalCostUsd)} />
+          <DetailStat label={t("usage.detail.totalTokens")} value={formatTokens(totalTokens)} />
+          <DetailStat label={t("usage.detail.activeTime")} value={formatActiveMs(summary.totalActiveMs ?? 0)} />
+          <DetailStat label={t("usage.detail.input")} value={formatTokens(summary.totalInputTokens)} />
+          <DetailStat label={t("usage.detail.output")} value={formatTokens(summary.totalOutputTokens)} />
+          <DetailStat label={t("usage.detail.cost")} value={formatCost(summary.totalCostUsd)} />
         </div>
 
         <div className="mt-5">
-          <SectionEyebrow label={`Usage — last ${DETAIL_DAYS} days`} className="mb-2.5" />
+          <SectionEyebrow label={t("usage.detail.usageLastDays", { count: DETAIL_DAYS })} className="mb-2.5" />
           <DailyPlot data={summary.dailyBreakdown} accent={accent} />
         </div>
 
         <div className="mt-5">
-          <SectionEyebrow label="Model breakdown" className="mb-2.5" />
+          <SectionEyebrow label={t("usage.detail.modelBreakdown")} className="mb-2.5" />
           <ModelBreakdown models={models} accent={accent.primary} />
         </div>
       </div>
@@ -805,6 +849,7 @@ function ProviderDetail({ meta }: { meta: ProviderMeta }) {
 }
 
 function DetailHeader({ meta }: { meta: ProviderMeta }) {
+  const t = useT();
   const Icon = meta.iconComponent;
   return (
     <div className="flex items-center gap-2">
@@ -819,7 +864,7 @@ function DetailHeader({ meta }: { meta: ProviderMeta }) {
         {meta.name}
       </span>
       <span className="ml-auto ui-eyebrow text-[var(--text-muted)]">
-        {DETAIL_DAYS}d window
+        {t("usage.detail.daysWindow", { count: DETAIL_DAYS })}
       </span>
     </div>
   );
@@ -845,8 +890,9 @@ function DailyPlot({
   data: UsageSummary["dailyBreakdown"];
   accent: { primary: string; secondary: string };
 }) {
+  const t = useT();
   if (data.length === 0) {
-    return <p className="ui-meta text-[10.5px] text-[var(--text-muted)]">No usage recorded in this window.</p>;
+    return <p className="ui-meta text-[10.5px] text-[var(--text-muted)]">{t("usage.detail.noUsageWindow")}</p>;
   }
   const maxTokens = Math.max(...data.map((d) => d.inputTokens + d.outputTokens), 1);
   return (
@@ -884,11 +930,11 @@ function DailyPlot({
       <div className="flex items-center gap-4 pt-1 ui-eyebrow text-[var(--text-muted)]">
         <span className="inline-flex items-center gap-1.5">
           <span className="inline-block h-1.5 w-1.5 rounded-sm" style={{ background: accent.primary }} />
-          Input
+          {t("usage.detail.input")}
         </span>
         <span className="inline-flex items-center gap-1.5">
           <span className="inline-block h-1.5 w-1.5 rounded-sm" style={{ background: accent.secondary }} />
-          Output
+          {t("usage.detail.output")}
         </span>
       </div>
     </div>
@@ -902,8 +948,9 @@ function ModelBreakdown({
   models: ModelUsage[];
   accent: string;
 }) {
+  const t = useT();
   if (models.length === 0) {
-    return <p className="ui-meta text-[10.5px] text-[var(--text-muted)]">No model data yet.</p>;
+    return <p className="ui-meta text-[10.5px] text-[var(--text-muted)]">{t("usage.detail.noModelData")}</p>;
   }
   return (
     <div className="space-y-2">

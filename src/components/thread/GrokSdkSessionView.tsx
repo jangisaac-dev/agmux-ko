@@ -20,6 +20,7 @@ import { useThreadStore } from "../../stores/threadStore";
 import { useUiStore } from "../../stores/uiStore";
 import { useIsPresentationActive } from "../../hooks/useIsSessionActive";
 import { isAppForeground, syncPollingToAppForeground } from "../../lib/appVisibility";
+import { tx, useT } from "../../i18n";
 import type { ContextUsage } from "./ContextRing";
 import {
   cancelGrokSessionOffload,
@@ -51,6 +52,7 @@ interface Props {
  *     the Rust event mapper). Decision is mapped to ACP's `{outcome,optionId}`.
  */
 export function GrokSdkSessionView({ sessionId, cwd, isNew, compact, hideTopBar }: Props) {
+  const t = useT();
   const [acpSessionId, setAcpSessionId] = useState<string | null>(() => {
     const thread = Object.values(useThreadStore.getState().threads ?? {})
       .flat()
@@ -307,11 +309,10 @@ export function GrokSdkSessionView({ sessionId, cwd, isNew, compact, hideTopBar 
   if (error) {
     return (
       <div className="flex h-full flex-col items-center justify-center gap-3 p-6 text-center text-zinc-400">
-        <div className="text-sm font-medium text-red-400">Grok failed to start</div>
+        <div className="text-sm font-medium text-red-400">{t("session.grok.startFailed")}</div>
         <div className="max-w-md text-xs">{error}</div>
         <div className="mt-2 text-xs text-zinc-500">
-          If this is your first run, try <code className="rounded bg-zinc-800 px-1.5 py-0.5">grok login</code> in a terminal,
-          then reopen this thread.
+          {tx("session.grok.firstRunHelp", { command: <code className="rounded bg-zinc-800 px-1.5 py-0.5">grok login</code> })}
         </div>
       </div>
     );

@@ -27,12 +27,14 @@ import { CatalogModelRow, ModelRowShell, RemoveButton, RepoLink, type DownloadCo
 import { HfSearch } from "./localModels/HfSearch";
 import { ExaKeyRow } from "./localModels/ExaKeyRow";
 import { ErrorNote, iconBtn, roleOrder } from "./localModels/ui";
+import { localeTag, useT } from "../../i18n";
 
 type TierChoice = "auto" | HardwareTier;
 
 const GIB = 1024 ** 3;
 
 export function LocalModelsPanel() {
+  const t = useT();
   const [hardware, setHardware] = useState<MlxHardwareInfo | null>(null);
   const [catalog, setCatalog] = useState<CatalogModel[]>([]);
   const [installed, setInstalled] = useState<MlxModel[]>([]);
@@ -103,10 +105,10 @@ export function LocalModelsPanel() {
 
   const tierChoices = useMemo<Choice<TierChoice>[]>(
     () => [
-      { value: "auto", label: hardware ? `Auto · ${tierLabel(detectedTier)}` : "Auto" },
+      { value: "auto", label: hardware ? t("settings.localModels.tier.autoChoice", { tier: tierLabel(detectedTier) }) : t("settings.localModels.tier.auto") },
       ...HARDWARE_TIERS.map((tier) => ({ value: tier, label: tierLabel(tier) })),
     ],
-    [hardware, detectedTier],
+    [hardware, detectedTier, t],
   );
 
   const handleDownload = useCallback(async (repoId: string) => {
@@ -116,7 +118,7 @@ export function LocalModelsPanel() {
       repoId,
       stage: "starting",
       percent: null,
-      message: "Starting download…",
+      message: t("settings.localModels.startingDownload"),
       complete: false,
       cancelled: false,
       error: null,
@@ -127,7 +129,7 @@ export function LocalModelsPanel() {
       setError(formatError(e));
       setActiveRepo(null);
     }
-  }, []);
+  }, [t]);
 
   const handleCancel = useCallback(async () => {
     try {
@@ -160,7 +162,7 @@ export function LocalModelsPanel() {
 
   return (
     <div>
-      <PageHeader title="Local Models" description="Download MLX coding models from HuggingFace." />
+      <PageHeader title={t("settings.nav.localModels")} description={t("settings.localModels.description")} />
 
       {error && (
         <div className="mb-5">
@@ -168,21 +170,24 @@ export function LocalModelsPanel() {
         </div>
       )}
 
-      <SettingsCard eyebrow="Setup" title="This Mac">
+      <SettingsCard eyebrow={t("settings.localModels.setup")} title={t("settings.localModels.thisMac")}>
         <SettingsRow
-          label={hardware ? hardware.chip : "Detecting hardware…"}
+          label={hardware ? hardware.chip : t("settings.localModels.detectingHardware")}
           description={
             hardware ? (
               <>
-                {hardware.totalRamGb} GB unified memory · {hardware.cores} CPU cores
+                {t("settings.localModels.hardwareSpecs", {
+                  memory: hardware.totalRamGb.toLocaleString(localeTag()),
+                  cores: hardware.cores.toLocaleString(localeTag()),
+                })}
                 {!hardware.isAppleSilicon && (
-                  <span className="text-amber-400"> · MLX needs Apple Silicon, so these models may not run.</span>
+                  <span className="text-amber-400"> · {t("settings.localModels.appleSiliconWarning")}</span>
                 )}
               </>
             ) : undefined
           }
         >
-          <button type="button" className={iconBtn} onClick={() => refreshModels()} title="Refresh models" aria-label="Refresh models">
+          <button type="button" className={iconBtn} onClick={() => refreshModels()} title={t("settings.localModels.refreshModels")} aria-label={t("settings.localModels.refreshModels")}>
             <RefreshCw size={12} />
           </button>
         </SettingsRow>
@@ -191,17 +196,17 @@ export function LocalModelsPanel() {
       </SettingsCard>
 
       <SettingsCard
-        eyebrow="Library"
-        title={catalogTierPref === "auto" ? "Recommended for this Mac" : `Recommended for ${tierLabel(tierToShow)} Macs`}
-        description="The fastest, a balanced and the highest-quality model that fit each amount of memory. Every model listed can drive coding tools."
+        eyebrow={t("settings.localModels.library")}
+        title={catalogTierPref === "auto" ? t("settings.localModels.recommendedForThisMac") : t("settings.localModels.recommendedForTier", { tier: tierLabel(tierToShow) })}
+        description={`${t("settings.localModels.recommendationsDescription.first")} ${t("settings.localModels.recommendationsDescription.second")}`}
       >
         <SettingsRow
-          label="Memory"
-          description="Show picks for another amount of memory. Doesn’t change what’s installed."
+          label={t("settings.localModels.memory")}
+          description={`${t("settings.localModels.memoryDescription.first")} ${t("settings.localModels.memoryDescription.second")}`}
           stacked
         >
           <ChoiceGroup<TierChoice>
-            label="Memory tier for recommended models"
+            label={t("settings.localModels.memoryTierLabel")}
             choices={tierChoices}
             value={catalogTierPref}
             onChange={(next) => updateSettings({ mlxCatalogTier: next })}
@@ -212,13 +217,13 @@ export function LocalModelsPanel() {
         ))}
         {recommended.length === 0 && (
           <div className="px-6 py-3.5 text-[12px] text-[var(--text-muted)]">
-            {catalog.length === 0 ? "Loading recommendations…" : "No recommended models for this amount of memory."}
+            {catalog.length === 0 ? t("settings.localModels.loadingRecommendations") : t("settings.localModels.noRecommendedModels")}
           </div>
         )}
       </SettingsCard>
 
       {installed.length > 0 && (
-        <SettingsCard eyebrow="On disk" title="Installed" description="Models agmux downloaded. Remove one to free up disk space.">
+        <SettingsCard eyebrow={t("settings.localModels.onDisk")} title={t("settings.localModels.installed")} description={`${t("settings.localModels.installedDescription.first")} ${t("settings.localModels.installedDescription.second")}`}>
           {installed.map((model) => (
             <InstalledModelRow key={model.id} model={model} catalogModel={catalogById.get(model.id.toLowerCase())} onRemove={handleRemove} />
           ))}
@@ -227,22 +232,22 @@ export function LocalModelsPanel() {
 
       <SettingsCard
         eyebrow="HuggingFace"
-        title="Browse more models"
-        description="Search MLX repositories beyond the recommended list. Chats only offer models that support tool calling."
+        title={t("settings.localModels.browseMore")}
+        description={`${t("settings.localModels.browseMoreDescription.first")} ${t("settings.localModels.browseMoreDescription.second")}`}
       >
         <HfSearch installedIds={installedIds} controls={controls} />
       </SettingsCard>
 
-      <SettingsCard eyebrow="Tools" title="Agent tools" description="How local models call tools and reach the web.">
+      <SettingsCard eyebrow={t("settings.localModels.tools")} title={t("settings.localModels.agentTools")} description={t("settings.localModels.agentToolsDescription")}>
         <ExaKeyRow />
         <SettingsRow
-          label="Native tool calling"
-          description="Send an OpenAI-style tools list to mlx_lm.server and read structured tool calls back. Models without a supported tool template use the XML protocol instead. Applies to new chats. Experimental: turn off if tools misbehave."
+          label={t("settings.localModels.nativeToolCalling")}
+          description={`${t("settings.localModels.nativeToolCallingDescription.first")} ${t("settings.localModels.nativeToolCallingDescription.second")} ${t("settings.localModels.nativeToolCallingDescription.third")} ${t("settings.localModels.nativeToolCallingDescription.fourth")}`}
         >
           <Toggle
             enabled={nativeTools}
             onChange={(v) => updateSettings({ mlxUseNativeTools: v })}
-            label="Native tool calling"
+            label={t("settings.localModels.nativeToolCalling")}
           />
         </SettingsRow>
       </SettingsCard>
@@ -259,12 +264,13 @@ function InstalledModelRow({
   catalogModel: CatalogModel | undefined;
   onRemove: (repoId: string) => void;
 }) {
+  const t = useT();
   const quant = catalogModel?.quant ?? model.quant;
   return (
     <ModelRowShell
       title={catalogModel?.name ?? formatLocalModelLabel(model.id) ?? model.id}
       meta={[
-        `${(model.sizeBytes / GIB).toFixed(1)} GB on disk`,
+        t("settings.localModels.installedSize", { size: (model.sizeBytes / GIB).toFixed(1) }),
         ...(quant ? [quant] : []),
         <RepoLink key="repo" repoId={model.id} />,
       ]}

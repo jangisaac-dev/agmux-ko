@@ -1,4 +1,5 @@
 import type { Task, WorktreeGitState } from "../../lib/types";
+import { t } from "../../i18n";
 
 export type EffectiveState = "queued" | "running" | "attention" | "review" | "merged" | "failed";
 export type StateGroup = "active" | "review" | "done";
@@ -8,6 +9,7 @@ export interface StateMeta {
   bg: string;
   bd: string;
   label: string;
+  labelKey: string;
 }
 
 const tone = (v: string, bg: number, bd: number) => ({
@@ -16,12 +18,12 @@ const tone = (v: string, bg: number, bd: number) => ({
   bd: `color-mix(in srgb, var(${v}) ${bd}%, transparent)`,
 });
 export const STATE_META: Record<EffectiveState, StateMeta> = {
-  queued:    { ...tone("--task-queued", 10, 22),    label: "Queued" },
-  running:   { ...tone("--task-running", 10, 28),   label: "Running" },
-  attention: { ...tone("--task-attention", 12, 38), label: "Needs attention" },
-  review:    { ...tone("--task-review", 10, 24),    label: "In review" },
-  merged:    { ...tone("--task-merged", 10, 24),    label: "Merged" },
-  failed:    { ...tone("--task-failed", 10, 22),    label: "Failed" },
+  queued:    { ...tone("--task-queued", 10, 22),    label: "Queued", labelKey: "task.state.queued" },
+  running:   { ...tone("--task-running", 10, 28),   label: "Running", labelKey: "task.state.running" },
+  attention: { ...tone("--task-attention", 12, 38), label: "Needs attention", labelKey: "task.state.attention" },
+  review:    { ...tone("--task-review", 10, 24),    label: "In review", labelKey: "task.state.review" },
+  merged:    { ...tone("--task-merged", 10, 24),    label: "Merged", labelKey: "task.state.merged" },
+  failed:    { ...tone("--task-failed", 10, 22),    label: "Failed", labelKey: "task.state.failed" },
 };
 
 export function deriveEffectiveState(
@@ -87,18 +89,24 @@ function parseSqliteUtc(raw: string): number {
   return new Date(raw).getTime();
 }
 
-export function relativeTime(iso: string | null | undefined): string {
+export function isJustNow(iso: string | null | undefined, now = Date.now()): boolean {
+  if (!iso) return false;
+  const timestamp = parseSqliteUtc(iso);
+  return !Number.isNaN(timestamp) && now - timestamp < 60_000;
+}
+
+export function relativeTime(iso: string | null | undefined, now = Date.now()): string {
   if (!iso) return "";
-  const t = parseSqliteUtc(iso);
-  if (Number.isNaN(t)) return "";
-  const diff = Date.now() - t;
-  if (diff < 0) return "just now"; // clock skew / future timestamp
+  const timestamp = parseSqliteUtc(iso);
+  if (Number.isNaN(timestamp)) return "";
+  const diff = now - timestamp;
+  if (diff < 0) return t("task.time.justNow"); // clock skew / future timestamp
   const sec = Math.floor(diff / 1000);
-  if (sec < 60) return "just now";
+  if (sec < 60) return t("task.time.justNow");
   const min = Math.floor(sec / 60);
-  if (min < 60) return `${min}m`;
+  if (min < 60) return t("task.time.minutesShort", { count: min });
   const hr = Math.floor(min / 60);
-  if (hr < 24) return `${hr}h`;
+  if (hr < 24) return t("task.time.hoursShort", { count: hr });
   const days = Math.floor(hr / 24);
-  return `${days}d`;
+  return t("task.time.daysShort", { count: days });
 }

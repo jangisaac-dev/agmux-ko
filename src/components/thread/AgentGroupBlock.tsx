@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Bot, ChevronDown, ChevronRight, Loader2, Users } from "lucide-react";
 import type { AgentChildTool } from "./tools/types";
 import type { BackgroundTask } from "../../lib/types";
+import { useT } from "../../i18n";
 
 export interface AgentGroupMember {
   toolId: string;
@@ -18,6 +19,7 @@ interface Props {
 }
 
 export function AgentGroupBlock({ agents }: Props) {
+  const t = useT();
   const [expanded, setExpanded] = useState(true);
 
   const allDone = agents.every((a) => !a.pending);
@@ -40,12 +42,12 @@ export function AgentGroupBlock({ agents }: Props) {
   ).length;
 
   const headerLabel = allDone && bgRunningCount === 0
-    ? `${agents.length} agents completed`
+    ? t("thread.agents.completed", { count: agents.length })
     : bgRunningCount > 0
-    ? `${bgRunningCount} background agent${bgRunningCount > 1 ? "s" : ""} running`
+    ? t("thread.agents.backgroundRunning", { count: bgRunningCount })
     : pendingCount === agents.length
-    ? `Running ${agents.length} agents`
-    : `Running ${pendingCount} of ${agents.length} agents`;
+    ? t("thread.agents.runningAll", { count: agents.length })
+    : t("thread.agents.runningSome", { count: agents.length, pending: pendingCount, total: agents.length });
 
   return (
     <div
@@ -84,7 +86,7 @@ export function AgentGroupBlock({ agents }: Props) {
               : "bg-zinc-500/10 border-zinc-500/15 text-zinc-500"
           }`}
         >
-          auto
+          {t("thread.agents.auto")}
           {(!allDone || bgRunningCount > 0) && <Loader2 size={10} className="animate-spin" />}
         </span>
         {allDone && bgRunningCount === 0 && !anyError && (
@@ -115,7 +117,7 @@ export function AgentGroupBlock({ agents }: Props) {
             const desc =
               typeof agent.input.description === "string"
                 ? agent.input.description
-                : "Agent task";
+                : t("thread.agents.defaultTask");
             const agentType =
               typeof agent.input.subagent_type === "string"
                 ? agent.input.subagent_type
@@ -158,6 +160,7 @@ function AgentMemberRow({
   backgroundTask?: BackgroundTask;
   isBackground: boolean;
 }) {
+  const t = useT();
   const bgStatus = backgroundTask?.status;
   const isBgRunning = isBackground && (!bgStatus || bgStatus === "running");
 
@@ -194,28 +197,28 @@ function AgentMemberRow({
         <>
           {backgroundTask && backgroundTask.toolUses > 0 && (
             <span className="shrink-0 text-[10px] tabular-nums text-zinc-500">
-              {backgroundTask.toolUses} tools
+              {t("thread.agents.tools", { count: backgroundTask.toolUses })}
             </span>
           )}
           {isBgRunning && (
             <span className="ui-chip sm border border-blue-500/25 bg-blue-500/10 text-blue-400 fx-soft-blue">
               <Loader2 size={9} className="animate-spin" />
-              {backgroundTask?.lastToolName ?? "running"}
+              {backgroundTask?.lastToolName ?? t("thread.agents.running")}
             </span>
           )}
           {bgStatus === "completed" && (
             <span className="ui-chip sm border border-[color:var(--accent)]/25 bg-[var(--accent-dim)] text-[color:var(--accent)] fx-soft-green">
-              done
+              {t("thread.agents.done")}
             </span>
           )}
           {bgStatus === "failed" && (
             <span className="ui-chip sm border border-red-500/25 bg-red-500/10 text-red-400 fx-soft-red">
-              failed
+              {t("thread.agents.failed")}
             </span>
           )}
           {bgStatus === "stopped" && (
             <span className="ui-chip sm border border-zinc-500/25 bg-zinc-500/10 text-zinc-400">
-              stopped
+              {t("thread.agents.stopped")}
             </span>
           )}
         </>
@@ -224,7 +227,7 @@ function AgentMemberRow({
       {/* Non-background: standard child tool count + status */}
       {!isBackground && childToolCount > 0 && (
         <span className="shrink-0 text-[10px] tabular-nums text-zinc-500">
-          {childToolCount} tools
+          {t("thread.agents.tools", { count: childToolCount })}
         </span>
       )}
       {pending && <Loader2 size={10} className="shrink-0 animate-spin text-amber-400" />}
@@ -247,7 +250,7 @@ function AgentMemberRow({
       )}
       {isError && (
         <span className="shrink-0 rounded bg-red-500/10 border border-red-500/20 px-1 py-px text-[9px] font-medium text-red-400">
-          err
+          {t("thread.agents.errorShort")}
         </span>
       )}
     </div>

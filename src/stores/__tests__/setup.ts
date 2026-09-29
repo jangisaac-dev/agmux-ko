@@ -56,6 +56,13 @@ if (typeof globalThis.crypto?.randomUUID !== "function") {
   });
 }
 
+// Tests assert English copy: pin the language the "system" UI setting resolves
+// to (src/i18n), whatever the host machine's locale is.
+if (typeof navigator !== "undefined") {
+  Object.defineProperty(navigator, "language", { value: "en-US", configurable: true });
+  Object.defineProperty(navigator, "languages", { value: ["en-US"], configurable: true });
+}
+
 /** Helper for tests that want a clean storage between cases. */
 export function clearLocalStorage(): void {
   storage.clear();

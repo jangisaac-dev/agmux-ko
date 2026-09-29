@@ -18,14 +18,10 @@ import {
   type LocalSelfView,
 } from "../../lib/localTeamsAggregate";
 import {
-  agoLabel,
-  fmtMoney,
   fmtPct,
-  fmtSessions,
   fmtTokens,
-  sessionsCard,
+  since,
   teamsPreviewPayload,
-  TEAM_RANGE_LABELS,
   TEAM_RANGES,
   type HourlyBucket,
   type TeamRange,
@@ -41,6 +37,7 @@ import {
   Skeleton,
   StatCard,
 } from "../teams/primitives";
+import { localeTag, tx, useT } from "../../i18n";
 
 /** hourUtc is `YYYY-MM-DDTHH` — coerce for parseTeamsTs. */
 function hourAsTs(hourUtc: string): string {
@@ -48,12 +45,32 @@ function hourAsTs(hourUtc: string): string {
   return hourUtc;
 }
 
+function relativeTimeLabel(value: string | null, t: ReturnType<typeof useT>): string | null {
+  if (!value) return null;
+  if (value === "now") return t("settings.relativeTime.justNow");
+  const match = /^(\d+)(m|h|d)$/.exec(value);
+  if (!match) return value;
+  const key = match[2] === "m"
+    ? "settings.relativeTime.minutes"
+    : match[2] === "h"
+      ? "settings.relativeTime.hours"
+      : "settings.relativeTime.days";
+  return t(key, { count: Number(match[1]) });
+}
+
 export function YourDataSection() {
+  const t = useT();
   const [range, setRange] = useState<TeamRange>("30d");
   const [buckets, setBuckets] = useState<HourlyBucket[] | null>(null);
   const [data, setData] = useState<LocalSelfView | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const rangeLabels: Record<TeamRange, string> = {
+    "7d": t("settings.yourData.range.7d"),
+    "14d": t("settings.yourData.range.14d"),
+    "30d": t("settings.yourData.range.30d"),
+    "90d": t("settings.yourData.range.90d"),
+  };
 
   const scan = useCallback(async () => {
     setLoading(true);
@@ -87,12 +104,12 @@ export function YourDataSection() {
           className="text-[16px] font-semibold text-[var(--text-primary)]"
           style={{ letterSpacing: "-0.02em" }}
         >
-          Your Data
+          {t("settings.yourData.title")}
         </div>
         <div className="mt-1.5 text-[11.5px] text-[var(--text-muted)]">
-          Local usage from Claude, Codex, and Grok on this Mac.
+          {t("settings.yourData.description")}
           {data?.lastBucketHour
-            ? ` · as of ${agoLabel(hourAsTs(data.lastBucketHour))}`
+            ? ` · ${t("settings.yourData.asOf", { time: relativeTimeLabel(since(hourAsTs(data.lastBucketHour)), t) ?? "" })}`
             : ""}
         </div>
       </div>
@@ -101,7 +118,7 @@ export function YourDataSection() {
         value={range}
         onChange={setRange}
         options={TEAM_RANGES}
-        labels={TEAM_RANGE_LABELS}
+        labels={rangeLabels}
       />
       <GlassButton
         icon={RefreshCw}
@@ -110,7 +127,7 @@ export function YourDataSection() {
         onClick={() => void scan()}
         disabled={loading}
       >
-        {loading ? "Scanning…" : "Refresh"}
+        {loading ? t("settings.yourData.scanning") : t("settings.yourData.refresh")}
       </GlassButton>
     </div>
   );
@@ -141,11 +158,11 @@ export function YourDataSection() {
         <Panel padded={false}>
           <EmptyState
             icon={AlertTriangle}
-            title="Couldn't read local usage"
+            title={t("settings.yourData.readError")}
             body={error}
             actions={
               <GlassButton size="sm" onClick={() => void scan()}>
-                Try again
+                {t("settings.yourData.tryAgain")}
               </GlassButton>
             }
           />
@@ -163,8 +180,8 @@ export function YourDataSection() {
         <Panel padded={false}>
           <EmptyState
             icon={CloudOff}
-            title="No agent activity found"
-            body="agmux reads Claude, Codex, and Grok session logs on this machine. Open a session and come back — stats appear after the first turns land."
+            title={t("settings.yourData.noActivity.title")}
+            body={`${t("settings.yourData.noActivity.description.first")} ${t("settings.yourData.noActivity.description.second")}`}
           />
         </Panel>
         <LocalNote />
@@ -179,11 +196,11 @@ export function YourDataSection() {
         <Panel padded={false}>
           <EmptyState
             icon={CloudOff}
-            title={`Nothing in the last ${TEAM_RANGE_LABELS[range].toLowerCase()}`}
-            body="Try a wider range, or run an agent session and refresh."
+            title={t("settings.yourData.emptyRange", { range: rangeLabels[range].toLowerCase() })}
+            body={t("settings.yourData.emptyRangeDescription")}
             actions={
               <GlassButton size="sm" onClick={() => setRange("90d")}>
-                Show 90 days
+                {t("settings.yourData.show90Days")}
               </GlassButton>
             }
           />
@@ -193,52 +210,61 @@ export function YourDataSection() {
     );
   }
 
-  const t = data.totals;
-  const tokens = fmtTokens(t.tokens);
-  const cost = fmtMoney(t.costUsd);
+  const totals = data.totals;
+  const tokens = fmtTokens(totals.tokens);
+  const costText = totals.costUsd.toFixed(2);
+  const costDot = costText.indexOf(".");
+  const cost = {
+    value: `$${Number(costText.slice(0, costDot)).toLocaleString(localeTag())}`,
+    unit: costText.slice(costDot),
+  };
+  const sessionCount = totals.sessionsStarted == null
+    ? "—"
+    : `${totals.sessionsStarted.toLocaleString(localeTag())}${totals.sessionsStartedIncomplete ? "+" : ""}`;
 
   return (
     <div className="flex flex-col gap-2.5">
       {header}
 
       <Banner tone="plain" icon={Timer}>
-        Same charts as Teams — computed here from your provider logs. Nothing is
-        uploaded unless you join a team and enable sync.
+        {t("settings.yourData.localAnalytics")}{" "}
+        {t("settings.yourData.uploadOptIn")}
       </Banner>
 
       <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-        <StatCard icon={Timer} label="Active" value={t.activeHours.toFixed(1)} unit="h" />
+        <StatCard icon={Timer} label={t("settings.yourData.active")} value={totals.activeHours.toFixed(1)} unit="h" />
         <StatCard
           icon={Coins}
-          label="Tokens"
+          label={t("settings.yourData.tokens")}
           value={tokens.value}
           unit={tokens.unit}
-          note={`${fmtPct(t.cacheHitRate)} cache hit · ${cost.value}${cost.unit} est.`}
+          note={t("settings.yourData.cacheCostNote", { percent: fmtPct(totals.cacheHitRate), amount: cost.value, unit: cost.unit })}
         />
         <StatCard
           icon={MessageSquare}
-          {...sessionsCard(t)}
-          value={fmtSessions(t)}
-          note={`${t.turns.toLocaleString()} turns · ${t.toolCalls.toLocaleString()} tools`}
+          label={t(totals.sessionsStartedIncomplete ? "settings.yourData.sessionsPartial" : "settings.yourData.sessions")}
+          help={`${t(totals.sessionsStartedIncomplete ? "settings.yourData.sessionsPartialHelp.first" : "settings.yourData.sessionsHelp.first")} ${t(totals.sessionsStartedIncomplete ? "settings.yourData.sessionsPartialHelp.second" : "settings.yourData.sessionsHelp.second")}`}
+          value={sessionCount}
+          note={`${t("settings.yourData.turns", { count: totals.turns, number: totals.turns.toLocaleString(localeTag()) })} · ${t("settings.yourData.tools", { count: totals.toolCalls, number: totals.toolCalls.toLocaleString(localeTag()) })}`}
         />
-        <StatCard icon={Layers} label="Peak conc." value={String(t.peakConcurrent)} />
+        <StatCard icon={Layers} label={t("settings.yourData.peakConcurrency")} value={String(totals.peakConcurrent)} />
       </div>
 
       <div className="grid grid-cols-1 items-start gap-3 lg:grid-cols-[2fr_1fr]">
-        <Panel title="Daily trends" sub="tokens · active hours">
+        <Panel title={t("settings.yourData.dailyTrends")} sub={t("settings.yourData.dailyTrendsSubtitle")}>
           <DailyTrends days={data.daily} />
           <div className="mt-2">
             <Sparkline values={data.daily.map((d) => d.activeHours)} />
           </div>
         </Panel>
-        <Panel title="Provider & model mix">
+        <Panel title={t("settings.yourData.providerModelMix")}>
           <div className="flex flex-col gap-2.5">
             <MixBars slices={data.providerMix} />
             {data.modelMix?.length ? (
               <>
                 <hr className="my-1 border-0 border-t border-white/[0.06]" />
                 <div className="ui-eyebrow text-[var(--text-muted)]">
-                  Top models
+                  {t("settings.yourData.topModels")}
                 </div>
                 <MixBars slices={data.modelMix.slice(0, 5)} mono />
               </>
@@ -249,25 +275,28 @@ export function YourDataSection() {
 
       <div className="grid grid-cols-1 items-start gap-3 sm:grid-cols-2">
         <Panel
-          title="What your agents did"
+          title={t("settings.yourData.agentsActivity")}
           right={
             <span className="font-mono text-[11.5px] text-[var(--text-muted)]">
-              {data.totals.toolCalls.toLocaleString()} tool calls
+              {t("settings.yourData.toolCalls", { count: totals.toolCalls, number: totals.toolCalls.toLocaleString(localeTag()) })}
             </span>
           }
         >
           <ToolMix totals={data.totals} />
         </Panel>
-        <Panel title="Output & reliability" sub="code written, calls failed">
+        <Panel title={t("settings.yourData.outputReliability")} sub={t("settings.yourData.outputReliabilitySubtitle")}>
           <OutputPanel totals={data.totals} />
         </Panel>
       </div>
 
       {data.projects.length > 0 ? (
-        <Panel title="Projects" sub="basename or hash only" padded={false}>
+        <Panel title={t("settings.yourData.projects")} sub={t("settings.yourData.projectsSubtitle")} padded={false}>
           <div className="divide-y divide-white/[0.06]">
             {data.projects.slice(0, 8).map((p) => {
               const tok = fmtTokens(p.tokens);
+              const projectSessionCount = p.sessionsStarted == null
+                ? "—"
+                : `${p.sessionsStarted.toLocaleString(localeTag())}${p.sessionsStartedIncomplete ? "+" : ""}`;
               return (
                 <div
                   key={p.projectKey}
@@ -284,7 +313,9 @@ export function YourDataSection() {
                     {tok.unit}
                   </span>
                   <span className="ui-meta text-[11.5px] text-[var(--text-muted)]">
-                    {fmtSessions(p)} sess
+                    {p.sessionsStarted == null
+                      ? projectSessionCount
+                      : t("settings.yourData.sessionsShort", { count: p.sessionsStarted, value: projectSessionCount })}
                   </span>
                 </div>
               );
@@ -299,14 +330,15 @@ export function YourDataSection() {
 }
 
 function LocalNote() {
+  const t = useT();
   return (
-    <Panel title="About this data">
+    <Panel title={t("settings.yourData.about.title")}>
       <p className="m-0 text-[11.5px] leading-relaxed text-[var(--text-tertiary)]">
-        Aggregates only — counters and short labels from Claude, Codex, and Grok session
-        logs. No prompt text, replies, diffs, file contents, absolute paths, or secrets.
-        Join a team under{" "}
-        <span className="text-[var(--text-secondary)]">Settings → Teams</span> if you want to share
-        the same aggregates with managers.
+        {t("settings.yourData.about.aggregates")}{" "}
+        {t("settings.yourData.about.privacy")}{" "}
+        {tx("settings.yourData.about.share", {
+          section: <span className="text-[var(--text-secondary)]">{t("settings.dialog.title")} → {t("settings.nav.teams")}</span>,
+        })}
       </p>
     </Panel>
   );

@@ -4,6 +4,7 @@ import { mlxSearchHfModels, type HfSearchHit } from "../../../lib/mlx";
 import { formatError } from "../../../lib/formatError";
 import { InstalledBadge, ModelRowShell, RemoveButton, type DownloadControls } from "./ModelRow";
 import { ErrorNote, btn, btnAccent, textInput } from "./ui";
+import { localeTag, tx, useT } from "../../../i18n";
 
 const SEARCH_DEBOUNCE_MS = 300;
 
@@ -15,6 +16,7 @@ export function HfSearch({
   installedIds: ReadonlySet<string>;
   controls: DownloadControls;
 }) {
+  const t = useT();
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<HfSearchHit[]>([]);
   const [searching, setSearching] = useState(false);
@@ -61,8 +63,8 @@ export function HfSearch({
             type="text"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search MLX models, e.g. qwen coder, devstral…"
-            aria-label="Search HuggingFace MLX models"
+            placeholder={t("settings.localModels.search.placeholder", { models: "qwen coder, devstral" })}
+            aria-label={t("settings.localModels.search.ariaLabel")}
             spellCheck={false}
             className={`${textInput} pl-8 pr-8`}
           />
@@ -75,7 +77,7 @@ export function HfSearch({
             <button
               type="button"
               onClick={() => setQuery("")}
-              aria-label="Clear search"
+              aria-label={t("settings.localModels.search.clear")}
               className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[var(--text-muted)] hover:text-[var(--text-primary)]"
             >
               <X size={12} />
@@ -95,7 +97,9 @@ export function HfSearch({
 
       {!searching && !error && trimmed.length >= 2 && results.length === 0 && (
         <div className="px-6 py-3.5 text-[12px] text-[var(--text-muted)]">
-          No MLX models match <span className="font-mono text-[var(--text-secondary)]">{trimmed}</span>.
+          {tx("settings.localModels.search.noMatches", {
+            query: <span className="font-mono text-[var(--text-secondary)]">{trimmed}</span>,
+          })}
         </div>
       )}
     </>
@@ -111,18 +115,22 @@ function SearchHitRow({
   installed: boolean;
   controls: DownloadControls;
 }) {
+  const t = useT();
   const downloading = controls.activeRepo?.toLowerCase() === hit.id.toLowerCase();
   return (
     <ModelRowShell
       title={hit.id}
       badges={installed ? <InstalledBadge /> : undefined}
-      meta={[`${hit.downloads.toLocaleString()} downloads`, `${hit.likes.toLocaleString()} likes`]}
+      meta={[
+        t("settings.localModels.search.downloads", { count: hit.downloads, number: hit.downloads.toLocaleString(localeTag()) }),
+        t("settings.localModels.search.likes", { count: hit.likes, number: hit.likes.toLocaleString(localeTag()) }),
+      ]}
       action={
         installed ? (
           <RemoveButton onConfirm={() => controls.onRemove(hit.id)} />
         ) : downloading ? (
           <button type="button" className={btn} onClick={controls.onCancel}>
-            <X size={12} /> Cancel
+            <X size={12} /> {t("settings.localModels.cancelDownload")}
           </button>
         ) : (
           <button
@@ -131,7 +139,7 @@ function SearchHitRow({
             onClick={() => controls.onDownload(hit.id)}
             disabled={!!controls.activeRepo}
           >
-            <Download size={12} /> Download
+            <Download size={12} /> {t("settings.localModels.download")}
           </button>
         )
       }

@@ -54,6 +54,7 @@ import {
 } from "../../stores/settingsStore";
 import type { GitAccount } from "../../stores/settingsStore";
 import type { FileChangeEvent } from "../../lib/types";
+import { useT, tx } from "../../i18n";
 
 // ── Stable empty refs ────────────────────────────────────────
 const EMPTY_GIT_ACCOUNTS: GitAccount[] = [];
@@ -86,21 +87,21 @@ const PANEL_MAX_WIDTH = 1000;
 
 
 const VIEW_MODE_LABELS: Record<ViewMode, string> = {
-  unstaged: "Unstaged",
-  staged: "Staged",
-  committed: "Committed",
-  branch: "Branch",
+  unstaged: "git.sidebar.view.unstaged",
+  staged: "git.sidebar.view.staged",
+  committed: "git.sidebar.view.committed",
+  branch: "git.sidebar.view.branch",
 };
 
 const COMMIT_ACTION_LABELS: Record<CommitAction, string> = {
-  commit: "Commit",
-  push: "Commit & Push",
-  pr: "Commit & Create PR",
+  commit: "git.sidebar.action.commit",
+  push: "git.sidebar.action.commitAndPush",
+  pr: "git.sidebar.action.commitAndCreatePr",
 };
 
 /** Label flips to "Commit & Push New Branch" when the branch has no upstream yet. */
 function commitActionLabel(action: CommitAction, hasUpstream: boolean): string {
-  if (action === "push" && !hasUpstream) return "Commit & Push New Branch";
+  if (action === "push" && !hasUpstream) return "git.sidebar.action.commitAndPushNewBranch";
   return COMMIT_ACTION_LABELS[action];
 }
 
@@ -402,6 +403,7 @@ function DiffHunk({ hunk, density = "comfortable" }: { hunk: Hunk; density?: "co
 }
 
 function DiffViewer({ rawDiff, density = "comfortable" }: { rawDiff: string; density?: "compact" | "comfortable" }) {
+  const t = useT();
   const hunks = useMemo(() => parseHunks(rawDiff), [rawDiff]);
   if (hunks.length === 0) {
     return (
@@ -409,7 +411,7 @@ function DiffViewer({ rawDiff, density = "comfortable" }: { rawDiff: string; den
         className="px-5 py-8 text-center"
         style={{ color: "var(--text-muted)", fontSize: 11.5, background: "var(--surface-code-panel)" }}
       >
-        <div className="mb-1 ui-meta">No hunks captured for this diff.</div>
+        <div className="mb-1 ui-meta">{t("git.sidebar.noHunksCaptured")}</div>
       </div>
     );
   }
@@ -431,6 +433,7 @@ function ViewModeDropdown({
   onChange: (mode: ViewMode) => void;
   fileCount: number;
 }) {
+  const t = useT();
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
@@ -451,7 +454,7 @@ function ViewModeDropdown({
         onClick={() => setOpen((p) => !p)}
         className="flex items-center gap-1.5 rounded-md px-1.5 py-0.5 transition-colors hover:bg-white/[0.06]"
       >
-        <span className="text-[13px] font-medium text-zinc-200">{VIEW_MODE_LABELS[value]}</span>
+        <span className="text-[13px] font-medium text-zinc-200">{t(VIEW_MODE_LABELS[value])}</span>
         <span className="rounded px-1.5 py-0 text-[10px] font-medium tabular-nums text-zinc-500 bg-white/[0.05]">
           {fileCount}
         </span>
@@ -478,7 +481,7 @@ function ViewModeDropdown({
                 className="flex w-full items-center gap-2 px-3 py-2 text-left text-[12px] transition-colors hover:bg-white/[0.06]"
               >
                 <span className={`flex-1 ${value === mode ? "font-medium text-zinc-100" : "text-zinc-400"}`}>
-                  {VIEW_MODE_LABELS[mode]}
+                  {t(VIEW_MODE_LABELS[mode])}
                 </span>
                 {value === mode && <Check size={12} className="shrink-0 text-zinc-300" />}
               </button>
@@ -499,6 +502,7 @@ function BranchSwitcher({
   current: string | null;
   onSwitched: () => void;
 }) {
+  const t = useT();
   const [open, setOpen] = useState(false);
   const [branches, setBranches] = useState<GitBranchType[]>(EMPTY_BRANCHES);
   const [filter, setFilter] = useState("");
@@ -572,8 +576,8 @@ function BranchSwitcher({
         type="button"
         onClick={() => setOpen((p) => !p)}
         className="rounded p-0.5 text-zinc-600 hover:bg-white/[0.06] hover:text-zinc-200 transition-colors"
-        title="Switch branch"
-        aria-label="Switch branch"
+        title={t("git.sidebar.switchBranch")}
+        aria-label={t("git.sidebar.switchBranch")}
       >
         <ChevronDown size={11} />
       </button>
@@ -594,7 +598,7 @@ function BranchSwitcher({
                 type="text"
                 value={filter}
                 onChange={(e) => setFilter(e.target.value)}
-                placeholder="Find or create branch..."
+                placeholder={t("git.sidebar.findOrCreateBranch")}
                 className="w-full bg-white/[0.04] border border-white/[0.06] rounded px-2 py-1.5 text-[12px] text-zinc-100 placeholder:text-zinc-600 outline-none focus:border-blue-500/40 fx-input"
                 onKeyDown={(e) => {
                   if (e.key === "Enter" && canCreate) handleCreate();
@@ -606,7 +610,7 @@ function BranchSwitcher({
               {loading ? (
                 <div className="flex items-center justify-center gap-2 py-4 text-[11px] text-zinc-500">
                   <Loader2 size={11} className="animate-spin" />
-                  <span>Loading branches...</span>
+                  <span>{t("git.sidebar.loadingBranches")}</span>
                 </div>
               ) : (
                 <>
@@ -625,7 +629,7 @@ function BranchSwitcher({
                         <span className={`flex-1 truncate font-mono ${isCurrent ? "text-zinc-100" : "text-zinc-400"}`}>
                           {b.name}
                         </span>
-                        {b.is_remote && <span className="text-[9px] text-zinc-600 uppercase">remote</span>}
+                        {b.is_remote && <span className="text-[9px] text-zinc-600 uppercase">{t("git.sidebar.remote")}</span>}
                         {isSwitching ? (
                           <Loader2 size={11} className="animate-spin text-zinc-400" />
                         ) : isCurrent ? (
@@ -643,14 +647,14 @@ function BranchSwitcher({
                       className="flex w-full items-center gap-2 px-3 py-1.5 text-left text-[12px] text-[color:var(--accent)] transition-colors hover:bg-[var(--accent-dim)] disabled:opacity-60 hairline-t"
                     >
                       {creating ? <Loader2 size={11} className="animate-spin" /> : <Plus size={11} />}
-                      <span className="flex-1 truncate">
-                        Create <span className="font-mono">{filter.trim()}</span>
+                        <span className="flex-1 truncate">
+                        {tx("git.sidebar.createBranch", { branch: <span className="font-mono">{filter.trim()}</span> })}
                       </span>
                     </button>
                   )}
 
                   {!loading && filtered.length === 0 && !canCreate && (
-                    <div className="px-3 py-4 text-center text-[11px] text-zinc-600">No branches</div>
+                    <div className="px-3 py-4 text-center text-[11px] text-zinc-600">{t("git.sidebar.noBranches")}</div>
                   )}
                 </>
               )}
@@ -683,6 +687,7 @@ function CommitActionButton({
   label: string;
   hasUpstream: boolean;
 }) {
+  const t = useT();
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
@@ -716,7 +721,7 @@ function CommitActionButton({
         onClick={() => setOpen((p) => !p)}
         disabled={disabled}
         className="px-2 rounded-r-md bg-[var(--accent)] text-[#14110a] border-l border-black/20 hover:brightness-110 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
-        aria-label="Choose commit action"
+        aria-label={t("git.sidebar.chooseCommitAction")}
       >
         <ChevronDown size={12} />
       </button>
@@ -742,7 +747,7 @@ function CommitActionButton({
                 className="flex w-full items-center gap-2 px-3 py-2 text-left text-[12px] text-zinc-300 transition-colors hover:bg-white/[0.06]"
               >
                 {a === "commit" ? <GitCommit size={12} /> : a === "push" ? <ArrowUp size={12} /> : <GitPullRequest size={12} />}
-                <span className="flex-1">{commitActionLabel(a, hasUpstream)}</span>
+                <span className="flex-1">{t(commitActionLabel(a, hasUpstream))}</span>
                 {action === a && <Check size={11} className="text-[color:var(--accent)]" />}
               </button>
             ))}
@@ -770,20 +775,21 @@ function PushConfirmDialog({
   busy: boolean;
   hasUpstream: boolean;
 }) {
+  const t = useT();
   const suspiciousFiles = files.filter((f) => isSuspicious(f.path));
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
       <div className="w-[420px] max-h-[80vh] flex flex-col rounded-[20px] border border-white/10 bg-zinc-900/95 backdrop-blur-xl shadow-2xl fx-dialog">
         <div className="flex items-center justify-between px-4 py-3 hairline-b">
           <span className="text-[13px] font-semibold text-zinc-100">
-            Confirm {action === "commit" ? "commit" : action === "push" ? "push" : "PR"}
+            {t("git.sidebar.confirmAction", { action: t(action === "commit" ? "git.sidebar.confirmCommit" : action === "push" ? "git.sidebar.confirmPush" : "git.sidebar.confirmPr") })}
           </span>
           <button onClick={onCancel} className="p-1 rounded hover:bg-white/[0.06] text-zinc-500 hover:text-zinc-200 transition-colors">
             <X size={14} />
           </button>
         </div>
         <div className="px-4 pt-3 pb-2">
-          <div className="text-[11px] text-zinc-500 mb-1">Commit message</div>
+          <div className="text-[11px] text-zinc-500 mb-1">{t("git.sidebar.commitMessage")}</div>
           <div className="rounded-md bg-white/[0.04] border border-white/[0.06] px-2.5 py-2 text-[13px] text-zinc-200 font-mono break-words">
             {commitMessage}
           </div>
@@ -792,14 +798,16 @@ function PushConfirmDialog({
           <div className="mx-4 mb-2 flex items-start gap-2 rounded-md bg-amber-500/10 border border-amber-500/30 px-3 py-2 text-[12px] text-amber-300 fx-soft-gold">
             <AlertTriangle size={13} className="shrink-0 mt-0.5" />
             <div>
-              <span className="font-semibold">Suspicious files:</span>{" "}
-              {suspiciousFiles.map((f) => f.path).join(", ")}. Review before committing.
+              {tx("git.sidebar.suspiciousFilesNotice", {
+                label: <span className="font-semibold">{t("git.sidebar.suspiciousFilesLabel")}</span>,
+                paths: suspiciousFiles.map((f) => f.path).join(", "),
+              })}
             </div>
           </div>
         )}
         <div className="px-4 pb-1">
           <div className="text-[11px] text-zinc-500 mb-1">
-            {files.length} file{files.length !== 1 ? "s" : ""}
+            {t("git.sidebar.fileCount", { count: files.length })}
           </div>
         </div>
         <div className="flex-1 overflow-y-auto mx-4 mb-3 rounded-md border border-white/[0.06] bg-white/[0.02]">
@@ -825,7 +833,7 @@ function PushConfirmDialog({
             onClick={onCancel}
             className="flex-1 py-2 rounded-md border border-white/[0.08] text-[13px] font-medium text-zinc-300 hover:text-zinc-100 hover:border-white/[0.14] hover:bg-white/[0.04] transition-colors"
           >
-            Cancel
+            {t("git.sidebar.cancel")}
           </button>
           <button
             onClick={onConfirm}
@@ -833,7 +841,7 @@ function PushConfirmDialog({
             className="flex-1 flex items-center justify-center gap-2 py-2 rounded-md bg-[var(--accent)] text-[#14110a] text-[13px] font-medium hover:brightness-110 disabled:opacity-40 transition-colors"
           >
             {busy ? <Loader2 size={13} className="animate-spin" /> : action === "commit" ? <GitCommit size={13} /> : action === "push" ? <ArrowUp size={13} /> : <GitPullRequest size={13} />}
-            {busy ? "Working..." : `Confirm ${commitActionLabel(action, hasUpstream)}`}
+            {busy ? t("git.sidebar.working") : t("git.sidebar.confirmAction", { action: t(commitActionLabel(action, hasUpstream)) })}
           </button>
         </div>
       </div>
@@ -849,6 +857,7 @@ function LayoutSwitcher({
   value: DiffLayout;
   onChange: (v: DiffLayout) => void;
 }) {
+  const t = useT();
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
@@ -861,11 +870,11 @@ function LayoutSwitcher({
     return () => document.removeEventListener("mousedown", handleClick);
   }, [open]);
 
-  const layouts: Array<{ value: DiffLayout; icon: React.ReactNode; label: string; desc: string }> = [
-    { value: "stacked", icon: <Rows3 size={12} />, label: "Stacked", desc: "Directory groups with inline diffs" },
-    { value: "strip", icon: <AlignJustify size={12} />, label: "Strip", desc: "Compact flat list" },
-    { value: "scroll", icon: <ScrollText size={12} />, label: "Scroll", desc: "All diffs always open" },
-    { value: "dropdown", icon: <ChevronsUpDown size={12} />, label: "Dropdown", desc: "Warp-style per-file cards" },
+  const layouts: Array<{ value: DiffLayout; icon: React.ReactNode; labelKey: string; descKey: string }> = [
+    { value: "stacked", icon: <Rows3 size={12} />, labelKey: "git.sidebar.layout.stacked", descKey: "git.sidebar.layout.stackedDescription" },
+    { value: "strip", icon: <AlignJustify size={12} />, labelKey: "git.sidebar.layout.strip", descKey: "git.sidebar.layout.stripDescription" },
+    { value: "scroll", icon: <ScrollText size={12} />, labelKey: "git.sidebar.layout.scroll", descKey: "git.sidebar.layout.scrollDescription" },
+    { value: "dropdown", icon: <ChevronsUpDown size={12} />, labelKey: "git.sidebar.layout.dropdown", descKey: "git.sidebar.layout.dropdownDescription" },
   ];
 
   const current = layouts.find((l) => l.value === value) ?? layouts[0];
@@ -875,11 +884,11 @@ function LayoutSwitcher({
       <button
         onClick={() => setOpen((p) => !p)}
         className="flex items-center gap-1 rounded px-1.5 py-0.5 text-zinc-400 hover:bg-white/[0.06] hover:text-zinc-200 transition-colors"
-        title={`Layout: ${current.label}`}
+        title={t("git.sidebar.layoutTitle", { layout: t(current.labelKey) })}
         style={{ fontFamily: "var(--font-sans)" }}
       >
         <span className="shrink-0">{current.icon}</span>
-        <span className="text-[11px]">{current.label}</span>
+        <span className="text-[11px]">{t(current.labelKey)}</span>
         <ChevronDown size={10} className="text-zinc-500" />
       </button>
 
@@ -894,7 +903,7 @@ function LayoutSwitcher({
             style={{ borderColor: "var(--glass-border-highlight)", background: "rgba(20, 20, 22, 0.92)" }}
           >
             <div className="px-3 py-1.5 text-[10px] font-medium uppercase tracking-wide text-zinc-500 hairline-b">
-              Diff Layout
+              {t("git.sidebar.diffLayout")}
             </div>
             {layouts.map((l) => {
               const active = l.value === value;
@@ -911,8 +920,8 @@ function LayoutSwitcher({
                 >
                   <span className={`mt-0.5 shrink-0 ${active ? "text-[color:var(--accent)]" : "text-zinc-500"}`}>{l.icon}</span>
                   <div className="min-w-0 flex-1">
-                    <div className={`text-[12px] ${active ? "font-medium text-zinc-100" : "text-zinc-300"}`}>{l.label}</div>
-                    <div className="text-[10px] text-zinc-500 leading-snug">{l.desc}</div>
+                    <div className={`text-[12px] ${active ? "font-medium text-zinc-100" : "text-zinc-300"}`}>{t(l.labelKey)}</div>
+                    <div className="text-[10px] text-zinc-500 leading-snug">{t(l.descKey)}</div>
                   </div>
                   {active && <Check size={11} className="mt-0.5 shrink-0 text-[color:var(--accent)]" />}
                 </button>
@@ -941,6 +950,7 @@ function WarpFileCard({
   onCopyPath: (path: string) => void;
   onRevert?: (path: string) => void;
 }) {
+  const t = useT();
   const suspicious = isSuspicious(file.path);
   return (
     <div
@@ -996,7 +1006,7 @@ function WarpFileCard({
               onCopyPath(file.path);
             }}
             className="rounded p-1 text-zinc-500 hover:bg-white/[0.06] hover:text-zinc-200"
-            title="Copy path"
+            title={t("git.sidebar.copyPath")}
           >
             <Copy size={11} />
           </button>
@@ -1008,7 +1018,7 @@ function WarpFileCard({
                 onStage(file.path);
               }}
               className="rounded p-1 text-zinc-500 hover:bg-[var(--accent-dim)] hover:text-[color:var(--accent)]"
-              title="Stage file"
+              title={t("git.sidebar.stageFile")}
             >
               <Plus size={11} />
             </button>
@@ -1021,7 +1031,7 @@ function WarpFileCard({
                 onRevert(file.path);
               }}
               className="rounded p-1 text-zinc-500 hover:bg-red-500/15 hover:text-red-400"
-              title="Revert file"
+              title={t("git.sidebar.revertFile")}
             >
               <RotateCcw size={11} />
             </button>
@@ -1030,7 +1040,7 @@ function WarpFileCard({
             type="button"
             onClick={(e) => e.stopPropagation()}
             className="rounded p-1 text-zinc-500 hover:bg-white/[0.06] hover:text-zinc-200"
-            title="Open file"
+            title={t("git.sidebar.openFile")}
           >
             <ExternalLink size={11} />
           </button>
@@ -1070,6 +1080,7 @@ export function GitSidebar(props: Props) {
 }
 
 function GitSidebarContent({ workDir, open, threadId, onPrCreated }: Props) {
+  const t = useT();
   // Slide animation (matches EditorPanel)
   const [mounted, setMounted] = useState(open);
   const [animating, setAnimating] = useState(false);
@@ -1345,13 +1356,13 @@ function GitSidebarContent({ workDir, open, threadId, onPrCreated }: Props) {
       }
       setGenError(
         errors.length > 0
-          ? `Generation failed:\n${errors.join("\n")}`
-          : "Generation failed",
+          ? t("git.sidebar.generationFailedWithErrors", { errors: errors.join("\n") })
+          : t("git.sidebar.generationFailed"),
       );
     } finally {
       setGeneratingMsg(false);
     }
-  }, [workDir, viewMode, includeUnstaged, generatingMsg]);
+  }, [workDir, viewMode, includeUnstaged, generatingMsg, t]);
 
   const runCommitAction = useCallback(async () => {
     const msg = commitMessage.trim();
@@ -1422,9 +1433,9 @@ function GitSidebarContent({ workDir, open, threadId, onPrCreated }: Props) {
       await gitStageAll(workDir);
       fetchDiff();
     } catch (err) {
-      setCommitResult({ success: false, message: `Failed to stage all: ${String(err)}` });
+      setCommitResult({ success: false, message: t("git.sidebar.failedToStageAll", { error: String(err) }) });
     }
-  }, [workDir, fetchDiff]);
+  }, [workDir, fetchDiff, t]);
 
   const [confirmRevert, setConfirmRevert] = useState(false);
 
@@ -1438,9 +1449,9 @@ function GitSidebarContent({ workDir, open, threadId, onPrCreated }: Props) {
       await gitDiscardAllLocalChanges(workDir, true);
       fetchDiff();
     } catch (err) {
-      setCommitResult({ success: false, message: `Failed to revert: ${String(err)}` });
+      setCommitResult({ success: false, message: t("git.sidebar.failedToRevert", { error: String(err) }) });
     }
-  }, [workDir, fetchDiff, confirmRevert]);
+  }, [workDir, fetchDiff, confirmRevert, t]);
 
   useEffect(() => {
     if (!confirmRevert) return;
@@ -1565,12 +1576,12 @@ function GitSidebarContent({ workDir, open, threadId, onPrCreated }: Props) {
           style={{ background: "var(--glass-header)" }}
         >
           <GitBranch size={13} className="text-zinc-500" />
-          <span className="text-[13px] font-medium text-zinc-200">Changes</span>
+          <span className="text-[13px] font-medium text-zinc-200">{t("git.sidebar.changes")}</span>
         </div>
         <div className="flex flex-1 items-center justify-center">
           <div className="flex items-center gap-2 text-[11px] text-zinc-500">
             <Loader2 size={12} className="animate-spin" />
-            <span>Detecting repository...</span>
+            <span>{t("git.sidebar.detectingRepository")}</span>
           </div>
         </div>
       </>,
@@ -1585,21 +1596,21 @@ function GitSidebarContent({ workDir, open, threadId, onPrCreated }: Props) {
           style={{ background: "var(--glass-header)" }}
         >
           <GitBranch size={13} className="text-zinc-500" />
-          <span className="text-[13px] font-medium text-zinc-200">Initialize Repository</span>
+          <span className="text-[13px] font-medium text-zinc-200">{t("git.sidebar.initializeRepository")}</span>
         </div>
         <div className="flex flex-1 flex-col gap-4 p-4">
           <p className="text-[11px] text-zinc-500 leading-relaxed">
-            This directory is not a git repository. Initialize one and optionally publish to a remote.
+            {t("git.sidebar.notGitRepository")}
           </p>
           <div className="space-y-3">
             <div className="space-y-1.5">
-              <label className="text-[10px] font-medium uppercase tracking-wide text-zinc-500">Git Account</label>
+              <label className="text-[10px] font-medium uppercase tracking-wide text-zinc-500">{t("git.sidebar.gitAccount")}</label>
               <select
                 value={selectedAccountIndex}
                 onChange={(e) => setSelectedAccountIndex(Number(e.target.value))}
                 className="w-full rounded-md bg-white/[0.04] border border-white/[0.06] px-2.5 py-1.5 text-[12px] text-zinc-100 outline-none focus:border-blue-500/40 fx-input"
               >
-                <option value={-1}>None (default SSH)</option>
+                <option value={-1}>{t("git.sidebar.noneDefaultSsh")}</option>
                 {gitAccounts.map((acc, i) => (
                   <option key={i} value={i}>
                     {acc.name} ({acc.gitUser})
@@ -1608,7 +1619,7 @@ function GitSidebarContent({ workDir, open, threadId, onPrCreated }: Props) {
               </select>
             </div>
             <div className="space-y-1.5">
-              <label className="text-[10px] font-medium uppercase tracking-wide text-zinc-500">Remote URL</label>
+              <label className="text-[10px] font-medium uppercase tracking-wide text-zinc-500">{t("git.sidebar.remoteUrl")}</label>
               <input
                 type="text"
                 value={remoteUrl}
@@ -1618,7 +1629,7 @@ function GitSidebarContent({ workDir, open, threadId, onPrCreated }: Props) {
               />
             </div>
             <div className="space-y-1.5">
-              <label className="text-[10px] font-medium uppercase tracking-wide text-zinc-500">Default Branch</label>
+              <label className="text-[10px] font-medium uppercase tracking-wide text-zinc-500">{t("git.sidebar.defaultBranch")}</label>
               <input
                 type="text"
                 value={defaultBranch}
@@ -1648,7 +1659,7 @@ function GitSidebarContent({ workDir, open, threadId, onPrCreated }: Props) {
             className="flex items-center justify-center gap-2 rounded-md bg-[var(--accent)] px-4 py-2 text-[12px] font-medium text-[#14110a] hover:brightness-110 disabled:opacity-40 transition-colors"
           >
             {publishing ? <Loader2 size={13} className="animate-spin" /> : <Upload size={13} />}
-            <span>Initialize & Publish</span>
+            <span>{t("git.sidebar.initializeAndPublish")}</span>
           </button>
         </div>
       </>,
@@ -1688,14 +1699,14 @@ function GitSidebarContent({ workDir, open, threadId, onPrCreated }: Props) {
           onClick={fetchDiff}
           disabled={loading}
           className="rounded p-1 text-zinc-500 hover:bg-white/[0.06] hover:text-zinc-200 transition-colors disabled:opacity-40"
-          title="Refresh"
+          title={t("git.sidebar.refresh")}
         >
           <RefreshCw size={12} className={loading ? "animate-spin" : ""} />
         </button>
         <button
           onClick={() => (allExpanded ? collapseAll() : expandAll())}
           className="rounded p-1 text-zinc-500 hover:bg-white/[0.06] hover:text-zinc-200 transition-colors"
-          title={allExpanded ? "Collapse all" : "Expand all"}
+          title={t(allExpanded ? "git.sidebar.collapseAll" : "git.sidebar.expandAll")}
         >
           {allExpanded ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
         </button>
@@ -1704,7 +1715,7 @@ function GitSidebarContent({ workDir, open, threadId, onPrCreated }: Props) {
       {/* Layout switcher row */}
       <div className="hairline-b flex items-center gap-2 px-3 py-1.5">
         <span className="ui-eyebrow shrink-0">
-          Layout
+          {t("git.sidebar.layout")}
         </span>
         <LayoutSwitcher value={diffLayout} onChange={setDiffLayout} />
       </div>
@@ -1717,14 +1728,14 @@ function GitSidebarContent({ workDir, open, threadId, onPrCreated }: Props) {
             <button
               onClick={handleCopyBranch}
               className="flex-1 min-w-0 truncate text-left font-mono text-[12px] text-zinc-300 hover:text-zinc-100 transition-colors"
-              title={`Copy "${branch}"`}
+              title={t("git.sidebar.copyBranch", { branch })}
             >
               {branch}
             </button>
             <button
               onClick={handleCopyBranch}
               className="shrink-0 p-0.5 rounded text-zinc-600 hover:bg-white/[0.06] hover:text-zinc-200 transition-colors"
-              aria-label="Copy branch name"
+              aria-label={t("git.sidebar.copyBranchName")}
             >
               {copiedBranch ? <Check size={11} className="text-[color:var(--accent)]" /> : <Copy size={11} />}
             </button>
@@ -1735,7 +1746,7 @@ function GitSidebarContent({ workDir, open, threadId, onPrCreated }: Props) {
               {ahead > 0 && (
                 <span
                   className="inline-flex items-center gap-1 rounded-md bg-[var(--accent-dim)] border border-[color:var(--accent-border)] px-1.5 py-0.5 ui-meta text-[10px] text-[color:var(--accent)]"
-                  title={`${ahead} local commit${ahead === 1 ? "" : "s"} to push`}
+                  title={t("git.sidebar.localCommitsToPush", { count: ahead })}
                 >
                   <ArrowUp size={9} />
                   {ahead}
@@ -1744,7 +1755,7 @@ function GitSidebarContent({ workDir, open, threadId, onPrCreated }: Props) {
               {behind > 0 && (
                 <span
                   className="inline-flex items-center gap-1 rounded-md bg-sky-500/10 border border-sky-500/30 px-1.5 py-0.5 ui-meta text-[10px] text-sky-300 ui-chip sm fx-soft-blue"
-                  title={`${behind} upstream commit${behind === 1 ? "" : "s"} to pull`}
+                  title={t("git.sidebar.upstreamCommitsToPull", { count: behind })}
                 >
                   <ArrowDown size={9} />
                   {behind}
@@ -1759,7 +1770,7 @@ function GitSidebarContent({ workDir, open, threadId, onPrCreated }: Props) {
       {hasSuspicious && (
         <div className="mx-3 mt-2 mb-1 flex items-start gap-2 rounded-md bg-amber-500/10 border border-amber-500/30 px-2.5 py-1.5 text-[11px] text-amber-300">
           <AlertTriangle size={11} className="shrink-0 mt-0.5" />
-          <span>Sensitive filenames detected in changes.</span>
+          <span>{t("git.sidebar.sensitiveFilenamesDetected")}</span>
         </div>
       )}
 
@@ -1769,14 +1780,14 @@ function GitSidebarContent({ workDir, open, threadId, onPrCreated }: Props) {
           {loading ? (
             <div className="flex items-center gap-2 text-[11px] text-zinc-500">
               <Loader2 size={12} className="animate-spin" />
-              <span>Loading changes...</span>
+              <span>{t("git.sidebar.loadingChanges")}</span>
             </div>
           ) : (
             <>
               <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/[0.04] inner-ring">
                 <Check size={14} className="text-zinc-500" />
               </div>
-              <p className="text-[12px] text-zinc-500">Working tree clean</p>
+              <p className="text-[12px] text-zinc-500">{t("git.sidebar.workingTreeClean")}</p>
             </>
           )}
         </div>
@@ -1965,7 +1976,7 @@ function GitSidebarContent({ workDir, open, threadId, onPrCreated }: Props) {
             }}
           >
             <div className="ui-eyebrow px-3 py-2">
-              Jump to
+              {t("git.sidebar.jumpTo")}
             </div>
             {allFiles.map((file, i) => {
               const active = file.path === activeFilePath;
@@ -2043,7 +2054,7 @@ function GitSidebarContent({ workDir, open, threadId, onPrCreated }: Props) {
                       textAlign: "right",
                     }}
                   >
-                    {parseHunks(file.rawDiff).length} hunks
+                    {t("git.sidebar.hunkCount", { count: parseHunks(file.rawDiff).length })}
                   </span>
                 </div>
                 <div style={{ background: "var(--surface-code-panel)" }}>
@@ -2063,7 +2074,7 @@ function GitSidebarContent({ workDir, open, threadId, onPrCreated }: Props) {
             <textarea
               value={commitMessage}
               onChange={(e) => setCommitMessage(e.target.value)}
-              placeholder="Commit message..."
+              placeholder={t("git.sidebar.commitMessagePlaceholder")}
               rows={2}
               className="w-full bg-white/[0.04] rounded-md px-2.5 py-2 pr-8 text-[12px] text-zinc-100 placeholder:text-zinc-600 outline-none border border-white/[0.06] resize-none focus:border-blue-500/40 focus:bg-white/[0.06] transition-colors fx-input"
             />
@@ -2071,7 +2082,7 @@ function GitSidebarContent({ workDir, open, threadId, onPrCreated }: Props) {
               onClick={handleGenerateMessage}
               disabled={generatingMsg || !hasChanges}
               className="absolute top-1.5 right-1.5 rounded p-1 text-zinc-500 hover:bg-white/[0.06] hover:text-sky-400 transition-colors disabled:opacity-40"
-              title="Generate commit message with AI"
+              title={t("git.sidebar.generateCommitMessage")}
             >
               {generatingMsg ? <Loader2 size={12} className="animate-spin" /> : <Sparkles size={12} />}
             </button>
@@ -2086,10 +2097,10 @@ function GitSidebarContent({ workDir, open, threadId, onPrCreated }: Props) {
                 onChange={(e) => setIncludeUnstaged(e.target.checked)}
                 className="h-3 w-3 accent-[var(--accent)]"
               />
-              <span>Include unstaged</span>
+              <span>{t("git.sidebar.includeUnstaged")}</span>
             </label>
             <span className="ui-meta">
-              {allFiles.length} file{allFiles.length !== 1 ? "s" : ""}
+              {t("git.sidebar.fileCount", { count: allFiles.length })}
             </span>
           </div>
 
@@ -2122,7 +2133,7 @@ function GitSidebarContent({ workDir, open, threadId, onPrCreated }: Props) {
             onActionChange={setCommitAction}
             disabled={!commitMessage.trim() || committing || !hasChanges}
             busy={committing}
-            label={commitActionLabel(commitAction, hasUpstream)}
+            label={t(commitActionLabel(commitAction, hasUpstream))}
             hasUpstream={hasUpstream}
           />
 
@@ -2131,15 +2142,15 @@ function GitSidebarContent({ workDir, open, threadId, onPrCreated }: Props) {
             <div className="flex items-center gap-2">
               <button
                 onClick={handleStageAll}
-                title="Stage all"
+                title={t("git.sidebar.stageAll")}
                 className="flex flex-1 items-center justify-center gap-1.5 rounded-md border border-white/[0.08] bg-white/[0.03] px-3 py-1.5 text-[11px] text-zinc-400 hover:border-[color:var(--accent-border)] hover:bg-[var(--accent-dim)] hover:text-[color:var(--accent)] transition-all"
               >
                 <Plus size={11} />
-                <span>Stage all</span>
+                <span>{t("git.sidebar.stageAll")}</span>
               </button>
               <button
                 onClick={handleRevertAll}
-                title={confirmRevert ? "Click again to confirm" : "Revert all unstaged"}
+                title={t(confirmRevert ? "git.sidebar.clickAgainToConfirm" : "git.sidebar.revertAllUnstaged")}
                 className={`flex flex-1 items-center justify-center gap-1.5 rounded-md border px-3 py-1.5 text-[11px] transition-all ${
                   confirmRevert
                     ? "border-red-500/40 bg-red-500/15 text-red-400 animate-pulse"
@@ -2147,7 +2158,7 @@ function GitSidebarContent({ workDir, open, threadId, onPrCreated }: Props) {
                 }`}
               >
                 <RotateCcw size={11} />
-                <span>{confirmRevert ? "Confirm" : "Revert all"}</span>
+                <span>{t(confirmRevert ? "git.sidebar.confirm" : "git.sidebar.revertAll")}</span>
               </button>
             </div>
           )}

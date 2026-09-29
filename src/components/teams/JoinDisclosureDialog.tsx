@@ -7,6 +7,7 @@
 
 import { useState } from "react";
 import { Shield } from "lucide-react";
+import { useT } from "../../i18n";
 import { GlassButton } from "../ui/GlassButton";
 import { DisclosureBlock, Pill } from "./primitives";
 import { NEVER_SHORT, SHARED_SHORT } from "./disclosureCopy";
@@ -26,6 +27,7 @@ export function JoinDisclosureDialog({
   onCancel: () => void;
   onOpenPrivacy?: () => void;
 }) {
+  const t = useT();
   const [accepted, setAccepted] = useState(false);
 
   return (
@@ -35,27 +37,26 @@ export function JoinDisclosureDialog({
       className="fixed inset-0 z-50 grid place-items-center bg-[rgba(4,4,6,0.62)] p-6 backdrop-blur-[3px]"
       role="dialog"
       aria-modal="true"
-      aria-label={`Join ${teamName}`}
+      aria-label={t("teams.join.dialogLabel", { name: teamName })}
     >
       <div className="max-h-full w-[min(620px,100%)] overflow-y-auto rounded-[14px] border border-white/[0.10] bg-[rgba(16,16,19,0.92)] shadow-[0_30px_80px_-20px_rgba(0,0,0,0.8)] backdrop-blur-[24px]">
         <div className="flex items-center gap-2.5 border-b border-white/[0.06] px-[18px] py-[15px]">
           <Shield size={16} className="text-[var(--status-blue)]" />
-          <h3 className="m-0 text-[13px] font-semibold text-[var(--text-primary)]">Join {teamName}</h3>
+          <h3 className="m-0 text-[13px] font-semibold text-[var(--text-primary)]">{t("teams.join.title", { name: teamName })}</h3>
           <div className="flex-1" />
-          <Pill tone="acc">required</Pill>
+          <Pill tone="acc">{t("teams.join.required")}</Pill>
         </div>
 
         <div className="flex flex-col gap-3.5 px-[18px] py-4">
           <p className="m-0 text-[11.5px] leading-relaxed text-[var(--text-muted)]">
-            Joining turns on metrics upload from this Mac. It stays on while you&apos;re a member.
-            Complete list:
+            {t("teams.join.uploadDisclosureIntro")}
           </p>
 
           <DisclosureBlock
             shared={SHARED_SHORT}
             never={NEVER_SHORT}
-            sharedTitle="Shared"
-            neverTitle="Never"
+            sharedTitle={t("teams.disclosure.sharedShortTitle")}
+            neverTitle={t("teams.disclosure.neverShortTitle")}
           />
 
           <label className="flex cursor-default items-start gap-2.5 rounded-[10px] border border-white/[0.10] bg-white/[0.02] p-3">
@@ -66,8 +67,7 @@ export function JoinDisclosureDialog({
               className="mt-0.5 h-[15px] w-[15px] shrink-0 accent-[#60a5fa]"
             />
             <span className="text-[12.5px] leading-relaxed text-[var(--text-secondary)]">
-              I understand what is collected and that the owner and managers of {teamName} can see it
-              next to my name.
+              {t("teams.join.acceptanceStatement", { name: teamName })}
             </span>
           </label>
 
@@ -82,10 +82,10 @@ export function JoinDisclosureDialog({
             onClick={onAccept}
             disabled={!accepted || busy}
           >
-            {busy ? "Joining…" : "Accept & join"}
+            {busy ? t("teams.join.joining") : t("teams.join.acceptAndJoin")}
           </GlassButton>
           <GlassButton variant="ghost" onClick={onCancel} disabled={busy}>
-            Not now
+            {t("teams.actions.notNow")}
           </GlassButton>
           <div className="flex-1" />
           {onOpenPrivacy ? (
@@ -93,7 +93,7 @@ export function JoinDisclosureDialog({
               onClick={onOpenPrivacy}
               className="text-[12px] text-[var(--status-blue)] underline-offset-2 hover:underline"
             >
-              Read full disclosure →
+              {t("teams.join.readFullDisclosure")}
             </button>
           ) : null}
         </div>

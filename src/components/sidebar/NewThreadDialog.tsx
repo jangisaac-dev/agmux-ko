@@ -9,6 +9,7 @@ import { checkIsGitRepo, gitListBranches } from "../../lib/commands";
 import { CURSOR_MODELS, defaultThreadName, type Provider } from "../../lib/types";
 import type { GitBranch as GitBranchType } from "../../lib/commands";
 import cursorIcon from "../../assets/cursor-app-icon.png";
+import { useT } from "../../i18n";
 
 // Terminal-only TUI providers with no agmux-managed worktree integration.
 // Used for both forceDirectRepo and branch-selector visibility so the set
@@ -25,6 +26,7 @@ interface Props {
 }
 
 export function NewThreadDialog({ projectId, repoPath, open, onClose }: Props) {
+  const t = useT();
   const defaultProvider = useSettingsStore((s) => s.settings.defaultProvider);
   const worktreeRoot = useSettingsStore((s) => s.settings.worktreeRoot);
   const [provider, setProvider] = useState<Provider>(defaultProvider);
@@ -126,7 +128,7 @@ export function NewThreadDialog({ projectId, repoPath, open, onClose }: Props) {
             transition={{ type: "spring", damping: 25, stiffness: 350 }}
           >
             <div className="mb-4 flex items-center justify-between">
-              <h2 className="text-lg font-semibold text-zinc-100">New Worktree</h2>
+              <h2 className="text-lg font-semibold text-zinc-100">{t("newThread.title")}</h2>
               <button
                 onClick={onClose}
                 className="rounded-lg p-1.5 text-zinc-400 transition-colors hover:bg-white/[0.06] hover:text-zinc-100"
@@ -137,7 +139,7 @@ export function NewThreadDialog({ projectId, repoPath, open, onClose }: Props) {
 
             <form onSubmit={handleSubmit} className="space-y-4">
               <div>
-                <label className="mb-1.5 block text-sm text-zinc-400">Provider</label>
+                <label className="mb-1.5 block text-sm text-zinc-400">{t("newThread.provider.label")}</label>
                 <div className="grid grid-cols-3 gap-2">
                   <button
                     type="button"
@@ -227,13 +229,13 @@ export function NewThreadDialog({ projectId, repoPath, open, onClose }: Props) {
                       size={12}
                       className={`transition-transform ${showAdvanced ? "rotate-0" : "-rotate-90"}`}
                     />
-                    Branch options
+                    {t("newThread.branch.options")}
                   </button>
 
                   {showAdvanced && (
                     <div className="mt-2 space-y-2 rounded-lg border border-white/[0.04] bg-white/[0.02] p-3">
                       <div>
-                        <label className="mb-1 block text-xs text-zinc-500">Base branch</label>
+                        <label className="mb-1 block text-xs text-zinc-500">{t("newThread.branch.base")}</label>
                         <select
                           value={baseBranch}
                           onChange={(e) => setBaseBranch(e.target.value)}
@@ -241,16 +243,16 @@ export function NewThreadDialog({ projectId, repoPath, open, onClose }: Props) {
                         >
                           {branches.map((b) => (
                             <option key={b.name} value={b.name}>
-                              {b.name}{b.is_current ? " (current)" : ""}
+                              {b.name}{b.is_current ? t("newThread.branch.currentSuffix") : ""}
                             </option>
                           ))}
                         </select>
                       </div>
                       <div>
-                        <label className="mb-1 block text-xs text-zinc-500">Branch name</label>
+                        <label className="mb-1 block text-xs text-zinc-500">{t("newThread.branch.name")}</label>
                         <div className="rounded-md border border-white/[0.04] bg-white/[0.02] px-2.5 py-1.5 text-xs text-zinc-500 fx-panel-2 fx-ring">
                           <span className="font-mono">agmux/&lt;auto&gt;</span>
-                          <span className="ml-1 text-[10px] text-zinc-600">— assigned on create</span>
+                          <span className="ml-1 text-[10px] text-zinc-600">{t("newThread.branch.assigned")}</span>
                         </div>
                       </div>
                     </div>
@@ -264,14 +266,14 @@ export function NewThreadDialog({ projectId, repoPath, open, onClose }: Props) {
                   onClick={onClose}
                   className="rounded-lg px-4 py-2 text-sm text-zinc-400 transition-colors hover:text-zinc-100"
                 >
-                  Cancel
+                  {t("newThread.action.cancel")}
                 </button>
                 <button
                   type="submit"
                   disabled={loading}
                   className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white shadow-sm shadow-blue-600/20 transition-colors hover:bg-blue-500 disabled:opacity-50 fx-accent"
                 >
-                  {loading ? "Creating..." : "Create"}
+                  {loading ? t("newThread.action.creating") : t("newThread.action.create")}
                 </button>
               </div>
             </form>

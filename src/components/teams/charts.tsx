@@ -10,7 +10,9 @@
 
 import { Fragment, useId, useState, type ReactNode } from "react";
 import type { DayPoint, MixSlice } from "../../lib/teams";
-import { fmtActiveMs, fmtPct, fmtSessions, prettyMixLabel } from "../../lib/teams";
+import { fmtActiveMs, fmtPct, prettyMixLabel } from "../../lib/teams";
+import { localeTag, t as directT, useT } from "../../i18n";
+import { fmtTeamSessions } from "./primitives";
 
 const W = 1000;
 const ACCENT = "#60a5fa";
@@ -34,6 +36,13 @@ function tokenLabel(n: number): string {
   if (n >= 1e6) return `${(n / 1e6).toFixed(1)}M`;
   if (n >= 1e3) return `${(n / 1e3).toFixed(0)}k`;
   return String(Math.round(n));
+}
+
+function formatTeamDate(date: string, full = false): string {
+  return new Intl.DateTimeFormat(localeTag(), full
+    ? { weekday: "short", month: "short", day: "numeric", timeZone: "UTC" }
+    : { month: "numeric", day: "numeric", timeZone: "UTC" },
+  ).format(new Date(`${date}T12:00:00Z`));
 }
 
 function ChartEmpty({ message }: { message: string }) {
@@ -74,9 +83,10 @@ function TipRow({ label, value }: { label: string; value: string }) {
 /* ── daily trends ─────────────────────────────────────────────────────── */
 
 export function DailyTrends({ days }: { days: DayPoint[] }) {
+  const t = useT();
   const [tip, setTip] = useState<TipState>(null);
   if (!days.some((d) => d.hasData)) {
-    return <ChartEmpty message="No sessions in this range yet." />;
+    return <ChartEmpty message={t("teams.charts.noSessionsYet")} />;
   }
 
   const H = 160;
@@ -118,15 +128,15 @@ export function DailyTrends({ days }: { days: DayPoint[] }) {
       y: y * s,
       html: (
         <>
-          <TipHd>{day.full}</TipHd>
+          <TipHd>{formatTeamDate(day.date, true)}</TipHd>
           {day.hasData ? (
             <>
-              <TipRow label="Tokens" value={day.tokens.toLocaleString()} />
-              <TipRow label="Active" value={`${day.activeHours.toFixed(1)}h`} />
-              <TipRow label="Sessions started" value={fmtSessions(day)} />
+              <TipRow label={t("teams.charts.tokens")} value={day.tokens.toLocaleString(localeTag())} />
+              <TipRow label={t("teams.stats.active")} value={`${day.activeHours.toFixed(1)}h`} />
+              <TipRow label={t("teams.charts.sessionsStarted")} value={fmtTeamSessions(day)} />
             </>
           ) : (
-            <div>No data uploaded</div>
+            <div>{t("teams.charts.noDataUploaded")}</div>
           )}
         </>
       ),
@@ -139,7 +149,7 @@ export function DailyTrends({ days }: { days: DayPoint[] }) {
         viewBox={`0 0 ${W} ${H}`}
         style={{ height: H, width: "100%", display: "block", overflow: "visible" }}
         role="img"
-        aria-label={`Daily tokens and active hours over ${days.length} days. ${tokenLabel(total)} tokens total.`}
+        aria-label={t("teams.charts.dailyTrendsAria", { count: days.length, totalTokens: tokenLabel(total) })}
       >
         <g>
           {[0, 1, 2, 3].map((i) => {
@@ -190,7 +200,7 @@ export function DailyTrends({ days }: { days: DayPoint[] }) {
               fontSize={10}
               fill={AXIS}
             >
-              {day.label}
+              {formatTeamDate(day.date)}
             </text>
           ) : null,
         )}
@@ -220,16 +230,17 @@ export function DailyTrends({ days }: { days: DayPoint[] }) {
 export function PeakSessions({
   values,
   labels,
-  dayLabels,
+  dayDates,
 }: {
   values: number[];
   labels: string[];
-  /** Per-bucket titles for tooltips (e.g. "Tue, Jul 28"). */
-  dayLabels?: string[];
+  /** Per-bucket dates for localized tooltip titles. */
+  dayDates?: string[];
 }) {
+  const t = useT();
   const [tip, setTip] = useState<TipState>(null);
   if (!values.length || values.every((v) => v === 0)) {
-    return <ChartEmpty message="No concurrent sessions recorded in this range." />;
+    return <ChartEmpty message={t("teams.charts.noConcurrentSessions")} />;
   }
 
   const H = 130;
@@ -261,8 +272,8 @@ export function PeakSessions({
       y: y * s,
       html: (
         <>
-          <TipHd>{dayLabels?.[i] ?? `Day ${i + 1}`}</TipHd>
-          <TipRow label="Peak concurrent" value={String(v)} />
+          <TipHd>{dayDates?.[i] ? formatTeamDate(dayDates[i], true) : t("teams.charts.dayNumber", { day: i + 1 })}</TipHd>
+          <TipRow label={t("teams.charts.peakConcurrent")} value={String(v)} />
         </>
       ),
     });
@@ -274,7 +285,7 @@ export function PeakSessions({
         viewBox={`0 0 ${W} ${H}`}
         style={{ height: H, width: "100%", display: "block", overflow: "visible" }}
         role="img"
-        aria-label={`Peak simultaneous sessions, maximum ${Math.max(...values)}`}
+        aria-label={t("teams.charts.peakSessionsAria", { maximum: Math.max(...values) })}
       >
         {[0, max / 2, max].map((v) => {
           const y = PT + ih - (v / max) * ih;
@@ -336,12 +347,21 @@ export function PeakSessions({
 
 /* ── heatmap ──────────────────────────────────────────────────────────── */
 
-const DAY_LABELS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+const DAY_LABEL_KEYS = [
+  "teams.charts.days.monday",
+  "teams.charts.days.tuesday",
+  "teams.charts.days.wednesday",
+  "teams.charts.days.thursday",
+  "teams.charts.days.friday",
+  "teams.charts.days.saturday",
+  "teams.charts.days.sunday",
+] as const;
 
 export function HourHeatmap({ matrix }: { matrix: number[][] }) {
+  const t = useT();
   const id = useId();
   const max = Math.max(0, ...matrix.flat());
-  if (!max) return <ChartEmpty message="Not enough data yet to show a pattern." />;
+  if (!max) return <ChartEmpty message={t("teams.charts.heatmap.noPatternYet")} />;
 
   return (
     <div
@@ -352,14 +372,16 @@ export function HourHeatmap({ matrix }: { matrix: number[][] }) {
     >
       {matrix.map((row, r) => (
         <Fragment key={`${id}-row-${r}`}>
-          <div className="text-left font-mono text-[9.5px] text-[var(--text-tertiary)]">{DAY_LABELS[r]}</div>
+          <div className="text-left font-mono text-[9.5px] text-[var(--text-tertiary)]">{t(DAY_LABEL_KEYS[r])}</div>
           {row.map((v, c) => (
             <div
               key={`${id}-${r}-${c}`}
               tabIndex={v ? 0 : -1}
-              title={`${DAY_LABELS[r]} ${String(c).padStart(2, "0")}:00 — ${
-                v ? `${(v / 60).toFixed(1)}h active` : "none"
-              }`}
+              title={t("teams.charts.heatmapCell", {
+                day: t(DAY_LABEL_KEYS[r]),
+                hour: String(c).padStart(2, "0"),
+                activity: v ? t("teams.charts.heatmapActive", { hours: (v / 60).toFixed(1) }) : t("teams.charts.none"),
+              })}
               className="aspect-square min-h-[9px] rounded-sm"
               style={{
                 // Zero is a neutral tile, not a pale accent.
@@ -398,15 +420,20 @@ function heatSummary(matrix: number[][]): string {
       }
     }),
   );
-  if (!total) return "Hour of day heatmap: no activity recorded.";
-  return `Hour of day heatmap. Busiest at ${DAY_LABELS[peakDay]} ${String(peakHour).padStart(2, "0")}:00. ${Math.round((weekend / total) * 100)}% of active time falls on weekends.`;
+  if (!total) return directT("teams.charts.heatmap.noActivityRecorded");
+  return directT("teams.charts.heatmap.summary", {
+    day: directT(DAY_LABEL_KEYS[peakDay]),
+    hour: String(peakHour).padStart(2, "0"),
+    percentage: Math.round((weekend / total) * 100),
+  });
 }
 
 /* ── provider / model mix ─────────────────────────────────────────────── */
 
 export function MixBars({ slices, mono = false }: { slices: MixSlice[]; mono?: boolean }) {
+  const t = useT();
   if (!slices.length) {
-    return <p className="m-0 text-[11.5px] text-[var(--text-muted)]">No sessions in this range.</p>;
+    return <p className="m-0 text-[11.5px] text-[var(--text-muted)]">{t("teams.charts.noSessionsInRange")}</p>;
   }
   return (
     <div className="flex flex-col gap-2.5">
@@ -424,7 +451,7 @@ export function MixBars({ slices, mono = false }: { slices: MixSlice[]; mono?: b
                 ? "minmax(132px,1.35fr) 1fr 40px 44px"
                 : "minmax(108px,1.15fr) 1fr 40px 44px",
             }}
-            title={`${s.key}: ${fmtPct(s.share)} of tokens · ${timeLabel} active`}
+            title={t("teams.charts.mixTooltip", { name: s.key, share: fmtPct(s.share), time: timeLabel })}
           >
             <div className={`flex min-w-0 items-center gap-[7px] text-[var(--text-secondary)] ${mono ? "font-mono text-[11px]" : ""}`}>
               {mono ? null : (

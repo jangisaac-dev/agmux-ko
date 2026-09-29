@@ -1,0 +1,17 @@
+{
+  "app.accountNotifications": "계정 알림",
+  "app.accountNotice.title": "{{provider}} 계정",
+  "app.openAccounts": "계정 열기",
+  "app.shuttingDown": "종료하는 중…",
+  "app.quit.title": "agmux를 종료하겠습니까?",
+  "app.quit.runningSessions_one": "실행 중인 세션이 {{count}}개 있습니다.",
+  "app.quit.runningSessions_other": "실행 중인 세션이 {{count}}개 있습니다.",
+  "app.quit.runningSessionsWarning": "실행 중인 세션이 중단됩니다.",
+  "app.quit.button": "종료",
+  "app.contactSupport": "지원 문의",
+  "app.error.back": "오류 화면으로 돌아가기",
+  "app.error.title": "문제가 발생했습니다",
+  "app.error.description": "agmux에 예기치 않은 오류가 발생했습니다. 앱을 다시 불러와 보십시오.",
+  "app.error.reload": "앱 다시 불러오기",
+  "app.error.copyDetails": "세부 정보 복사"
+}

@@ -1,6 +1,7 @@
 import { selectShellDiffStats, useShellDiffStore, useShellDiffSubscription } from "../../stores/shellDiffStore";
 import { useUiStore } from "../../stores/uiStore";
 import { useDiffRecalculationStore } from "../../stores/diffRecalculationStore";
+import { useT } from "../../i18n";
 
 interface Props {
   id: string;
@@ -12,6 +13,7 @@ interface Props {
 }
 
 export function ShellDiffBadge({ id, sessionId, linesAdded = 0, linesRemoved = 0, filesChanged, additionClassName = "text-[color:var(--status-green)]" }: Props) {
+  const t = useT();
   useShellDiffSubscription();
   const rows = useShellDiffStore((state) => state.rows);
   const mappedIds = useUiStore((state) => state.claudeSessionMap);
@@ -25,22 +27,22 @@ export function ShellDiffBadge({ id, sessionId, linesAdded = 0, linesRemoved = 0
   if (added === 0 && removed === 0 && !shell?.filesChanged && !filesChanged) {
     if (!incomplete && !ids.some((key) => notices[key] === "empty")) return null;
     return <span className="shrink-0 text-[10px] text-zinc-500" title={missingCapture
-      ? "Original file versions were not saved for some edits, so exact totals cannot be recovered."
-      : incomplete ? "Some session history could not be verified, so exact totals are unavailable."
-      : "Recalculation found no recorded file changes."}>{incomplete ? "Diff unavailable" : "No diff recorded"}</span>;
+      ? t("sidebar.diff.originalVersionsMissing")
+      : incomplete ? t("sidebar.diff.historyTotalsUnavailable")
+      : t("sidebar.diff.recalculationFoundNoChanges")}>{incomplete ? t("sidebar.diff.unavailable") : t("sidebar.diff.noneRecorded")}</span>;
   }
   const includesShell = shell && (shell.linesAdded > 0 || shell.linesRemoved > 0 || shell.filesChanged > 0);
-  const title = missingCapture ? "Partial totals: original file versions were not saved for some edits."
-    : incomplete ? "Partial totals: some session history could not be verified."
+  const title = missingCapture ? t("sidebar.diff.partialOriginalVersionsMissing")
+    : incomplete ? t("sidebar.diff.partialHistoryIncomplete")
     : includesShell
-    ? "Includes verified shell changes"
-    : filesChanged == null ? undefined : `${filesChanged} file${filesChanged === 1 ? "" : "s"} changed`;
+    ? t("sidebar.diff.includesVerifiedShellChanges")
+    : filesChanged == null ? undefined : t("sidebar.diff.filesChanged", { count: filesChanged });
   return (
     <span className="ui-diff shrink-0 leading-none" title={title || undefined}>
       <span className={additionClassName}>+{added}</span>
       <span className="text-zinc-600"> </span>
       <span className="text-[color:var(--status-red)]">−{removed}</span>
-      {incomplete && <span className="text-zinc-500"> · partial</span>}
+      {incomplete && <span className="text-zinc-500">{t("sidebar.diff.partialSuffix")}</span>}
     </span>
   );
 }

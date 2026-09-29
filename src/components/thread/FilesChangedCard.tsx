@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { FileEdit, Undo2, Loader2, Check, AlertCircle } from "lucide-react";
+import { useT } from "../../i18n";
 import { sdkRewindFiles } from "../../lib/commands";
 
 interface FileEntry {
@@ -18,6 +19,7 @@ interface Props {
 type RewindState = "idle" | "loading" | "success" | "error";
 
 export function FilesChangedCard({ files, failed, userMessageId, sessionId }: Props) {
+  const t = useT();
   const [rewindState, setRewindState] = useState<RewindState>("idle");
   const [rewindError, setRewindError] = useState<string | null>(null);
 
@@ -36,7 +38,7 @@ export function FilesChangedCard({ files, failed, userMessageId, sessionId }: Pr
       const result = await sdkRewindFiles(sessionId, userMessageId);
       if (result.canRewind === false) {
         setRewindState("error");
-        setRewindError(result.error ?? "Cannot rewind — no checkpoint found");
+        setRewindError(result.error ?? t("tools.filesChanged.rewindUnavailable"));
       } else {
         setRewindState("success");
       }
@@ -59,23 +61,23 @@ export function FilesChangedCard({ files, failed, userMessageId, sessionId }: Pr
     <div className="rounded-[14px] border border-white/[0.06] bg-white/[0.025] px-3 py-2.5 fx-card">
       <div className="flex items-center gap-2 mb-2">
         <span className="text-[13.5px] font-semibold text-zinc-400 fx-ink">
-          Files changed
+          {t("tools.filesChanged.title")}
         </span>
         <span className="text-[10px] text-zinc-600 tabular-nums">
-          {files.length} file{files.length !== 1 ? "s" : ""}
-          {failed.length > 0 ? ` · ${failed.length} failed` : ""}
+          {t("tools.filesChanged.fileCount", { count: files.length })}
+          {failed.length > 0 ? ` · ${t("tools.filesChanged.failedCount", { count: failed.length })}` : ""}
         </span>
         {userMessageId && (
           <button
             onClick={handleRewind}
             disabled={rewindState === "loading" || rewindState === "success"}
             className={chipClass}
-            title={rewindState === "success" ? "Changes reverted" : "Revert all file changes from this turn"}
+            title={rewindState === "success" ? t("tools.filesChanged.changesReverted") : t("tools.filesChanged.revertAllTitle")}
           >
-            {rewindState === "idle" && <><Undo2 size={10} /><span>Undo</span></>}
-            {rewindState === "loading" && <><Loader2 size={10} className="animate-spin" /><span>Reverting…</span></>}
-            {rewindState === "success" && <><Check size={10} /><span>Reverted</span></>}
-            {rewindState === "error" && <><AlertCircle size={10} /><span>Failed</span></>}
+            {rewindState === "idle" && <><Undo2 size={10} /><span>{t("tools.filesChanged.undo")}</span></>}
+            {rewindState === "loading" && <><Loader2 size={10} className="animate-spin" /><span>{t("tools.filesChanged.reverting")}</span></>}
+            {rewindState === "success" && <><Check size={10} /><span>{t("tools.filesChanged.reverted")}</span></>}
+            {rewindState === "error" && <><AlertCircle size={10} /><span>{t("tools.filesChanged.failed")}</span></>}
           </button>
         )}
       </div>

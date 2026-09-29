@@ -3,6 +3,7 @@ import { createPortal } from "react-dom";
 import { X, FolderOpen } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useProjectStore } from "../../stores/projectStore";
+import { useT } from "../../i18n";
 
 interface Props {
   open: boolean;
@@ -20,6 +21,7 @@ function useDialogOpen() {
 }
 
 export function NewProjectDialog({ open, onClose }: Props) {
+  const t = useT();
   const [name, setName] = useState("");
   const [repoPath, setRepoPath] = useState("");
   const [loading, setLoading] = useState(false);
@@ -78,7 +80,7 @@ export function NewProjectDialog({ open, onClose }: Props) {
             }}
           >
             <div className="flex items-center justify-between border-b border-white/[0.06] px-5 py-4">
-              <h2 className="text-sm font-medium text-zinc-200">New Project</h2>
+              <h2 className="text-sm font-medium text-zinc-200">{t("setup.newProject.title")}</h2>
               <button
                 onClick={onClose}
                 className="rounded-md p-1 text-zinc-500 hover:bg-white/[0.06] hover:text-zinc-300 transition-all duration-200"
@@ -90,7 +92,7 @@ export function NewProjectDialog({ open, onClose }: Props) {
             <form onSubmit={handleSubmit} className="p-5 space-y-4">
               <div>
                 <label className="mb-1.5 block text-[12px] font-medium text-zinc-500">
-                  Folder
+                  {t("setup.newProject.folder")}
                 </label>
                 <button
                   type="button"
@@ -101,7 +103,7 @@ export function NewProjectDialog({ open, onClose }: Props) {
                 >
                   <FolderOpen size={14} className="shrink-0 text-zinc-500" />
                   <span className={`flex-1 truncate ${repoPath ? "text-zinc-300" : "text-zinc-500"}`}>
-                    {repoPath || "Browse for folder..."}
+                    {repoPath || t("setup.browseForFolder")}
                   </span>
                 </button>
               </div>
@@ -115,13 +117,13 @@ export function NewProjectDialog({ open, onClose }: Props) {
                     transition={{ duration: 0.15 }}
                   >
                     <label className="mb-1.5 block text-[12px] font-medium text-zinc-500">
-                      Project Name
+                      {t("setup.projectName")}
                     </label>
                     <input
                       type="text"
                       value={name}
                       onChange={(e) => setName(e.target.value)}
-                      placeholder="My Project"
+                      placeholder={t("setup.newProject.namePlaceholder")}
                       autoFocus
                       className="w-full rounded-lg border border-white/[0.06] px-3 py-2.5 text-sm text-zinc-100 placeholder-zinc-600 outline-none focus:border-white/[0.15] transition-all duration-200 fx-input"
                       style={{ background: "rgba(255,255,255,0.03)" }}
@@ -136,7 +138,7 @@ export function NewProjectDialog({ open, onClose }: Props) {
                   onClick={onClose}
                   className="rounded-lg px-4 py-2 text-sm text-zinc-500 hover:bg-white/[0.06] hover:text-zinc-300 transition-all duration-200"
                 >
-                  Cancel
+                  {t("common.cancel")}
                 </button>
                 <button
                   type="submit"
@@ -144,7 +146,7 @@ export function NewProjectDialog({ open, onClose }: Props) {
                   className="rounded-lg px-4 py-2 text-sm font-medium text-[#14110a] transition-all duration-200 disabled:opacity-40 hover:brightness-110 fx-accent"
                   style={{ backgroundColor: "var(--accent)" }}
                 >
-                  {loading ? "Creating..." : "Create"}
+                  {loading ? t("setup.newProject.creating") : t("setup.newProject.create")}
                 </button>
               </div>
             </form>

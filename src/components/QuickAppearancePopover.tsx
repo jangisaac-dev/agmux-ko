@@ -1,16 +1,17 @@
 import { useState, useRef, useEffect } from "react";
 import { Palette } from "lucide-react";
 import { useSettingsStore, type UIFont, type MonoFont } from "../stores/settingsStore";
+import { useT } from "../i18n";
 import { THEMES } from "./sidebar/SettingsDialog";
 
-const UI_FONTS: { value: UIFont; label: string }[] = [
-  { value: "system", label: "System" },
+const UI_FONTS: { value: UIFont; label: string; labelKey?: string }[] = [
+  { value: "system", label: "System", labelKey: "palette.font.system" },
   { value: "inter", label: "Inter" },
   { value: "geist", label: "Geist" },
 ];
 
-const MONO_FONTS: { value: MonoFont; label: string }[] = [
-  { value: "system", label: "System Mono" },
+const MONO_FONTS: { value: MonoFont; label: string; labelKey?: string }[] = [
+  { value: "system", label: "System Mono", labelKey: "palette.font.systemMono" },
   { value: "jetbrains-mono", label: "JetBrains" },
   { value: "fira-code", label: "Fira Code" },
   { value: "geist-mono", label: "Geist Mono" },
@@ -20,6 +21,7 @@ const FONT_SIZES = [12, 13, 14, 15, 16] as const;
 const TERMINAL_FONT_SIZES = [11, 12, 13, 14, 15, 16] as const;
 
 export function QuickAppearancePopover() {
+  const t = useT();
   const [open, setOpen] = useState(false);
   const popoverRef = useRef<HTMLDivElement>(null);
 
@@ -57,10 +59,10 @@ export function QuickAppearancePopover() {
       <button
         onClick={() => setOpen((v) => !v)}
         className="flex items-center gap-1 rounded-md px-1.5 py-1 text-[11px] text-zinc-500 hover:bg-zinc-800 hover:text-zinc-300 transition-colors"
-        title="Appearance"
+        title={t("palette.appearance.title")}
       >
         <Palette size={12} />
-        <span className="hidden sm:inline">{currentTheme?.label ?? "Theme"}</span>
+        <span className="hidden sm:inline">{currentTheme ? t(`palette.theme.${currentTheme.value}`) : t("palette.appearance.theme")}</span>
       </button>
 
       {open && (
@@ -68,24 +70,24 @@ export function QuickAppearancePopover() {
           {/* Theme grid */}
           <div>
             <label className="mb-1.5 block text-[11px] font-medium uppercase tracking-wider text-zinc-500">
-              Theme
+              {t("palette.appearance.theme")}
             </label>
             <div className="grid grid-cols-4 gap-1">
-              {THEMES.filter((t) => t.value !== "custom").map((t) => (
+              {THEMES.filter((themeOption) => themeOption.value !== "custom").map((themeOption) => (
                 <button
-                  key={t.value}
-                  onClick={() => updateSettings({ theme: t.value })}
+                  key={themeOption.value}
+                  onClick={() => updateSettings({ theme: themeOption.value })}
                   className={`flex flex-col items-center gap-1 rounded-lg px-1 py-1.5 text-[10px] transition-colors ${
-                    theme === t.value
+                    theme === themeOption.value
                       ? "bg-blue-600/20 text-blue-400 ring-1 ring-blue-500/30"
                       : "text-zinc-400 hover:bg-zinc-800"
                   }`}
                 >
                   <div
                     className="h-4 w-4 rounded-full ring-1 ring-white/10"
-                    style={{ background: t.accent }}
+                    style={{ background: themeOption.accent }}
                   />
-                  <span className="truncate w-full text-center">{t.label}</span>
+                  <span className="truncate w-full text-center">{t(`palette.theme.${themeOption.value}`)}</span>
                 </button>
               ))}
             </div>
@@ -94,7 +96,7 @@ export function QuickAppearancePopover() {
           {/* UI Font */}
           <div>
             <label className="mb-1 block text-[11px] font-medium uppercase tracking-wider text-zinc-500">
-              UI Font
+              {t("palette.appearance.uiFont")}
             </label>
             <div className="flex gap-1">
               {UI_FONTS.map((f) => (
@@ -107,7 +109,7 @@ export function QuickAppearancePopover() {
                       : "text-zinc-400 hover:bg-zinc-800"
                   }`}
                 >
-                  {f.label}
+                  {f.labelKey ? t(f.labelKey) : f.label}
                 </button>
               ))}
             </div>
@@ -116,7 +118,7 @@ export function QuickAppearancePopover() {
           {/* Mono Font */}
           <div>
             <label className="mb-1 block text-[11px] font-medium uppercase tracking-wider text-zinc-500">
-              Code Font
+              {t("palette.appearance.codeFont")}
             </label>
             <div className="flex gap-1">
               {MONO_FONTS.map((f) => (
@@ -129,7 +131,7 @@ export function QuickAppearancePopover() {
                       : "text-zinc-400 hover:bg-zinc-800"
                   }`}
                 >
-                  {f.label}
+                  {f.labelKey ? t(f.labelKey) : f.label}
                 </button>
               ))}
             </div>
@@ -139,7 +141,7 @@ export function QuickAppearancePopover() {
           <div className="flex gap-3">
             <div className="flex-1">
               <label className="mb-1 block text-[11px] font-medium uppercase tracking-wider text-zinc-500">
-                UI Size
+                {t("palette.appearance.uiSize")}
               </label>
               <div className="flex gap-0.5">
                 {FONT_SIZES.map((s) => (
@@ -159,7 +161,7 @@ export function QuickAppearancePopover() {
             </div>
             <div className="flex-1">
               <label className="mb-1 block text-[11px] font-medium uppercase tracking-wider text-zinc-500">
-                Term Size
+                {t("palette.appearance.terminalSize")}
               </label>
               <div className="flex gap-0.5">
                 {TERMINAL_FONT_SIZES.map((s) => (

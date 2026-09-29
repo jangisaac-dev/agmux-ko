@@ -47,6 +47,7 @@ import { useSessionNameStore } from "../../stores/sessionNameStore";
 import { useUsageQuotaStore } from "../../stores/usageQuotaStore";
 import type { PaceStatus } from "../../lib/commands";
 import { useResolvedColorMode } from "../ThemeProvider";
+import { localeTag, useT } from "../../i18n";
 import {
   getClaudeModelDisplayName,
   prettifyCodexModelName,
@@ -96,15 +97,19 @@ function truncateTitle(s: string): string {
   return s.slice(0, TITLE_MAX_CHARS - 1).trimEnd() + "…";
 }
 
-function formatElapsed(ms: number): string {
+function formatElapsed(ms: number, t: ReturnType<typeof useT>): string {
   const totalSec = Math.max(0, Math.floor(ms / 1000));
-  if (totalSec < 60) return `${totalSec}s`;
+  if (totalSec < 60) return t("thread.time.seconds", { count: totalSec });
   const m = Math.floor(totalSec / 60);
   const s = totalSec % 60;
-  if (m < 60) return s === 0 ? `${m}m` : `${m}m ${s}s`;
+  if (m < 60) {
+    const minutes = t("thread.time.minutes", { count: m });
+    return s === 0 ? minutes : `${minutes} ${t("thread.time.seconds", { count: s })}`;
+  }
   const h = Math.floor(m / 60);
   const rm = m % 60;
-  return rm === 0 ? `${h}h` : `${h}h ${rm}m`;
+  const hours = t("thread.time.hours", { count: h });
+  return rm === 0 ? hours : `${hours} ${t("thread.time.minutes", { count: rm })}`;
 }
 
 function formatTokens(n: number): string {
@@ -168,6 +173,8 @@ interface TopBarRowTwoProps {
 }
 
 function formatTime(d: Date): string {
+  const locale = localeTag();
+  if (locale !== "en-US") return d.toLocaleTimeString(locale, { hour: "numeric", minute: "2-digit" });
   let h = d.getHours();
   const m = d.getMinutes();
   const ampm = h >= 12 ? "pm" : "am";
@@ -194,10 +201,10 @@ function formatResetAt(iso: string | null): string | null {
   if (sameDay) return time;
   const diffDays = Math.round((d.getTime() - now.getTime()) / 86_400_000);
   if (diffDays >= -1 && diffDays <= 6) {
-    const dow = d.toLocaleDateString(undefined, { weekday: "short" });
+    const dow = d.toLocaleDateString(localeTag(), { weekday: "short" });
     return `${dow} ${time}`;
   }
-  const md = d.toLocaleDateString(undefined, { month: "short", day: "numeric" });
+  const md = d.toLocaleDateString(localeTag(), { month: "short", day: "numeric" });
   return `${md} ${time}`;
 }
 
@@ -220,6 +227,7 @@ function paceStatusColor(status: PaceStatus | null): string {
  *  reset-at wall-clock. Color-coded by paceStatus when available, else by
  *  raw utilization. Tooltip carries the pace label. */
 function QuotaChip({ label, info }: { label: string; info: QuotaWindowInfo }) {
+  const t = useT();
   const pct = info.utilization;
   if (pct === null) return null;
   const safePct = Math.min(100, Math.max(0, pct));
@@ -233,10 +241,19 @@ function QuotaChip({ label, info }: { label: string; info: QuotaWindowInfo }) {
         ? "var(--status-amber)"
         : "var(--status-green)";
   const resetAt = formatResetAt(info.resetsAt);
+  const paceLabel = info.paceStatus === "behind"
+    ? t("thread.quota.pace.behind")
+    : info.paceStatus === "on_track"
+      ? t("thread.quota.pace.onTrack")
+      : info.paceStatus === "ahead" && info.paceDelta !== null
+        ? t("thread.quota.pace.ahead", { percent: Math.round(Math.abs(info.paceDelta)) })
+        : info.paceStatus === "well_over" && info.paceDelta !== null
+          ? t("thread.quota.pace.wellOver", { percent: Math.round(Math.abs(info.paceDelta)) })
+          : info.paceLabel;
   const tooltip = [
-    `${label}: ${Math.round(safePct)}% used`,
-    info.paceLabel,
-    resetAt ? `Resets at ${resetAt}` : null,
+    t("thread.quota.used", { label, percent: Math.round(safePct) }),
+    paceLabel,
+    resetAt ? t("thread.quota.resetsAt", { time: resetAt }) : null,
   ]
     .filter(Boolean)
     .join(" · ");
@@ -279,7 +296,7 @@ function QuotaChip({ label, info }: { label: string; info: QuotaWindowInfo }) {
         </span>
       )}
       {resetAt && (
-        <span style={{ color: "var(--text-muted)", opacity: 0.7 }}>· resets {resetAt}</span>
+        <span style={{ color: "var(--text-muted)", opacity: 0.7 }}>· {t("thread.quota.resetsAtInline", { time: resetAt })}</span>
       )}
     </span>
   );
@@ -291,6 +308,7 @@ function QuotaChip({ label, info }: { label: string; info: QuotaWindowInfo }) {
  *  Row 1 already shows live token counts, and percentages of those numbers
  *  add no information. Uses only CSS variables so light/dark both work. */
 function TopBarRowTwo({ bypassActive, provider, quota }: TopBarRowTwoProps) {
+  const t = useT();
   const [now, setNow] = useState(() => new Date());
   useEffect(() => {
     // Tick to the next minute boundary then every 60 s after that.
@@ -342,8 +360,8 @@ function TopBarRowTwo({ bypassActive, provider, quota }: TopBarRowTwoProps) {
             className="inline-flex items-center pointer-events-auto"
             style={{ gap: 12, flexShrink: 0 }}
           >
-            {quota!.session && <QuotaChip label="5h" info={quota!.session} />}
-            {quota!.weekly && <QuotaChip label="wk" info={quota!.weekly} />}
+            {quota!.session && <QuotaChip label={t("thread.quota.sessionShort")} info={quota!.session} />}
+            {quota!.weekly && <QuotaChip label={t("thread.quota.weekShort")} info={quota!.weekly} />}
           </span>
         </>
       )}
@@ -355,10 +373,10 @@ function TopBarRowTwo({ bypassActive, provider, quota }: TopBarRowTwoProps) {
           <span
             className="inline-flex items-center pointer-events-auto"
             style={{ gap: 4, color: "var(--status-amber)", flexShrink: 0 }}
-            title="Bypass permissions active — all tool calls are auto-approved"
+            title={t("thread.topBar.bypassActiveTitle")}
           >
             <ShieldOff size={10} style={{ flexShrink: 0 }} />
-            <span>bypass permissions on</span>
+            <span>{t("thread.topBar.bypassActive")}</span>
           </span>
         </>
       )}
@@ -548,6 +566,7 @@ export function ThreadTopBar({
   flushTerminal = false,
   children,
 }: Props) {
+  const t = useT();
   const sharedPanels = useSharedSessionPanels();
   const onToggleGitSidebar = sharedPanels?.onToggleGitSidebar ?? ownToggleGitSidebar;
   const gitSidebarOpen = sharedPanels?.gitSidebarOpen ?? ownGitSidebarOpen;
@@ -654,16 +673,16 @@ export function ThreadTopBar({
   })();
   const resolvedBypassTooltip: string = (() => {
     if (effectiveProvider === "ClaudeCode") {
-      return isProcessing ? "Cannot change while agent is working" : "Skip permission checks (--dangerously-skip-permissions)";
+      return isProcessing ? t("thread.topBar.cannotChangeWhileWorking") : t("thread.topBar.skipPermissionChecks", { command: "--dangerously-skip-permissions" });
     }
     if (effectiveProvider === "Codex") {
       return codexBypassActive
-        ? "Auto-approve all (--sandbox workspace-write --ask-for-approval never) — set at spawn, cannot change mid-session"
-        : "Standard permissions — set at spawn, cannot change mid-session";
+        ? t("thread.topBar.codexAutoApprove", { command: "--sandbox workspace-write --ask-for-approval never" })
+        : t("thread.topBar.standardPermissions");
     }
-    if (effectiveProvider === "MLX") return bypassTooltip ?? "Auto-approve all tool calls";
-    if (effectiveProvider === "OpenCode") return bypassTooltip ?? "Auto-approve all tool calls";
-    return "Bypass permissions";
+    if (effectiveProvider === "MLX") return bypassTooltip ?? t("thread.topBar.autoApproveAll");
+    if (effectiveProvider === "OpenCode") return bypassTooltip ?? t("thread.topBar.autoApproveAll");
+    return t("thread.topBar.bypassPermissions");
   })();
   // Show the lock icon for any provider except Kimi, Grok, and Cursor (no
   // toggleable bypass mechanism).
@@ -870,9 +889,9 @@ export function ThreadTopBar({
   const stateColor = stateKind === "running" ? "var(--status-blue)" : flat ? textDivider : "#71717a";
   const stateHalo = stateKind === "running" ? "color-mix(in srgb, var(--status-blue) 22%, transparent)" : "transparent";
   const stateLabel = stateKind === "running"
-    ? elapsedMs > 0 ? `Working · ${formatElapsed(elapsedMs)}` : "Working"
+    ? elapsedMs > 0 ? t("thread.topBar.workingWithElapsed", { elapsed: formatElapsed(elapsedMs, t) }) : t("thread.topBar.working")
     : stateKind === "idle"
-      ? "Idle"
+      ? t("thread.topBar.idle")
       : "";
 
 
@@ -1088,9 +1107,9 @@ export function ThreadTopBar({
                       background: flat ? "var(--ui-green-soft)" : "color-mix(in srgb, var(--accent) 10%, transparent)",
                       border: flat ? "none" : "1px solid color-mix(in srgb, var(--accent) 22%, transparent)",
                     }}
-                    title={`Worktree at ${workDir}`}
+                    title={t("thread.topBar.worktreeAt", { path: workDir })}
                   >
-                    Worktree
+                    {t("thread.topBar.worktree")}
                   </span>
                 )}
                 <span
@@ -1099,7 +1118,7 @@ export function ThreadTopBar({
                     gap: 5,
                     color: isWorktree ? "var(--status-green)" : textSecondary,
                   }}
-                  title={isWorktree ? `Worktree branch: ${branch}\nPath: ${workDir}` : branch}
+                  title={isWorktree ? t("thread.topBar.worktreeBranchPath", { branch, path: workDir }) : branch}
                 >
                   <GitBranch size={11} style={{ flexShrink: 0 }} />
                   <span
@@ -1117,7 +1136,7 @@ export function ThreadTopBar({
             {onRefreshTerminal && (
               <button
                 type="button"
-                title="Refresh terminal layout"
+                title={t("thread.topBar.refreshTerminalLayout")}
                 onClick={(e) => {
                   e.stopPropagation();
                   onRefreshTerminal();
@@ -1195,7 +1214,11 @@ export function ThreadTopBar({
                 <span
                   className="inline-flex items-center"
                   style={{ gap: 6, color: flat ? textDivider : textSecondary, flexShrink: 0, fontVariantNumeric: "tabular-nums" }}
-                  title={`${ctxUsed.toLocaleString()} / ${ctxMax.toLocaleString()} tokens (${ctxPct.toFixed(1)}%)`}
+                  title={t("thread.topBar.contextTokensTitle", {
+                    used: ctxUsed.toLocaleString(localeTag()),
+                    max: ctxMax.toLocaleString(localeTag()),
+                    percent: ctxPct.toFixed(1),
+                  })}
                 >
                   <span
                     style={{
@@ -1282,7 +1305,7 @@ export function ThreadTopBar({
             type="button"
             onClick={() => setShowCommitDialog(true)}
             disabled={!workDir || workDir === "/"}
-            title="Commit changes"
+            title={t("thread.topBar.commitChanges")}
             style={{
               display: "inline-flex",
               alignItems: "center",
@@ -1311,7 +1334,7 @@ export function ThreadTopBar({
             }}
           >
             <GitCommitHorizontal size={12} style={{ color: textSecondary }} />
-            {!isSplit && <span>Commit</span>}
+            {!isSplit && <span>{t("thread.topBar.commit")}</span>}
             {hasChanges && (
               <span
                 style={{
@@ -1351,7 +1374,7 @@ export function ThreadTopBar({
                   type="button"
                   onClick={handleOpenIde}
                   disabled={launching || !workDir || workDir === "/"}
-                  title={`Open in ${selectedIdeOption.name}`}
+                  title={t("thread.topBar.openIn", { name: selectedIdeOption.name })}
                   className="select-none"
                   style={{
                     display: "inline-flex",
@@ -1388,7 +1411,7 @@ export function ThreadTopBar({
                 <button
                   type="button"
                   onClick={() => setShowIdeMenu((v) => !v)}
-                  title="Choose editor"
+                  title={t("thread.topBar.chooseEditor")}
                   style={{
                     display: "inline-flex",
                     alignItems: "center",
@@ -1484,7 +1507,7 @@ export function ThreadTopBar({
               open={timelineOpen}
               onClose={() => setTimelineOpen(false)}
               onJumpFail={() =>
-                setTimelineToast("Can’t find that turn in the current view")
+                setTimelineToast("thread.topBar.timelineJumpFailed")
               }
             />
             {timelineToast && (
@@ -1492,13 +1515,13 @@ export function ThreadTopBar({
                 className="absolute right-0 top-full z-50 mt-10 whitespace-nowrap rounded-md border border-white/10 bg-zinc-900/95 px-2.5 py-1.5 text-[11px] text-zinc-300 shadow-lg fx-dialog"
                 role="status"
               >
-                {timelineToast}
+                {t(timelineToast)}
               </div>
             )}
           </div>
 
           {!hideTerm && (
-            <IconBtn icon={Terminal} title="Toggle terminal" onClick={onToggleTerminal} active={terminalOpen} disabled={!workDir || workDir === "/"} />
+            <IconBtn icon={Terminal} title={t("thread.topBar.toggleTerminal")} onClick={onToggleTerminal} active={terminalOpen} disabled={!workDir || workDir === "/"} />
           )}
 
           {showBypassIcon && (
@@ -1518,16 +1541,16 @@ export function ThreadTopBar({
           {!isChatSurface && (
           <IconBtn
             icon={copied ? Check : Copy}
-            title="Copy thread ID"
+            title={t("thread.topBar.copyThreadId")}
             onClick={handleCopyThreadId}
             accent={copied ? "green" : "default"}
             active={copied}
           />
           )}
 
-          <IconBtn icon={FileDiff} title="Git panel" onClick={onToggleGitSidebar} active={gitSidebarOpen} />
+          <IconBtn icon={FileDiff} title={t("thread.topBar.gitPanel")} onClick={onToggleGitSidebar} active={gitSidebarOpen} />
 
-          <IconBtn icon={PanelRightOpen} title="Toggle file explorer" onClick={toggleEditorPanel} active={editorPanelOpen && fileTreeVisible} />
+          <IconBtn icon={PanelRightOpen} title={t("thread.topBar.toggleFileExplorer")} onClick={toggleEditorPanel} active={editorPanelOpen && fileTreeVisible} />
         </div>
       </div>
 

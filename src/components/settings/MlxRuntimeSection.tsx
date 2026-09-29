@@ -11,6 +11,7 @@ import { useMlxBootstrapStore } from "../../stores/mlxBootstrapStore";
 import { formatError } from "../../lib/formatError";
 import { SettingsRow } from "./settingsLayout";
 import { ErrorNote, btn, btnAccent } from "./localModels/ui";
+import { tx, useT } from "../../i18n";
 
 /**
  * What the runtime card should say right now.
@@ -79,6 +80,7 @@ export function mlxRuntimePhase(
  * bootstrapped" until this is done. Renders inside a SettingsCard.
  */
 export function MlxRuntimeSection() {
+  const t = useT();
   const state = useMlxBootstrapStore((s) => s.state);
   const init = useMlxBootstrapStore((s) => s.init);
   const [cap, setCap] = useState<MlxCapability | null>(null);
@@ -114,16 +116,15 @@ export function MlxRuntimeSection() {
   if (phase.kind === "ready") {
     return (
       <SettingsRow
-        label="MLX runtime"
+        label={t("settings.mlxRuntime.label")}
         description={
-          <>
-            Python environment with <code className="font-mono">mlx-lm</code> that downloads
-            and runs local models.
-          </>
+          tx("settings.mlxRuntime.readyDescription", {
+            package: <code className="font-mono">mlx-lm</code>,
+          })
         }
       >
         <span className="inline-flex items-center gap-1 text-[11.5px] text-[var(--accent)]">
-          <CheckCircle2 size={12} /> Installed
+          <CheckCircle2 size={12} /> {t("settings.mlxRuntime.installed")}
         </span>
       </SettingsRow>
     );
@@ -131,18 +132,20 @@ export function MlxRuntimeSection() {
 
   return (
     <SettingsRow
-      label="MLX runtime"
+      label={t("settings.mlxRuntime.label")}
       description={
         <>
-          A one-time Python environment with <code className="font-mono">mlx-lm</code>.
-          Downloading or running a local model needs it.
+          {tx("settings.mlxRuntime.setupDescription", {
+            package: <code className="font-mono">mlx-lm</code>,
+          })}{" "}
+          {t("settings.mlxRuntime.setupDescriptionSecond")}
         </>
       }
       stacked
     >
       {phase.kind === "checking" && (
         <div className="flex items-center gap-2 text-[11.5px] text-[var(--text-tertiary)]">
-          <Loader2 size={12} className="animate-spin" /> Checking…
+          <Loader2 size={12} className="animate-spin" /> {t("settings.mlxRuntime.checking")}
         </div>
       )}
 
@@ -153,12 +156,12 @@ export function MlxRuntimeSection() {
             className={btnAccent}
             onClick={() => run(phase.needsPython ? mlxInstallPython : mlxStartBootstrap)}
           >
-            <Terminal size={12} /> Install runtime
+            <Terminal size={12} /> {t("settings.mlxRuntime.installRuntime")}
           </button>
           <span className="text-[11.5px] text-[var(--text-muted)]">
             {phase.needsPython
-              ? "Installs Python 3.12 first, then mlx-lm."
-              : "Not installed yet."}
+              ? t("settings.mlxRuntime.pythonInstallNote")
+              : t("settings.mlxRuntime.notInstalled")}
           </span>
         </div>
       )}
@@ -167,7 +170,9 @@ export function MlxRuntimeSection() {
         <div>
           <div className="flex items-center gap-2 text-[11.5px] text-[var(--text-secondary)]">
             <Loader2 size={12} className="animate-spin" />
-            {phase.label}
+            {state.state === "installingPython"
+              ? t("settings.mlxRuntime.phase.installingPython", { tool: state.tool })
+              : t(`settings.mlxRuntime.phase.${state.state}`)}
           </div>
           {phase.line && (
             <div className="mt-1 truncate font-mono text-[10.5px] text-[var(--text-muted)]">
@@ -179,7 +184,7 @@ export function MlxRuntimeSection() {
 
       {phase.kind === "pythonMissing" && (
         <div>
-          <div className="text-[11.5px] text-amber-400">MLX needs Python 3.10–3.13.</div>
+          <div className="text-[11.5px] text-amber-400">{t("settings.mlxRuntime.pythonVersionRequirement")}</div>
           <div className="mt-2 flex flex-wrap items-center gap-2">
             <code className="rounded-md border border-[var(--glass-border)] px-2 py-1 font-mono text-[11px] text-[var(--text-secondary)]">
               {phase.suggestion}
@@ -189,15 +194,15 @@ export function MlxRuntimeSection() {
               className={btn}
               onClick={() => navigator.clipboard.writeText(phase.suggestion).catch(() => {})}
             >
-              Copy
+              {t("settings.mlxRuntime.copy")}
             </button>
             {phase.canAutoInstall && (
               <button type="button" className={btnAccent} onClick={() => run(mlxInstallPython)}>
-                Install with {phase.installer ?? "uv"}
+              {t("settings.mlxRuntime.installWith", { installer: phase.installer ?? "uv" })}
               </button>
             )}
             <button type="button" className={btn} onClick={() => run(mlxStartBootstrap)}>
-              Retry
+              {t("settings.mlxRuntime.retry")}
             </button>
           </div>
         </div>
@@ -207,16 +212,16 @@ export function MlxRuntimeSection() {
         <div className="flex flex-wrap items-center gap-2">
           <span className="text-[11.5px] text-amber-400">{phase.hint}</span>
           <button type="button" className={btn} onClick={() => run(mlxStartBootstrap)}>
-            Retry
+            {t("settings.mlxRuntime.retry")}
           </button>
         </div>
       )}
 
       {phase.kind === "failed" && (
         <div className="flex flex-col items-start gap-2">
-          <ErrorNote message={`Install failed. ${phase.error.slice(0, 300)}`} />
+          <ErrorNote message={t("settings.mlxRuntime.installFailed", { error: phase.error.slice(0, 300) })} />
           <button type="button" className={btn} onClick={() => run(mlxStartBootstrap)}>
-            Retry
+            {t("settings.mlxRuntime.retry")}
           </button>
         </div>
       )}

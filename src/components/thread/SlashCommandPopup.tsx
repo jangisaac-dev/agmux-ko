@@ -3,6 +3,7 @@ import { Terminal, Hash, FileText } from "lucide-react";
 import { motion } from "framer-motion";
 import type { SlashCommand } from "../../lib/slashCommands";
 import type { Provider } from "../../lib/types";
+import { tx, useT } from "../../i18n";
 
 interface Props {
   commands: SlashCommand[];
@@ -26,13 +27,14 @@ const PROVIDER_ICON_CLASS: Record<Provider, string> = {
   Hermes: "text-amber-200",
 };
 
-const SOURCE_LABELS: Record<string, { label: string; color: string }> = {
-  "built-in": { label: "Built-in", color: "text-zinc-500" },
-  "user": { label: "User", color: "text-blue-400" },
-  "project": { label: "Project", color: "text-green-400" },
+const SOURCE_LABELS: Record<string, { key: string; color: string }> = {
+  "built-in": { key: "thread.slash.source.builtIn", color: "text-zinc-500" },
+  "user": { key: "thread.slash.source.user", color: "text-blue-400" },
+  "project": { key: "thread.slash.source.project", color: "text-green-400" },
 };
 
 export function SlashCommandPopup({ commands, activeIndex, provider, onSelect }: Props) {
+  const t = useT();
   const listRef = useRef<HTMLDivElement>(null);
   const activeRef = useRef<HTMLButtonElement>(null);
 
@@ -53,12 +55,12 @@ export function SlashCommandPopup({ commands, activeIndex, provider, onSelect }:
       transition={{ duration: 0.15, ease: "easeOut" }}
       className="absolute bottom-full left-0 right-0 z-40 mb-1 mx-4 rounded-xl border border-white/10 bg-[var(--surface-popover)] shadow-2xl overflow-hidden backdrop-blur-md"
       role="listbox"
-      aria-label="Slash commands"
+      aria-label={t("thread.slash.ariaLabel")}
     >
       <div className="flex items-center gap-1.5 border-b border-white/5 bg-white/[0.02] px-3 py-2">
         <Hash size={11} className="text-zinc-400" />
-        <span className="text-xs text-zinc-400 font-medium">Slash commands</span>
-        <span className="ml-auto text-xs text-zinc-500"><span className="ui-kbd">Esc</span> to close</span>
+        <span className="text-xs text-zinc-400 font-medium">{t("thread.slash.heading")}</span>
+        <span className="ml-auto text-xs text-zinc-500">{tx("thread.popup.escapeToClose", { shortcut: <span className="ui-kbd">Esc</span> })}</span>
       </div>
       <div className="flex">
         {/* Command list */}
@@ -92,7 +94,7 @@ export function SlashCommandPopup({ commands, activeIndex, provider, onSelect }:
                     </span>
                     {isShared && (
                       <span className="rounded bg-white/5 px-1 py-0.5 text-[10px] text-zinc-400">
-                        shared
+                        {t("thread.slash.shared")}
                       </span>
                     )}
                   </div>
@@ -121,7 +123,7 @@ export function SlashCommandPopup({ commands, activeIndex, provider, onSelect }:
                   <span className="flex items-center gap-1">
                     <FileText size={10} className="text-zinc-500" />
                     <span className={SOURCE_LABELS[activeCommand.source]?.color ?? "text-zinc-500"}>
-                      {SOURCE_LABELS[activeCommand.source]?.label ?? activeCommand.source}
+                      {SOURCE_LABELS[activeCommand.source] ? t(SOURCE_LABELS[activeCommand.source].key) : activeCommand.source}
                     </span>
                   </span>
                 )}
@@ -131,13 +133,13 @@ export function SlashCommandPopup({ commands, activeIndex, provider, onSelect }:
               </div>
               {activeCommand.action === "passthrough" && (
                 <div className="rounded-lg bg-white/[0.03] border border-white/5 px-2.5 py-1.5 text-[10px] text-zinc-500">
-                  Sent directly to the agent
+                  {t("thread.slash.sentDirectly")}
                 </div>
               )}
             </div>
           ) : (
             <div className="flex h-full items-center justify-center text-xs text-zinc-600">
-              Select a command
+              {t("thread.slash.selectCommand")}
             </div>
           )}
         </div>

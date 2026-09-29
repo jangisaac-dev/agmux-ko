@@ -3,7 +3,7 @@ import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { useSettingsStore } from "../../../stores/settingsStore";
 import { ArrowDown, Bot, ChevronRight, Eye, Loader2, Maximize2, Minimize2, X } from "lucide-react";
 import {
-  readSubagentConversation, subagentDisplayName, subagentStatusLabel, subagentAssignment, subagentLaunchResult, prepareSubagentConversation,
+  readSubagentConversation, subagentDisplayName, subagentAssignment, subagentLaunchResult, prepareSubagentConversation,
   type SubagentScope, type SubagentSnapshot, type SubagentReference, type SubagentStatus,
 } from "../../../lib/subagentConversations";
 import { SubagentInspectorContext, useSubagentInspector } from "./SubagentInspectorContext";
@@ -12,9 +12,10 @@ import { MarkdownContent } from "../MarkdownContent";
 import { UserMessageText } from "../UserMessageText";
 import { CodexThinkRow } from "../tools/codex";
 import { WorkDirProvider } from "../WorkDirContext";
-import { SubagentActivityCards } from "./SubagentActivityCards";
+import { SubagentActivityCards, subagentStatusText } from "./SubagentActivityCards";
 import { useSubagentActivity } from "./useSubagentActivity";
 import { useSubagentRegistry } from "./useSubagentRegistry";
+import { useT } from "../../../i18n";
 
 interface Props extends SubagentScope { children: ReactNode; enabled?: boolean; presentationActive?: boolean; subagents?: SubagentReference[] }
 
@@ -24,6 +25,7 @@ export function SubagentInspector(props: Props) {
 }
 
 function InspectorState({ children, provider, parentThreadId, parentSessionId, workDir, enabled = true, presentationActive = true, subagents }: Props) {
+  const t = useT();
   const animationSpeed = useSettingsStore((state) => state.settings.animationSpeed);
   const reducedMotion = useReducedMotion();
   const duration = reducedMotion || animationSpeed === "none" ? 0 : animationSpeed === "quick" ? 0.12 : 0.22;
@@ -60,7 +62,7 @@ function InspectorState({ children, provider, parentThreadId, parentSessionId, w
             animate={{ width: expanded ? "100%" : width, opacity: 1, x: 0 }}
             exit={{ width: 0, opacity: 0, x: 12 }}
             transition={{ duration: resizing ? 0 : duration, ease: [0.22, 1, 0.36, 1] }}
-            aria-label="Subagent conversation"
+            aria-label={t("subagents.conversation")}
             data-testid="subagent-conversation-panel"
             className={`subagent-inspector-panel relative flex min-h-0 min-w-0 shrink-0 flex-col overflow-hidden border-l border-white/10 ${expanded ? "flex-1" : ""}`}
             style={expanded ? undefined : { width, maxWidth: "65%" }}
@@ -68,7 +70,7 @@ function InspectorState({ children, provider, parentThreadId, parentSessionId, w
             <div className="codex-wall" aria-hidden />
             <div className="subagent-inspector-content codex-glass relative flex min-h-0 flex-1 flex-col" style={{ width: expanded ? "100%" : `min(${width}px, 65cqw)` }}>
             {!expanded && <div
-              role="separator" aria-label="Resize subagent conversation" aria-orientation="vertical" aria-valuenow={width} aria-valuemin={320} aria-valuemax={Math.max(320, Math.round((host.current?.clientWidth || 1000) * 0.65))} tabIndex={0}
+              role="separator" aria-label={t("subagents.resizeConversation")} aria-orientation="vertical" aria-valuenow={width} aria-valuemin={320} aria-valuemax={Math.max(320, Math.round((host.current?.clientWidth || 1000) * 0.65))} tabIndex={0}
               className="absolute inset-y-0 -left-1 z-10 w-2 cursor-col-resize hover:bg-blue-400/20 focus-visible:bg-blue-400/20"
               onKeyDown={(event) => { if (event.key === "ArrowLeft" || event.key === "ArrowRight") { event.preventDefault(); setWidth((w) => clampWidth(w + (event.key === "ArrowLeft" ? 24 : -24))); } }}
               onPointerDown={(event) => {
@@ -82,12 +84,12 @@ function InspectorState({ children, provider, parentThreadId, parentSessionId, w
               }}
             />}
             <header className="codex-topbar flex h-[53px] shrink-0 items-center gap-2 border-b border-white/[0.07] px-4">
-              <span className="text-[11px] text-[var(--text-muted)]">Subagents</span><ChevronRight size={12} className="text-[var(--text-muted)]" />
+              <span className="text-[11px] text-[var(--text-muted)]">{t("subagents.title")}</span><ChevronRight size={12} className="text-[var(--text-muted)]" />
               <strong className="min-w-0 truncate text-xs font-medium text-[var(--text-primary)]" title={subagentDisplayName(selected.title)}>{subagentDisplayName(selected.title)}</strong>
-              <button type="button" onClick={() => setExpanded((value) => !value)} aria-label={expanded ? "Restore side panel" : "Expand subagent conversation"} className="ml-auto shrink-0 rounded p-1.5 text-[var(--text-tertiary)] hover:bg-white/5">{expanded ? <Minimize2 size={14} /> : <Maximize2 size={14} />}</button>
-              <button type="button" onClick={close} aria-label="Close subagent conversation" className="shrink-0 rounded p-1.5 text-[var(--text-tertiary)] hover:bg-white/5"><X size={15} /></button>
+              <button type="button" onClick={() => setExpanded((value) => !value)} aria-label={t(expanded ? "subagents.restorePanel" : "subagents.expandConversation")} className="ml-auto shrink-0 rounded p-1.5 text-[var(--text-tertiary)] hover:bg-white/5">{expanded ? <Minimize2 size={14} /> : <Maximize2 size={14} />}</button>
+              <button type="button" onClick={close} aria-label={t("subagents.closeConversation")} className="shrink-0 rounded p-1.5 text-[var(--text-tertiary)] hover:bg-white/5"><X size={15} /></button>
             </header>
-            <div role="tablist" aria-label="Subagent conversations" className="flex shrink-0 gap-4 overflow-x-auto border-b border-white/[0.07] px-4">
+            <div role="tablist" aria-label={t("subagents.conversations")} className="flex shrink-0 gap-4 overflow-x-auto border-b border-white/[0.07] px-4">
               {references.map((entry, index) => <button
                 key={entry.toolUseId} type="button" role="tab" aria-selected={selectedId === entry.toolUseId} tabIndex={selectedId === entry.toolUseId ? 0 : -1}
                 onClick={() => setSelectedId(entry.toolUseId)}
@@ -121,6 +123,7 @@ function Thought({ text }: { text: string }) {
 }
 
 function Conversation({ scope, reference, active, onStatus, onClose }: { scope: SubagentScope; reference: SubagentReference; active: boolean; onStatus: (id: string, status: SubagentStatus) => void; onClose: () => void }) {
+  const t = useT();
   const [snapshot, setSnapshot] = useState<SubagentSnapshot | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -188,15 +191,15 @@ function Conversation({ scope, reference, active, onStatus, onClose }: { scope: 
   return <>
     <div ref={scroller} className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-6 py-5 scrollbar-none" onScroll={() => { const el = scroller.current; if (el) setFollow(el.scrollHeight - el.scrollTop - el.clientHeight < 60); }}>
       <div className="mx-auto max-w-[780px] space-y-4">
-        <div className="flex items-center gap-2 text-[11px] text-[var(--text-tertiary)]"><span>{provider === "ClaudeCode" ? "Claude" : provider}</span><span className="text-[var(--text-muted)]">·</span><span>{subagentStatusLabel(status)}</span></div>
+        <div className="flex items-center gap-2 text-[11px] text-[var(--text-tertiary)]"><span>{provider === "ClaudeCode" ? "Claude" : provider}</span><span className="text-[var(--text-muted)]">·</span><span>{subagentStatusText(status, t)}</span></div>
         {!hasAssignment && assignment && <div className="ml-auto max-w-[78%] min-w-0 codex-bubble-user rounded-[16px_16px_5px_16px] px-[15px] py-[11px] text-[14.5px] leading-[1.55] text-[var(--text-primary)]"><UserMessageText content={assignment} /></div>}
         {!assignment && snapshot?.assignmentUnavailableReason && <p className="text-xs text-[var(--text-tertiary)]">{snapshot.assignmentUnavailableReason}</p>}
-        {loading && !snapshot && <div role="status" className="flex items-center gap-2 text-xs text-[var(--text-tertiary)]"><Loader2 size={14} className="animate-spin" />Loading conversation…</div>}
-        {error && <div role="alert" className="text-xs text-red-400">{error}<button type="button" className="ml-3 underline" onClick={() => setRetry((value) => value + 1)}>Retry</button></div>}
+        {loading && !snapshot && <div role="status" className="flex items-center gap-2 text-xs text-[var(--text-tertiary)]"><Loader2 size={14} className="animate-spin" />{t("subagents.loadingConversation")}</div>}
+        {error && <div role="alert" className="text-xs text-red-400">{error}<button type="button" className="ml-3 underline" onClick={() => setRetry((value) => value + 1)}>{t("subagents.retry")}</button></div>}
         {snapshot?.unavailableReason && <p className="text-xs text-[var(--text-tertiary)]">{snapshot.unavailableReason}</p>}
-        {!loading && !error && !displayItems.length && !snapshot?.unavailableReason && <p className="text-xs text-[var(--text-tertiary)]">Waiting for the subagent transcript…</p>}
-        {!loading && !displayItems.length && fallbackResult && <div className="text-sm text-[var(--text-secondary)]"><p className="mb-2 text-[11px] text-[var(--text-muted)]">Launch result</p><MarkdownContent content={fallbackResult} /></div>}
-        {displayItems.length > visibleCount && <button type="button" className="text-xs text-[var(--text-tertiary)] hover:underline" onClick={() => { setFollow(false); setVisibleCount((count) => count + 200); }}>Load earlier messages</button>}
+        {!loading && !error && !displayItems.length && !snapshot?.unavailableReason && <p className="text-xs text-[var(--text-tertiary)]">{t("subagents.waitingForTranscript")}</p>}
+        {!loading && !displayItems.length && fallbackResult && <div className="text-sm text-[var(--text-secondary)]"><p className="mb-2 text-[11px] text-[var(--text-muted)]">{t("subagents.launchResult")}</p><MarkdownContent content={fallbackResult} /></div>}
+        {displayItems.length > visibleCount && <button type="button" className="text-xs text-[var(--text-tertiary)] hover:underline" onClick={() => { setFollow(false); setVisibleCount((count) => count + 200); }}>{t("subagents.loadEarlierMessages")}</button>}
         <WorkDirProvider workDir={workDir}>
           {/* Child rows must never register as launches belonging to the root parent. */}
           <SubagentInspectorContext.Provider value={null}>
@@ -204,13 +207,13 @@ function Conversation({ scope, reference, active, onStatus, onClose }: { scope: 
               {visibleItems?.map((item) => item.type === "user" ? <div key={item.id} className="my-5 ml-auto max-w-[78%] min-w-0 codex-bubble-user rounded-[16px_16px_5px_16px] px-[15px] py-[11px] text-[14.5px] leading-[1.55]"><UserMessageText content={item.text} /></div>
                 : item.type === "assistant" ? <div key={item.id} className="py-2 text-[15px] leading-[1.6] text-[var(--text-primary)] antialiased"><MarkdownContent content={item.text} /></div>
                 : item.type === "thinking" ? <Thought key={item.id} text={item.text} />
-                : <ToolUseBlock key={item.id} name={item.toolName ?? "Tool"} toolId={item.id} input={item.toolInput ?? {}} expandReadResults result={item.toolResult != null ? { content: item.toolResult, isError: item.isError ?? false } : undefined} pending={item.pending ?? false} />)}
+                : <ToolUseBlock key={item.id} name={item.toolName ?? t("subagents.toolFallback")} toolId={item.id} input={item.toolInput ?? {}} expandReadResults result={item.toolResult != null ? { content: item.toolResult, isError: item.isError ?? false } : undefined} pending={item.pending ?? false} />)}
             </div>
           </SubagentInspectorContext.Provider>
         </WorkDirProvider>
       </div>
     </div>
-    <footer className="flex shrink-0 items-center gap-2 border-t border-white/[0.07] px-4 py-3 text-[11px] text-[var(--text-muted)]"><Eye size={12} />Viewing conversation{!follow && <button type="button" className="ml-auto inline-flex items-center gap-1 text-[var(--text-secondary)]" onClick={() => setFollow(true)}><ArrowDown size={12} />Latest</button>}</footer>
+    <footer className="flex shrink-0 items-center gap-2 border-t border-white/[0.07] px-4 py-3 text-[11px] text-[var(--text-muted)]"><Eye size={12} />{t("subagents.viewingConversation")}{!follow && <button type="button" className="ml-auto inline-flex items-center gap-1 text-[var(--text-secondary)]" onClick={() => setFollow(true)}><ArrowDown size={12} />{t("subagents.latest")}</button>}</footer>
   </>;
 }
 

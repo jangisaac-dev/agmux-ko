@@ -55,6 +55,7 @@ import { CursorSdkSessionView } from "./CursorSdkSessionView";
 import { GrokSdkSessionView } from "./GrokSdkSessionView";
 import { GeminiSessionView } from "./GeminiSessionView";
 import { shouldKeepClaudeTerminalLoaded } from "./terminalOffload";
+import { useT } from "../../i18n";
 import {
   cancelGrokSessionOffload,
   GROK_OFFLOAD_DELAY_MS,
@@ -102,6 +103,7 @@ const statusClasses: Record<ThreadStatus, string> = {
 };
 
 export function ThreadView({ thread, compact = false }: Props) {
+  const t = useT();
   const sessionUiKey = `thread:${thread.id}`;
   const projectPath = useProjectStore(
     (s) => s.projects.find((p) => p.id === thread.project_id)?.repo_path ?? ""
@@ -1003,7 +1005,7 @@ export function ThreadView({ thread, compact = false }: Props) {
               <div className="flex items-start gap-2 border-b border-red-500/30 bg-red-950/20 px-4 py-3">
                 <AlertTriangle size={14} className="mt-0.5 shrink-0 text-red-400" />
                 <div className="flex-1">
-                  <p className="text-sm font-medium text-red-400">Failed to start</p>
+                  <p className="text-sm font-medium text-red-400">{t("thread.error.failedToStart")}</p>
                   <p className="mt-0.5 text-xs text-red-300/70">{spawnError}</p>
                 </div>
                 <button
@@ -1017,7 +1019,7 @@ export function ThreadView({ thread, compact = false }: Props) {
             <div className="flex-1 overflow-hidden">
               {terminalUnloaded ? (
                 <div className="flex h-full items-center justify-center bg-[var(--terminal-surface,var(--agent-terminal-surface))]">
-                  <p className="text-xs text-zinc-500">Terminal unloaded to save memory</p>
+                  <p className="text-xs text-zinc-500">{t("thread.terminal.unloadedToSaveMemory")}</p>
                 </div>
               ) : (
                 <TerminalView
@@ -1045,8 +1047,8 @@ export function ThreadView({ thread, compact = false }: Props) {
                   // remainder to that color so FitAddon strips are invisible.
                   flushPadding={thread.provider === "Grok"}
                   ansiBlackDark={thread.provider === "Grok" ? "#141414" : undefined}
-                  loadingLabel={`Starting ${providerDisplayName(thread.provider)}`}
-                  dropLabel={`Drop image to send to ${providerDisplayName(thread.provider)}`}
+                  loadingLabel={t("thread.terminal.startingProvider", { provider: providerDisplayName(thread.provider) })}
+                  dropLabel={t("thread.terminal.dropImageToSend", { provider: providerDisplayName(thread.provider) })}
                 />
               )}
             </div>
@@ -1076,7 +1078,7 @@ export function ThreadView({ thread, compact = false }: Props) {
   if (thread.provider === "MLX") {
     return (
       <div className="p-6 text-zinc-400 text-sm">
-        MLX thread is in an unsupported state. Please archive and recreate.
+        {t("thread.error.unsupportedMlxThread", { provider: "MLX" })}
       </div>
     );
   }
@@ -1133,11 +1135,11 @@ export function ThreadView({ thread, compact = false }: Props) {
               )}
               {thread.fast_mode !== 0 && (
                 <span className="rounded-md bg-[var(--accent-dim)] border border-[color:var(--accent-border)] px-1.5 py-0.5 text-[10px] font-medium text-[color:var(--accent)]">
-                  AUTO
+                  {t("thread.mode.auto")}
                 </span>
               )}
               <span className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${statusClasses[thread.status]}`}>
-                {thread.status}
+                {t(`thread.status.${thread.status.toLowerCase()}`)}
               </span>
             </div>
 
@@ -1147,7 +1149,7 @@ export function ThreadView({ thread, compact = false }: Props) {
                 <button
                   onClick={handleStart}
                   className="flex items-center justify-center rounded-md bg-[var(--accent)] p-1.5 text-[#14110a] shadow-sm shadow-[color-mix(in_srgb,var(--accent)_20%,transparent)] hover:brightness-110 transition-all hover:scale-105 active:scale-95"
-                  title="Start thread"
+                  title={t("thread.action.startThread")}
                 >
                   <Play size={12} fill="currentColor" />
                 </button>
@@ -1156,7 +1158,7 @@ export function ThreadView({ thread, compact = false }: Props) {
                 <button
                   onClick={handleStop}
                   className="flex items-center justify-center rounded-md bg-rose-600/80 p-1.5 text-white shadow-sm shadow-rose-900/20 hover:bg-rose-500 transition-all hover:scale-105 active:scale-95"
-                  title="Stop thread"
+                  title={t("thread.action.stopThread")}
                 >
                   <Square size={12} fill="currentColor" />
                 </button>
@@ -1174,9 +1176,9 @@ export function ThreadView({ thread, compact = false }: Props) {
               <div className="pointer-events-auto">
                 <SegmentedControl
                   segments={[
-                    { value: "terminal", label: "Terminal", icon: Monitor },
-                    { value: "chat", label: "Chat", icon: MessageSquare },
-                    { value: "split", label: "Split", icon: Columns },
+                    { value: "terminal", label: t("thread.mode.terminal"), icon: Monitor },
+                    { value: "chat", label: t("thread.mode.chat"), icon: MessageSquare },
+                    { value: "split", label: t("thread.mode.split"), icon: Columns },
                   ]}
                   value={threadViewMode}
                   onChange={(mode) => {
@@ -1196,14 +1198,14 @@ export function ThreadView({ thread, compact = false }: Props) {
             <div className="relative pointer-events-auto">
               <TimelineTriggerButton count={0} open={timelineOpen} onClick={() => { setTimelineJumpFailed(false); setTimelineOpen((open) => !open); }} />
               <ThreadTimelinePopover threadId={thread.id} open={timelineOpen} poll onClose={() => setTimelineOpen(false)} onJumpFail={() => setTimelineJumpFailed(true)} />
-              {timelineJumpFailed && <div className="absolute right-0 top-full mt-2 w-56 rounded-lg bg-[var(--surface-popover)] p-3 text-xs text-zinc-400">That prompt is no longer in the current view.</div>}
+              {timelineJumpFailed && <div className="absolute right-0 top-full mt-2 w-56 rounded-lg bg-[var(--surface-popover)] p-3 text-xs text-zinc-400">{t("thread.timeline.promptNotInCurrentView")}</div>}
             </div>
             {/* Journal toggle */}
             <ActionButton
               icon={BookOpen}
               active={journalPanelOpen}
               onClick={toggleJournalPanel}
-              title="Toggle journal"
+              title={t("thread.action.toggleJournal")}
               size={16}
               className="pointer-events-auto"
             />
@@ -1212,7 +1214,7 @@ export function ThreadView({ thread, compact = false }: Props) {
             <ActionButton
               icon={PanelRight}
               onClick={toggleEditorPanel}
-              title="Toggle editor panel"
+              title={t("thread.action.toggleEditorPanel")}
               size={16}
               className="pointer-events-auto"
             />
@@ -1227,7 +1229,7 @@ export function ThreadView({ thread, compact = false }: Props) {
           <div className="flex items-start gap-2 border-b border-red-500/30 bg-red-950/20 px-4 py-3">
             <AlertTriangle size={14} className="mt-0.5 shrink-0 text-red-400" />
             <div className="flex-1">
-              <p className="text-sm font-medium text-red-400">Failed to start</p>
+              <p className="text-sm font-medium text-red-400">{t("thread.error.failedToStart")}</p>
               <p className="mt-0.5 text-xs text-red-300/70">{spawnError}</p>
             </div>
             <button

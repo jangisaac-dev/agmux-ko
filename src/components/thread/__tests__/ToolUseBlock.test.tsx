@@ -23,8 +23,13 @@ vi.mock("../../../stores/uiStore", () => ({
 
 // CodexCollapse reads animation settings
 vi.mock("../../../stores/settingsStore", () => ({
-  useSettingsStore: (sel: (s: { settings: { animationSpeed: string } }) => unknown) =>
-    sel({ settings: { animationSpeed: "none" } }),
+  useSettingsStore: (() => {
+    const state = { settings: { uiLanguage: "en", animationSpeed: "none" } };
+    return Object.assign((selector: (s: typeof state) => unknown) => selector(state), {
+      getState: () => state,
+      subscribe: () => () => {},
+    });
+  })(),
 }));
 
 const baseProps = {

@@ -18,6 +18,7 @@ import {
   commitMessageCandidates,
   useSettingsStore,
 } from "../../stores/settingsStore";
+import { t } from "../../i18n";
 
 export type Action = "commit" | "push" | "commit-push" | "commit-pr";
 export type DialogPhase = "form" | "progress" | "success" | "error";
@@ -119,15 +120,15 @@ export function setPhase(workDir: string, phase: DialogPhase) {
 
 function buildSteps(action: Action, branch: string): StepStatus[] {
   if (action === "push") {
-    return [{ label: `Pushing to ${branch}`, state: "pending" }];
+    return [{ label: t("git.commit.pushingToBranch", { branch }), state: "pending" }];
   }
 
-  const result: StepStatus[] = [{ label: "Committing changes", state: "pending" }];
+  const result: StepStatus[] = [{ label: t("git.commit.committingChanges"), state: "pending" }];
   if (action === "commit-push") {
-    result.push({ label: `Pushing to ${branch}`, state: "pending" });
+    result.push({ label: t("git.commit.pushingToBranch", { branch }), state: "pending" });
   } else if (action === "commit-pr") {
-    result.push({ label: `Pushing to ${branch}`, state: "pending" });
-    result.push({ label: "Creating pull request", state: "pending" });
+    result.push({ label: t("git.commit.pushingToBranch", { branch }), state: "pending" });
+    result.push({ label: t("git.commit.creatingPullRequest"), state: "pending" });
   }
   return result;
 }
@@ -185,8 +186,8 @@ export async function runCommitGenerate(
     patch(workDir, {
       generateError:
         errors.length > 0
-          ? `Generation failed:\n${errors.join("\n")}`
-          : "Generation failed: no providers configured.",
+          ? t("git.commit.generationFailedWithErrors", { errors: errors.join("\n") })
+          : t("git.commit.generationFailedNoProviders"),
     });
     return null;
   } finally {

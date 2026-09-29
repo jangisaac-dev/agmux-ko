@@ -10,9 +10,11 @@ import {
 import { formatError } from "../../../lib/formatError";
 import { SettingsRow } from "../settingsLayout";
 import { ErrorNote, btn, btnAccent, btnDanger, textInput } from "./ui";
+import { useT } from "../../../i18n";
 
 /** Exa API key used by local models' web search tool. */
 export function ExaKeyRow() {
+  const t = useT();
   const [status, setStatus] = useState<ExaKeyStatus | null>(null);
   const [draft, setDraft] = useState("");
   const [editing, setEditing] = useState(false);
@@ -54,16 +56,16 @@ export function ExaKeyRow() {
   const description = (
     <>
       {status?.source === "env"
-        ? "Read from the EXA_API_KEY environment variable. Remove it from your shell profile to clear it."
+        ? <>{t("settings.localModels.exa.environmentSource")} {t("settings.localModels.exa.environmentClear")}</>
         : status?.source === "settings"
-          ? "Stored in ~/.agmux/secrets.json."
-          : "Lets local models search the web."}{" "}
+          ? t("settings.localModels.exa.settingsSource")
+          : t("settings.localModels.exa.description")}{" "}
       <button
         type="button"
         onClick={() => openUrl("https://dashboard.exa.ai/api-keys").catch(() => {})}
         className="text-[var(--accent)] underline-offset-2 hover:underline"
       >
-        Get a key
+        {t("settings.localModels.exa.getKey")}
       </button>
     </>
   );
@@ -72,7 +74,7 @@ export function ExaKeyRow() {
     <SettingsRow
       label={
         <span className="inline-flex items-center gap-2">
-          Exa API key
+          {t("settings.localModels.exa.label")}
           {configured && (
             <span className="inline-flex items-center gap-1 font-mono text-[11px] text-[var(--accent)]">
               <CheckCircle2 size={11} /> …{status?.last4}
@@ -93,13 +95,13 @@ export function ExaKeyRow() {
               if (e.key === "Enter" && draft.trim()) mutate(() => mlxSetExaApiKey(draft.trim()));
             }}
             placeholder="exa_…"
-            aria-label="Exa API key"
+            aria-label={t("settings.localModels.exa.label")}
             spellCheck={false}
             autoComplete="off"
             className={`${textInput} flex-1 font-mono sm:max-w-[320px]`}
           />
           <button type="button" className={btn} onClick={() => setReveal((v) => !v)}>
-            {reveal ? "Hide" : "Show"}
+            {reveal ? t("settings.localModels.exa.hide") : t("settings.localModels.exa.show")}
           </button>
           <button
             type="button"
@@ -107,7 +109,7 @@ export function ExaKeyRow() {
             disabled={!draft.trim() || saving}
             onClick={() => mutate(() => mlxSetExaApiKey(draft.trim()))}
           >
-            {saving ? <Loader2 size={12} className="animate-spin" /> : "Save"}
+            {saving ? <Loader2 size={12} className="animate-spin" /> : t("settings.localModels.exa.save")}
           </button>
           {editing && configured && (
             <button
@@ -118,17 +120,17 @@ export function ExaKeyRow() {
                 setDraft("");
               }}
             >
-              Cancel
+              {t("settings.localModels.exa.cancel")}
             </button>
           )}
         </div>
       ) : configured && status?.source === "settings" ? (
         <>
           <button type="button" className={btn} onClick={() => setEditing(true)}>
-            Replace
+            {t("settings.localModels.exa.replace")}
           </button>
           <button type="button" className={btnDanger} disabled={saving} onClick={() => mutate(mlxClearExaApiKey)}>
-            Remove
+            {t("settings.localModels.exa.remove")}
           </button>
         </>
       ) : null}

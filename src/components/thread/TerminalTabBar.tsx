@@ -1,9 +1,11 @@
 import { useCallback } from "react";
 import { X, Plus } from "lucide-react";
+import { useT } from "../../i18n";
 import { useTerminalStore } from "../../stores/terminalStore";
 import { stopShell } from "../../lib/commands";
 
 export function TerminalTabBar() {
+  const t = useT();
   const sessions = useTerminalStore((s) => s.sessions);
   const activeSessionId = useTerminalStore((s) => s.activeSessionId);
   const createSession = useTerminalStore((s) => s.createSession);
@@ -99,7 +101,7 @@ export function TerminalTabBar() {
       <button
         onClick={handleNew}
         className="ml-auto flex shrink-0 items-center rounded-[7px] p-1.5 text-zinc-500 transition-colors hover:bg-zinc-700/60 hover:text-zinc-300"
-        title="New terminal"
+        title={t("terminal.newTerminal")}
       >
         <Plus size={13} />
       </button>

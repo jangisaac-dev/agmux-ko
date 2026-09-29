@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Check, X, Pencil, Loader2 } from "lucide-react";
+import { useT } from "../../i18n";
 
 interface Props {
   original: string;
@@ -18,6 +19,7 @@ export function PromptDiffView({
   onUseOriginal,
   onCancel,
 }: Props) {
+  const t = useT();
   const [editing, setEditing] = useState(false);
   const [editedText, setEditedText] = useState(optimized);
 
@@ -30,12 +32,12 @@ export function PromptDiffView({
     return (
       <div className="flex flex-col items-center gap-3 border-t border-zinc-800 bg-zinc-900/80 px-4 py-6">
         <Loader2 size={20} className="animate-spin text-blue-400" />
-        <p className="text-sm text-zinc-400">Optimizing prompt...</p>
+        <p className="text-sm text-zinc-400">{t("thread.promptDiff.optimizing")}</p>
         <button
           onClick={onCancel}
           className="text-xs text-zinc-400 hover:text-zinc-300"
         >
-          Cancel and use original
+          {t("thread.promptDiff.cancelAndUseOriginal")}
         </button>
       </div>
     );
@@ -45,12 +47,12 @@ export function PromptDiffView({
     <div className="border-t border-zinc-800 bg-zinc-900/80">
       <div className="flex items-center justify-between border-b border-zinc-800 px-4 py-2">
         <span className="text-xs font-medium text-zinc-400">
-          Prompt Optimization Preview
+          {t("thread.promptDiff.previewTitle")}
         </span>
         <button
           onClick={onCancel}
           className="rounded p-1 text-zinc-400 hover:bg-zinc-800 hover:text-zinc-300"
-          title="Cancel"
+          title={t("common.cancel")}
         >
           <X size={14} />
         </button>
@@ -59,7 +61,7 @@ export function PromptDiffView({
       <div className="grid grid-cols-2 gap-0 divide-x divide-zinc-800">
         {/* Original */}
         <div className="p-3">
-          <h4 className="mb-2 text-xs font-medium text-zinc-400">Original</h4>
+          <h4 className="mb-2 text-xs font-medium text-zinc-400">{t("thread.promptDiff.original")}</h4>
           <div className="rounded bg-zinc-950 p-3 text-sm text-zinc-300">
             <pre className="whitespace-pre-wrap font-sans">{original}</pre>
           </div>
@@ -68,7 +70,7 @@ export function PromptDiffView({
         {/* Optimized */}
         <div className="p-3">
           <div className="mb-2 flex items-center justify-between">
-            <h4 className="text-xs font-medium text-zinc-400">Optimized</h4>
+            <h4 className="text-xs font-medium text-zinc-400">{t("thread.promptDiff.optimized")}</h4>
             {!editing && (
               <button
                 onClick={() => {
@@ -78,7 +80,7 @@ export function PromptDiffView({
                 className="flex items-center gap-1 text-xs text-zinc-400 hover:text-zinc-300"
               >
                 <Pencil size={10} />
-                Edit
+                {t("thread.promptDiff.edit")}
               </button>
             )}
           </div>
@@ -104,7 +106,7 @@ export function PromptDiffView({
           onClick={onUseOriginal}
           className="flex items-center gap-1.5 rounded border border-zinc-700 px-3 py-1.5 text-xs font-medium text-zinc-300 hover:bg-zinc-800"
         >
-          Use Original
+          {t("thread.promptDiff.useOriginal")}
         </button>
         <button
           onClick={() => {
@@ -114,7 +116,7 @@ export function PromptDiffView({
           className="flex items-center gap-1.5 rounded bg-blue-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-blue-500"
         >
           <Check size={12} />
-          Use Optimized
+          {t("thread.promptDiff.useOptimized")}
         </button>
       </div>
     </div>

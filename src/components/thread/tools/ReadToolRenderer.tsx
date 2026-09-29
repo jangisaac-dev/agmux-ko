@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { FileText } from "lucide-react";
+import { useT } from "../../../i18n";
 import type { ToolRendererProps } from "./types";
 import { shortenPath } from "./types";
 import { useWorkDir } from "../WorkDirContext";
@@ -8,6 +9,7 @@ const PREVIEW_LINES = 5;
 const COLLAPSE_THRESHOLD = 20;
 
 export function ReadToolRenderer({ input, result, isPending }: ToolRendererProps): React.ReactElement {
+  const t = useT();
   const workDir = useWorkDir();
   const [expanded, setExpanded] = useState(false);
 
@@ -28,18 +30,18 @@ export function ReadToolRenderer({ input, result, isPending }: ToolRendererProps
         <span className="font-mono text-xs text-zinc-300 truncate">{shortenPath(filePath, workDir)}</span>
         {offset != null && limit != null && (
           <span className="shrink-0 rounded-full bg-white/5 border border-white/10 px-1.5 py-0.5 text-[10px] text-zinc-400">
-            lines {offset}–{offset + limit}
+            {t("tools.read.linesRange", { start: offset, end: offset + limit })}
           </span>
         )}
         {offset != null && limit == null && (
           <span className="shrink-0 rounded-full bg-white/5 border border-white/10 px-1.5 py-0.5 text-[10px] text-zinc-400">
-            from line {offset}
+            {t("tools.read.fromLine", { line: offset })}
           </span>
         )}
       </div>
 
       {isPending && (
-        <p className="text-[10px] text-zinc-400 italic">Reading file...</p>
+        <p className="text-[10px] text-zinc-400 italic">{t("tools.read.readingFile")}</p>
       )}
 
       {result != null && (
@@ -53,8 +55,8 @@ export function ReadToolRenderer({ input, result, isPending }: ToolRendererProps
               className="w-full border-t border-white/5 bg-white/3 px-3 py-1.5 text-left text-[10px] text-blue-400 hover:text-blue-300 transition-colors"
             >
               {expanded
-                ? "Show less"
-                : `Show all (${lines.length} lines)`}
+                ? t("tools.showLess")
+                : t("tools.read.showAllLines", { count: lines.length })}
             </button>
           )}
         </div>

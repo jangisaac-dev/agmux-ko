@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { File, Search } from "lucide-react";
+import { useT } from "../../../i18n";
 import type { ToolRendererProps } from "./types";
 
 const MAX_VISIBLE = 10;
@@ -9,6 +10,7 @@ interface Props extends ToolRendererProps {
 }
 
 export function GlobGrepToolRenderer({ input, result, toolName }: Props): React.ReactElement {
+  const t = useT();
   const [expanded, setExpanded] = useState(false);
 
   const pattern = typeof input.pattern === "string" ? input.pattern : String(input.glob ?? "");
@@ -28,12 +30,12 @@ export function GlobGrepToolRenderer({ input, result, toolName }: Props): React.
         <span className="font-mono text-xs text-zinc-200 flex-1 truncate">{pattern}</span>
         {searchPath && (
           <span className="shrink-0 font-mono text-[10px] text-zinc-400 truncate max-w-[120px]">
-            in {searchPath}
+            {t("tools.globGrep.inPath", { path: searchPath })}
           </span>
         )}
         {files.length > 0 && (
           <span className="shrink-0 rounded-full bg-violet-500/10 border border-violet-500/20 px-1.5 py-0.5 text-[10px] font-medium text-violet-400">
-            {files.length} {toolName === "Grep" ? "matches" : "files"}
+            {t(toolName === "Grep" ? "tools.globGrep.matches" : "tools.globGrep.files", { count: files.length })}
           </span>
         )}
       </div>
@@ -51,7 +53,7 @@ export function GlobGrepToolRenderer({ input, result, toolName }: Props): React.
               onClick={() => setExpanded(true)}
               className="w-full border-t border-white/5 bg-white/3 px-3 py-1.5 text-left text-[10px] text-blue-400 hover:text-blue-300 transition-colors"
             >
-              Show {hiddenCount} more
+              {t("tools.globGrep.showMoreFiles", { count: hiddenCount })}
             </button>
           )}
           {expanded && files.length > MAX_VISIBLE && (
@@ -59,14 +61,14 @@ export function GlobGrepToolRenderer({ input, result, toolName }: Props): React.
               onClick={() => setExpanded(false)}
               className="w-full border-t border-white/5 bg-white/3 px-3 py-1.5 text-left text-[10px] text-blue-400 hover:text-blue-300 transition-colors"
             >
-              Show less
+              {t("tools.showLess")}
             </button>
           )}
         </div>
       )}
 
       {result != null && files.length === 0 && (
-        <p className="text-[10px] text-zinc-400 italic">No results found</p>
+        <p className="text-[10px] text-zinc-400 italic">{t("tools.globGrep.noResults")}</p>
       )}
     </div>
   );

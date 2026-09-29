@@ -1,5 +1,6 @@
 import { useState, useCallback, useEffect, useRef } from "react";
 import { TerminalSquare } from "lucide-react";
+import { tx, useT } from "../../i18n";
 import { useTerminalStore } from "../../stores/terminalStore";
 import { StandaloneTerminalView } from "./StandaloneTerminalView";
 import { WarpInputBar } from "./WarpInputBar";
@@ -12,6 +13,7 @@ const EMPTY_CWD_RECORD: Record<string, string> = {};
 const TERMINAL_OFFLOAD_DELAY_MS = 2 * 60 * 1000; // 2 minutes
 
 export function TerminalMainPanel() {
+  const t = useT();
   const sessions = useTerminalStore((s) => s.sessions);
   const activeSessionId = useTerminalStore((s) => s.activeSessionId);
   const createSession = useTerminalStore((s) => s.createSession);
@@ -142,15 +144,18 @@ export function TerminalMainPanel() {
             <TerminalSquare size={36} strokeWidth={1} className="text-zinc-500" />
           </div>
           <div className="text-center">
-            <p className="text-sm font-medium text-zinc-400">No terminals open</p>
+            <p className="text-sm font-medium text-zinc-400">{t("terminal.noTerminalsOpen")}</p>
             <p className="mt-1 text-xs text-zinc-500">
-              Open a terminal from the sidebar or{" "}
-              <button
-                onClick={handleOpenTerminal}
-                className="text-zinc-400 underline transition-colors hover:text-zinc-300"
-              >
-                click here
-              </button>
+              {tx("terminal.openTerminalHint", {
+                action: (
+                  <button
+                    onClick={handleOpenTerminal}
+                    className="text-zinc-400 underline transition-colors hover:text-zinc-300"
+                  >
+                    {t("terminal.clickHere")}
+                  </button>
+                ),
+              })}
             </p>
           </div>
         </div>
@@ -177,7 +182,7 @@ export function TerminalMainPanel() {
             >
               {isOffloaded ? (
                 <div className="flex h-full items-center justify-center bg-[var(--terminal-surface,var(--agent-terminal-surface))]">
-                  <p className="text-xs text-zinc-500">Terminal unloaded to save memory</p>
+                  <p className="text-xs text-zinc-500">{t("terminal.terminalUnloadedToSaveMemory")}</p>
                 </div>
               ) : (
                 <StandaloneTerminalView

@@ -3,13 +3,16 @@ import { Download, X, RefreshCw, Check, ExternalLink, AlertTriangle } from "luci
 import { motion, AnimatePresence } from "framer-motion";
 import { useUpdateStore } from "../stores/updateStore";
 import { useSettingsStore } from "../stores/settingsStore";
+import { tx, useT } from "../i18n";
 
 /** How long after becoming visible before re-checking (debounce window focus thrash). */
 const RECHECK_DEBOUNCE_MS = 150;
 
 export function UpdateChecker() {
+  const t = useT();
   const status = useUpdateStore((s) => s.status);
   const version = useUpdateStore((s) => s.version);
+  const versionLabel = <span className="font-semibold" style={{ color: "var(--text-primary)" }}>v{version}</span>;
   const progress = useUpdateStore((s) => s.progress);
   const errorMessage = useUpdateStore((s) => s.errorMessage);
   const dismissed = useUpdateStore((s) => s.dismissed);
@@ -139,11 +142,12 @@ export function UpdateChecker() {
                 <Download size={18} className="shrink-0 text-indigo-400 fx-blue" />
                 <div className="min-w-0 flex-1">
                   <div className="text-[15px] font-medium" style={{ color: "var(--text-primary)" }}>
-                    Update available
+                    {t("update.available")}
                   </div>
                   <div className="text-sm" style={{ color: "var(--text-secondary)" }}>
-                    agmux <span className="font-semibold" style={{ color: "var(--text-primary)" }}>v{version}</span>
-                    {autoUpdateEnabled ? " — installing…" : ""}
+                    {autoUpdateEnabled
+                      ? tx("update.installingLine", { version: versionLabel })
+                      : <>agmux {versionLabel}</>}
                   </div>
                 </div>
                 {!autoUpdateEnabled && (
@@ -151,7 +155,7 @@ export function UpdateChecker() {
                     onClick={() => void installUpdate()}
                     className="shrink-0 rounded-xl bg-indigo-600 px-4 py-1.5 text-sm font-medium text-white hover:bg-indigo-500 transition-colors fx-accent"
                   >
-                    Update
+                    {t("update.update")}
                   </button>
                 )}
               </>
@@ -162,7 +166,7 @@ export function UpdateChecker() {
                 <RefreshCw size={18} className="shrink-0 animate-spin text-indigo-400 fx-blue" />
                 <div className="min-w-0 flex-1">
                   <div className="text-[15px] font-medium" style={{ color: "var(--text-primary)" }}>
-                    Downloading update…
+                    {t("update.downloading")}
                   </div>
                   <div className="mt-1.5 flex items-center gap-2">
                     <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-white/10 fx-panel-2">
@@ -183,9 +187,9 @@ export function UpdateChecker() {
               <>
                 <Check size={18} className="shrink-0 text-[color:var(--accent)]" />
                 <div className="min-w-0 flex-1">
-                  <div className="text-[15px] font-medium" style={{ color: "var(--text-primary)" }}>Update ready</div>
+                  <div className="text-[15px] font-medium" style={{ color: "var(--text-primary)" }}>{t("update.ready")}</div>
                   <div className="text-sm" style={{ color: "var(--text-secondary)" }}>
-                    {autoUpdateEnabled ? "Restarting…" : "Restart to apply the update"}
+                    {autoUpdateEnabled ? t("update.restarting") : t("update.restartToApply")}
                   </div>
                 </div>
                 {!autoUpdateEnabled && (
@@ -193,7 +197,7 @@ export function UpdateChecker() {
                     onClick={() => void handleRelaunch()}
                     className="shrink-0 rounded-xl bg-[var(--accent)] px-4 py-1.5 text-sm font-medium text-[var(--accent-foreground)] hover:brightness-110 transition-colors"
                   >
-                    Restart
+                    {t("update.restart")}
                   </button>
                 )}
               </>
@@ -204,10 +208,10 @@ export function UpdateChecker() {
                 <AlertTriangle size={18} className="shrink-0 text-amber-400 fx-gold" />
                 <div className="min-w-0 flex-1">
                   <div className="text-[15px] font-medium" style={{ color: "var(--text-primary)" }}>
-                    Manual download needed
+                    {t("update.manualDownloadNeeded")}
                   </div>
                   <div className="text-sm" style={{ color: "var(--text-secondary)" }}>
-                    Auto-update isn&apos;t available for this install — get the latest from the website.
+                    {t("update.manualDownloadDescription")}
                   </div>
                 </div>
                 <button
@@ -216,7 +220,7 @@ export function UpdateChecker() {
                   }}
                   className="inline-flex shrink-0 items-center gap-1.5 rounded-xl bg-amber-600 px-4 py-1.5 text-sm font-medium text-white hover:bg-amber-500 transition-colors fx-accent"
                 >
-                  Download
+                  {t("update.download")}
                   <ExternalLink size={13} />
                 </button>
               </>
@@ -227,10 +231,10 @@ export function UpdateChecker() {
                 <AlertTriangle size={18} className="shrink-0 text-red-400" />
                 <div className="min-w-0 flex-1">
                   <div className="text-[15px] font-medium" style={{ color: "var(--text-primary)" }}>
-                    Update failed
+                    {t("update.failed")}
                   </div>
                   <div className="truncate text-sm" style={{ color: "var(--text-secondary)" }} title={errorMessage || undefined}>
-                    {errorMessage || "Something went wrong while updating."}
+                    {errorMessage || t("update.failedFallback")}
                   </div>
                 </div>
                 <button
@@ -240,7 +244,7 @@ export function UpdateChecker() {
                   }}
                   className="shrink-0 rounded-xl bg-indigo-600 px-4 py-1.5 text-sm font-medium text-white hover:bg-indigo-500 transition-colors fx-accent"
                 >
-                  Retry
+                  {t("update.retry")}
                 </button>
               </>
             )}
@@ -251,7 +255,7 @@ export function UpdateChecker() {
                 if (status === "manual-required") dismissManualDownload();
               }}
               className="ml-0.5 shrink-0 rounded-lg p-1.5 text-zinc-400 hover:bg-white/10 hover:text-zinc-200 transition-colors"
-              aria-label="Dismiss"
+              aria-label={t("labels.dismiss")}
             >
               <X size={14} />
             </button>

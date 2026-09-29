@@ -8,6 +8,7 @@ import { useThreadStore } from "../../stores/threadStore";
 import { useTaskViewStore } from "../../stores/taskViewStore";
 import { GlassButton } from "../ui/GlassButton";
 import { PageHeader, SettingsCard, SettingsRow } from "./settingsLayout";
+import { useT } from "../../i18n";
 
 function protectedSessionIds(): string[] {
   const ui = useUiStore.getState();
@@ -49,6 +50,7 @@ function sizeLabel(bytes: number): string {
 }
 
 export function CleanupSection() {
+  const t = useT();
   const [preview, setPreview] = useState<{ summaries: SessionCleanupPreview; files: CleanupFileScan } | null>(null);
   const [summariesSelected, setSummariesSelected] = useState(true);
   const [filesSelected, setFilesSelected] = useState(true);
@@ -78,12 +80,12 @@ export function CleanupSection() {
       const failures: string[] = [];
       const files = fileScan.status === "fulfilled" ? fileScan.value : { files: [], errors: [] };
       const summaries = summaryScan.status === "fulfilled" ? summaryScan.value : { entries: [], unknownCount: 0 };
-      if (fileScan.status === "rejected") failures.push(`File scan failed: ${String(fileScan.reason)}`);
-      if (summaryScan.status === "rejected") failures.push(`Summary scan failed: ${String(summaryScan.reason)}. Summary data will be kept.`);
+      if (fileScan.status === "rejected") failures.push(t("settings.cleanup.fileScanFailed", { error: String(fileScan.reason) }));
+      if (summaryScan.status === "rejected") failures.push(`${t("settings.cleanup.summaryScanFailed", { error: String(summaryScan.reason) })} ${t("settings.cleanup.summaryDataKept")}`);
       if (fileScan.status === "fulfilled" || summaryScan.status === "fulfilled") setPreview({ summaries, files });
       setErrors([...failures, ...files.errors]);
     } catch (error) {
-      setErrors([`Scan failed: ${String(error)}`]);
+      setErrors([t("settings.cleanup.scanFailed", { error: String(error) })]);
     } finally {
       busyRef.current = false;
       setBusy(false);
@@ -109,7 +111,7 @@ export function CleanupSection() {
           bytes += removed.removedBytes;
           skipped += removed.skippedCount;
         } catch (error) {
-          failures.push(`Summary cleanup stopped: ${String(error)}. Scan again to check remaining items.`);
+          failures.push(`${t("settings.cleanup.summaryCleanupStopped", { error: String(error) })} ${t("settings.cleanup.scanAgain")}`);
         }
       }
       if (filesSelected && preview.files.files.length > 0) {
@@ -120,10 +122,10 @@ export function CleanupSection() {
           skipped += removed.skippedCount;
           failures.push(...removed.errors);
         } catch (error) {
-          failures.push(`File cleanup stopped: ${String(error)}. Scan again to check remaining items.`);
+          failures.push(`${t("settings.cleanup.fileCleanupStopped", { error: String(error) })} ${t("settings.cleanup.scanAgain")}`);
         }
       }
-      setResult(`Removed ${summaryCount} saved summar${summaryCount === 1 ? "y" : "ies"} and ${fileCount} cached file${fileCount === 1 ? "" : "s"} (about ${sizeLabel(bytes)}).${skipped ? ` ${skipped} item${skipped === 1 ? "" : "s"} skipped because they changed or are in use.` : ""}`);
+      setResult(`${t("settings.cleanup.removedSummaries", { count: summaryCount })} ${t("settings.cleanup.removedFiles", { count: fileCount, size: sizeLabel(bytes) })}${skipped ? ` ${t("settings.cleanup.skipped", { count: skipped })}` : ""}`);
       setErrors(failures);
       setPreview(null);
       setConfirming(false);
@@ -142,15 +144,15 @@ export function CleanupSection() {
 
   return (
     <div>
-      <PageHeader title="Cleanup" description="Review disposable data older than 90 days and choose what to remove." />
+      <PageHeader title={t("settings.nav.cleanup")} description={t("settings.cleanup.description")} />
       <SettingsCard
-        eyebrow="Scan"
-        title="Old disposable data"
-        description="Conversations, manual names, project memory, and active threads are kept. Teams data is always kept by this cleanup."
+        eyebrow={t("settings.cleanup.scan")}
+        title={t("settings.cleanup.oldData")}
+        description={`${t("settings.cleanup.oldDataDescription.first")} ${t("settings.cleanup.oldDataDescription.second")}`}
       >
-        <SettingsRow label="Find old data" description="Nothing is removed until you review and confirm.">
+        <SettingsRow label={t("settings.cleanup.findOldData")} description={t("settings.cleanup.reviewFirst")}>
           <GlassButton size="sm" icon={Search} onClick={() => void scan()} disabled={busy}>
-            {busy ? "Working…" : "Scan for cleanup"}
+            {busy ? t("settings.cleanup.working") : t("settings.cleanup.scanForCleanup")}
           </GlassButton>
         </SettingsRow>
         {result && <div role="status" className="px-6 py-3.5 text-[12px] text-[var(--text-secondary)]">{result}</div>}
@@ -160,29 +162,29 @@ export function CleanupSection() {
       </SettingsCard>
 
       {preview && (
-        <SettingsCard eyebrow="Review" title="Available to clean">
+        <SettingsCard eyebrow={t("settings.cleanup.review")} title={t("settings.cleanup.availableToClean")}>
           <CleanupOption
-            label="Saved summaries"
+            label={t("settings.cleanup.savedSummaries")}
             count={preview.summaries.entries.length}
-            description="Generated names, naming previews, and failed naming attempts for old, inactive sessions. Names can be generated again when you use the conversation."
+            description={`${t("settings.cleanup.savedSummariesDescription.first")} ${t("settings.cleanup.savedSummariesDescription.second")}`}
             checked={summariesSelected}
             disabled={busy || confirming}
             onChange={setSummariesSelected}
           />
           <CleanupOption
-            label="Cached files"
+            label={t("settings.cleanup.cachedFiles")}
             count={preview.files.files.length}
-            description="Generated app icons and an old diagnostic log copy that passed the age checks."
+            description={t("settings.cleanup.cachedFilesDescription")}
             checked={filesSelected}
             disabled={busy || confirming}
             onChange={setFilesSelected}
           />
           {preview.summaries.unknownCount > 0 && (
-            <SettingsRow label="Kept" description={`Keeping ${preview.summaries.unknownCount} summary cache entries whose age could not be verified.`} />
+            <SettingsRow label={t("settings.cleanup.kept")} description={t("settings.cleanup.unknownAge", { count: preview.summaries.unknownCount })} />
           )}
           {preview.files.files.length > 0 && (
             <details className="settings-row px-6 py-3.5 text-[12px] text-[var(--text-muted)]">
-              <summary className="cursor-pointer text-[13.5px] text-[var(--text-primary)]">Review cached files</summary>
+              <summary className="cursor-pointer text-[13.5px] text-[var(--text-primary)]">{t("settings.cleanup.reviewCachedFiles")}</summary>
               <ul className="mt-2 max-h-40 space-y-1 overflow-auto">
                 {preview.files.files.map(file => <li key={file.relativePath} className="break-all">{file.relativePath} · {sizeLabel(file.bytes)}</li>)}
               </ul>
@@ -190,19 +192,19 @@ export function CleanupSection() {
           )}
           {!confirming ? (
             <SettingsRow
-              label={selectedCount === 0 ? "No eligible items selected." : `${selectedCount} items selected`}
-              description={selectedCount === 0 ? undefined : `About ${sizeLabel(bytes)}`}
+              label={selectedCount === 0 ? t("settings.cleanup.noEligibleSelected") : t("settings.cleanup.itemsSelected", { count: selectedCount })}
+              description={selectedCount === 0 ? undefined : t("settings.cleanup.aboutSize", { size: sizeLabel(bytes) })}
             >
-              <GlassButton size="sm" icon={Trash2} onClick={() => setConfirming(true)} disabled={busy || selectedCount === 0}>Review cleanup</GlassButton>
+              <GlassButton size="sm" icon={Trash2} onClick={() => setConfirming(true)} disabled={busy || selectedCount === 0}>{t("settings.cleanup.reviewCleanup")}</GlassButton>
             </SettingsRow>
           ) : (
-            <div role="alertdialog" aria-label="Confirm cleanup">
+            <div role="alertdialog" aria-label={t("settings.cleanup.confirmCleanup")}>
               <SettingsRow
-                label={`Remove the selected ${selectedCount} items?`}
-                description="This cannot be undone. Anything that changed since the scan will be kept."
+                label={t("settings.cleanup.removeSelected", { count: selectedCount })}
+                description={`${t("settings.cleanup.confirmDescription.first")} ${t("settings.cleanup.confirmDescription.second")}`}
               >
-                <GlassButton size="sm" onClick={() => setConfirming(false)} disabled={busy}>Cancel</GlassButton>
-                <GlassButton size="sm" variant="destructive" icon={Trash2} onClick={() => void clean()} disabled={busy}>Clean up now</GlassButton>
+                <GlassButton size="sm" onClick={() => setConfirming(false)} disabled={busy}>{t("settings.cleanup.cancel")}</GlassButton>
+                <GlassButton size="sm" variant="destructive" icon={Trash2} onClick={() => void clean()} disabled={busy}>{t("settings.cleanup.cleanNow")}</GlassButton>
               </SettingsRow>
             </div>
           )}

@@ -1,5 +1,6 @@
 import { Award, Scale, X, XCircle, Zap } from "lucide-react";
 import type { ModelRole } from "../../../lib/mlx";
+import { useT } from "../../../i18n";
 
 // Compact controls for rows on the Local Models page. Theme tokens only, so
 // they follow light/dark mode like the rest of Settings.
@@ -12,10 +13,10 @@ export const iconBtn =
 export const textInput =
   "h-8 w-full min-w-0 rounded-md border border-[var(--glass-border)] bg-transparent px-2.5 text-[12px] text-[var(--text-primary)] outline-none placeholder:text-[var(--text-muted)] focus:border-[var(--accent-border)]";
 
-export const ROLE_META: Record<ModelRole, { label: string; icon: typeof Zap }> = {
-  speed: { label: "Fastest", icon: Zap },
-  balanced: { label: "Balanced", icon: Scale },
-  quality: { label: "Best quality", icon: Award },
+export const ROLE_META: Record<ModelRole, { labelKey: string; icon: typeof Zap }> = {
+  speed: { labelKey: "settings.localModels.role.speed", icon: Zap },
+  balanced: { labelKey: "settings.localModels.role.balanced", icon: Scale },
+  quality: { labelKey: "settings.localModels.role.quality", icon: Award },
 };
 
 export function roleOrder(role: ModelRole): number {
@@ -23,16 +24,18 @@ export function roleOrder(role: ModelRole): number {
 }
 
 export function RoleBadge({ role }: { role: ModelRole }) {
-  const { label, icon: Icon } = ROLE_META[role];
+  const t = useT();
+  const { labelKey, icon: Icon } = ROLE_META[role];
   return (
     <span className="inline-flex items-center gap-1 rounded-full border border-[var(--glass-border)] px-1.5 py-px text-[10.5px] text-[var(--text-tertiary)]">
       <Icon size={10} />
-      {label}
+      {t(labelKey)}
     </span>
   );
 }
 
 export function ErrorNote({ message, onDismiss }: { message: string; onDismiss?: () => void }) {
+  const t = useT();
   return (
     <div
       role="alert"
@@ -41,7 +44,7 @@ export function ErrorNote({ message, onDismiss }: { message: string; onDismiss?:
       <XCircle size={12} className="mt-0.5 shrink-0" />
       <span className="min-w-0 flex-1 break-words">{message}</span>
       {onDismiss && (
-        <button type="button" onClick={onDismiss} aria-label="Dismiss" className="shrink-0 hover:text-red-300">
+        <button type="button" onClick={onDismiss} aria-label={t("settings.localModels.dismissError")} className="shrink-0 hover:text-red-300">
           <X size={12} />
         </button>
       )}

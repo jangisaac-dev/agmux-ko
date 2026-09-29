@@ -1,0 +1,11 @@
+{
+  "search.input.placeholder": "Search sessions, messages, and projects…",
+  "search.results.searchingMessages": "Searching messages…",
+  "search.results.noneFound": "No results found",
+  "search.results.noSessions": "No sessions yet",
+  "search.result.message": "message",
+  "search.footer.navigate": "{{up}}{{down}} navigate",
+  "search.footer.open": "{{enter}} open",
+  "search.footer.close": "{{esc}} close",
+  "search.footer.scope": "Searches names, messages, journal"
+}

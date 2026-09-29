@@ -1,4 +1,5 @@
 import { useSettingsStore, type AppSettings } from "../../stores/settingsStore";
+import { t } from "../../i18n";
 import { useUiStore } from "../../stores/uiStore";
 import { updateThreadSettings } from "../../lib/commands";
 import {
@@ -66,11 +67,11 @@ export async function prepareTaskLocalModel(preferred: string | null, terminal =
   const resolved = resolveLocalModelId(models, preferred);
   if (!resolved || (cap && !cap.available)) {
     useSettingsStore.getState().openSettings("localModels");
-    throw new Error("Set up an installed model in Settings → Local Models before creating a local agent.");
+    throw new Error(t("task.localModel.setupRequired"));
   }
   const slug = localModelSlug(resolved);
   if (preferred && localModelSlug(preferred) !== slug) {
-    throw new Error("The selected local model is unavailable. Choose an installed model.");
+    throw new Error(t("task.localModel.unavailable"));
   }
   await mlxGatewayStatus();
   if (terminal) {

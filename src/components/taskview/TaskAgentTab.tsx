@@ -15,6 +15,7 @@ import { useThreadStore } from "../../stores/threadStore";
 import { useSessionNameStore } from "../../stores/sessionNameStore";
 import { isThreadMidTurn, isThreadAwaitingInput } from "../../lib/taskAgentActivity";
 import { AgentAvatar } from "./AgentAvatar";
+import { useT } from "../../i18n";
 
 interface TaskAgentTabProps {
   thread: Thread;
@@ -72,6 +73,7 @@ export function TaskAgentTab({
   onSelect,
   onClose,
 }: TaskAgentTabProps) {
+  const t = useT();
   const isProcessing = useUiStore((s) =>
     isThreadMidTurn(thread.id, {
       claudeProcessingById: s.claudeProcessingById,
@@ -232,17 +234,17 @@ export function TaskAgentTab({
           }}
         >
           {state === "failed" ? (
-            <span style={{ color: stateColor.failed }}>Failed</span>
+            <span style={{ color: stateColor.failed }}>{t("task.agent.state.failed")}</span>
           ) : (
             <span>
               {state === "idle"
-                ? "Idle"
+                ? t("task.agent.state.idle")
                 : state === "running"
-                  ? "Working"
+                  ? t("task.agent.state.working")
                   : state === "waiting"
-                    ? "Needs input"
+                    ? t("task.agent.state.needsInput")
                   : state === "done"
-                    ? "Done"
+                    ? t("task.agent.state.done")
                     : state}
             </span>
           )}
@@ -284,7 +286,7 @@ export function TaskAgentTab({
             background: "var(--status-blue)",
             flexShrink: 0,
           }}
-          title="New activity"
+          title={t("task.agent.newActivity")}
         />
       )}
       <button
@@ -298,8 +300,8 @@ export function TaskAgentTab({
             ? "text-zinc-500 hover:bg-white/10 hover:text-zinc-200"
             : "opacity-0 group-hover:opacity-100 focus-visible:opacity-100 text-zinc-500 hover:bg-white/10 hover:text-zinc-200"
         }`}
-        title="Close agent"
-        aria-label="Close agent"
+        title={t("task.agent.close")}
+        aria-label={t("task.agent.close")}
       >
         <X size={11} />
       </button>

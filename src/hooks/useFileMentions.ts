@@ -213,6 +213,7 @@ export function useFileMentions({
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent<HTMLTextAreaElement>): boolean => {
+      if (e.nativeEvent?.isComposing) return false; // IME conversion Enter/arrows belong to the IME
       if (!showPopup || entries.length === 0) return false;
 
       if (e.key === "ArrowDown") {

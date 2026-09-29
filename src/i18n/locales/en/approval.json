@@ -1,0 +1,20 @@
+{
+  "approval.actions.edit": "Edit",
+  "approval.actions.read": "Read",
+  "approval.actions.write": "Write",
+  "approval.allowPatterns.label": "Always allow",
+  "approval.allowPatterns.title": "Auto-approve future commands matching a pattern",
+  "approval.allowProject.label": "Allow for Project",
+  "approval.allowProject.title": "Auto-approve this tool for all sessions in this project",
+  "approval.answer.inputRequired": "Input Required",
+  "approval.answer.placeholder": "Type your answer...",
+  "approval.answer.send": "Send",
+  "approval.awaitingShortcuts": "awaiting user · {{acceptShortcut}} accept · {{denyShortcut}} deny",
+  "approval.dismiss": "Dismiss",
+  "approval.permissionRequired": "Permission required",
+  "approval.runTool": "Run {{toolName}}?",
+  "approval.searchPath": "in {{path}}",
+  "approval.shortcuts.accept": "Accept {{shortcut}}",
+  "approval.shortcuts.deny": "Deny {{shortcut}}",
+  "approval.timedOut": "Approval timed out"
+}

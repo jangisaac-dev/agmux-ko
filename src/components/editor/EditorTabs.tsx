@@ -2,6 +2,7 @@ import { useRef } from "react";
 import { X, Eye, Code2 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useEditorStore } from "../../stores/editorStore";
+import { useT } from "../../i18n";
 
 /* ── Dock-style colored extension tile ────────────────────────── */
 const EXT_COLORS: Record<string, string> = {
@@ -64,6 +65,7 @@ function isMarkdownFile(path: string): boolean {
 }
 
 export function EditorTabs({ inTitlebar = false }: { inTitlebar?: boolean } = {}) {
+  const t = useT();
   const openTabs = useEditorStore((s) => s.openTabs);
   const activeTabPath = useEditorStore((s) => s.activeTabPath);
   const dirtyFiles = useEditorStore((s) => s.dirtyFiles);
@@ -166,7 +168,7 @@ export function EditorTabs({ inTitlebar = false }: { inTitlebar?: boolean } = {}
               )}
               <span
                 role="button"
-                aria-label={`Close ${tab.name}`}
+                aria-label={t("editor.tabs.close", { tab: tab.name })}
                 tabIndex={-1}
                 onClick={(e) => {
                   e.stopPropagation();

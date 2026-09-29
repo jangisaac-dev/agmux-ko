@@ -17,12 +17,14 @@ import { updateTask } from "../../lib/taskCommands";
 import type { PtyExitEvent } from "../../lib/types";
 import { syncPollingToAppForeground } from "../../lib/appVisibility";
 import { SessionPanelsContext } from "../thread/SessionPanelsContext";
+import { useT } from "../../i18n";
 
 const SIDEBAR_WIDTH_KEY = "agmux-task-sidebar-width";
 const MIN_SIDEBAR = 220;
 const MAX_SIDEBAR = 480;
 
 export function TaskViewLayout({ active = true }: { active?: boolean }) {
+  const t = useT();
   const selectedTaskId = useTaskViewStore((s) => s.selectedTaskId);
   const reviewSidebarOpen = useTaskViewStore((s) => s.reviewSidebarOpen);
   const selectedTask = useTaskViewStore((s) =>
@@ -205,9 +207,9 @@ export function TaskViewLayout({ active = true }: { active?: boolean }) {
                 <path d="M15 3v5h5" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round"/>
               </svg>
             </div>
-            <p className="text-[14px] font-medium text-zinc-300">No task selected</p>
+            <p className="text-[14px] font-medium text-zinc-300">{t("task.layout.noTaskSelected")}</p>
             <p className="mt-1 text-[12px] text-zinc-500 text-center max-w-xs">
-              Pick a task from the sidebar, or start a new one on its own branch
+              {t("task.layout.pickOrCreateTask")}
             </p>
             <button
               type="button"
@@ -220,7 +222,7 @@ export function TaskViewLayout({ active = true }: { active?: boolean }) {
                 letterSpacing: "-0.015em",
               }}
             >
-              New Task
+              {t("task.sidebar.newTask")}
               <span
                 className="ml-2 opacity-70"
                 style={{ fontFamily: "var(--font-mono)", fontSize: 10 }}

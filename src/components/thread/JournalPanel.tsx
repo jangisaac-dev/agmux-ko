@@ -12,6 +12,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import type { JournalKind, ThreadJournalEntry } from "../../lib/types";
 import { useJournalStore } from "../../stores/journalStore";
 import { useUiStore } from "../../stores/uiStore";
+import { localeTag, useT } from "../../i18n";
 
 const JOURNAL_KINDS: JournalKind[] = [
   "Decision",
@@ -21,6 +22,28 @@ const JOURNAL_KINDS: JournalKind[] = [
   "Note",
   "Pin",
 ];
+
+const JOURNAL_KIND_KEYS: Record<JournalKind, string> = {
+  Decision: "chat.journal.kindRaw.decision",
+  Convention: "chat.journal.kindRaw.convention",
+  CompletedWork: "chat.journal.kindRaw.completedWork",
+  KnownIssue: "chat.journal.kindRaw.knownIssue",
+  Note: "chat.journal.kindRaw.note",
+  Pin: "chat.journal.kindRaw.pin",
+};
+
+function kindLabel(kind: string, t: ReturnType<typeof useT>): string {
+  return kind in JOURNAL_KIND_KEYS
+    ? t(JOURNAL_KIND_KEYS[kind as JournalKind])
+    : kind;
+}
+
+function sourceLabel(source: string, t: ReturnType<typeof useT>): string {
+  if (source === "User") return t("chat.journal.source.user");
+  if (source === "AgentParsed") return t("chat.journal.source.agentParsed");
+  if (source === "System") return t("chat.journal.source.system");
+  return source;
+}
 
 const kindColors: Record<JournalKind, string> = {
   Decision: "bg-purple-500/20 text-purple-400",
@@ -51,6 +74,7 @@ function EntryCard({
   onEdit: (entry: ThreadJournalEntry) => void;
   onDelete: (id: string) => void;
 }) {
+  const t = useT();
   const [confirmDelete, setConfirmDelete] = useState(false);
 
   return (
@@ -62,21 +86,21 @@ function EntryCard({
               kindColors[entry.kind as JournalKind] || "bg-zinc-700 text-zinc-400"
             } ${entry.kind === "KnownIssue" ? "fx-soft-gold" : "fx-chip-q"}`}
           >
-            {entry.kind}
+            {kindLabel(entry.kind, t)}
           </span>
           <span
             className={`ui-chip sm rounded px-1.5 py-0.5 text-[10px] font-medium fx-chip-q ${
               sourceColors[entry.source] || "bg-zinc-700 text-zinc-400"
             }`}
           >
-            {entry.source}
+            {sourceLabel(entry.source, t)}
           </span>
         </div>
         <div className="flex shrink-0 items-center gap-1">
           <button
             onClick={() => onEdit(entry)}
             className="rounded p-1 text-zinc-400 hover:bg-zinc-800 hover:text-zinc-300"
-            title="Edit"
+            title={t("chat.journal.edit")}
           >
             <Pencil size={12} />
           </button>
@@ -89,20 +113,20 @@ function EntryCard({
                 }}
                 className="rounded bg-red-600 px-2 py-0.5 text-[10px] font-medium text-white hover:bg-red-500"
               >
-                Confirm
+                {t("chat.journal.confirm")}
               </button>
               <button
                 onClick={() => setConfirmDelete(false)}
                 className="text-[10px] text-zinc-400 hover:text-zinc-300"
               >
-                Cancel
+                {t("chat.journal.cancel")}
               </button>
             </div>
           ) : (
             <button
               onClick={() => setConfirmDelete(true)}
               className="rounded p-1 text-zinc-400 hover:bg-zinc-800 hover:text-red-400"
-              title="Delete"
+              title={t("chat.journal.delete")}
             >
               <Trash2 size={12} />
             </button>
@@ -112,13 +136,14 @@ function EntryCard({
       <h4 className="mb-1 text-sm font-medium text-zinc-200">{entry.title}</h4>
       <p className="line-clamp-3 text-xs text-zinc-400">{entry.content}</p>
       <p className="mt-1.5 text-[10px] text-zinc-500">
-        {new Date(entry.created_at).toLocaleDateString()}
+        {new Date(entry.created_at).toLocaleDateString(localeTag())}
       </p>
     </div>
   );
 }
 
 export function JournalPanel({ threadId, onClose }: Props) {
+  const t = useT();
   const journalPanelOpen = useUiStore((s) => s.journalPanelOpen);
   const entries = useJournalStore((s) => s.entries);
   const proposals = useJournalStore((s) => s.proposals);
@@ -182,19 +207,19 @@ export function JournalPanel({ threadId, onClose }: Props) {
         >
           {/* Header */}
           <div className="flex items-center justify-between border-b border-white/5 px-4 py-2.5 bg-white/[0.02]">
-            <h3 className="text-sm font-medium text-zinc-100">Thread Journal</h3>
+            <h3 className="text-sm font-medium text-zinc-100">{t("chat.journal.title")}</h3>
             <div className="flex items-center gap-1">
               <button
                 onClick={() => setShowAddForm(!showAddForm)}
                 className="rounded p-1 text-zinc-400 hover:bg-zinc-800 hover:text-zinc-100"
-                title="Add entry"
+                title={t("chat.journal.addEntry")}
               >
                 <Plus size={14} />
               </button>
               <button
                 onClick={onClose}
                 className="rounded p-1 text-zinc-400 hover:bg-zinc-800 hover:text-zinc-100"
-                title="Close"
+                title={t("chat.journal.close")}
               >
                 <X size={14} />
               </button>
@@ -216,7 +241,7 @@ export function JournalPanel({ threadId, onClose }: Props) {
                           : "bg-zinc-800 text-zinc-400 hover:text-zinc-300"
                       }`}
                     >
-                      {k}
+                      {kindLabel(k, t)}
                     </button>
                   ))}
                 </div>
@@ -224,13 +249,13 @@ export function JournalPanel({ threadId, onClose }: Props) {
                   type="text"
                   value={addTitle}
                   onChange={(e) => setAddTitle(e.target.value)}
-                  placeholder="Title"
+                  placeholder={t("chat.journal.titlePlaceholder")}
                   className="w-full rounded border border-zinc-700 bg-zinc-800 px-2 py-1.5 text-xs text-zinc-100 outline-none focus:border-blue-500 fx-input"
                 />
                 <textarea
                   value={addContent}
                   onChange={(e) => setAddContent(e.target.value)}
-                  placeholder="Content"
+                  placeholder={t("chat.journal.contentPlaceholder")}
                   rows={3}
                   className="w-full resize-none rounded border border-zinc-700 bg-zinc-800 px-2 py-1.5 text-xs text-zinc-100 outline-none focus:border-blue-500 fx-input"
                 />
@@ -239,14 +264,14 @@ export function JournalPanel({ threadId, onClose }: Props) {
                     onClick={() => setShowAddForm(false)}
                     className="rounded px-2 py-1 text-[10px] text-zinc-400 hover:text-zinc-200"
                   >
-                    Cancel
+                    {t("chat.journal.cancel")}
                   </button>
                   <button
                     onClick={handleAdd}
                     disabled={!addTitle.trim()}
                     className="rounded bg-blue-600 px-2 py-1 text-[10px] font-medium text-white hover:bg-blue-500 disabled:opacity-50"
                   >
-                    Add
+                    {t("chat.journal.add")}
                   </button>
                 </div>
               </div>
@@ -255,7 +280,7 @@ export function JournalPanel({ threadId, onClose }: Props) {
             {/* Edit form overlay */}
             {editingEntry && (
               <div className="rounded border border-blue-500/30 bg-zinc-900 p-3 space-y-2">
-                <h4 className="text-xs font-medium text-zinc-400">Editing Entry</h4>
+                <h4 className="text-xs font-medium text-zinc-400">{t("chat.journal.editingEntry")}</h4>
                 <input
                   type="text"
                   value={editTitle}
@@ -273,14 +298,14 @@ export function JournalPanel({ threadId, onClose }: Props) {
                     onClick={() => setEditingEntry(null)}
                     className="rounded px-2 py-1 text-[10px] text-zinc-400 hover:text-zinc-200"
                   >
-                    Cancel
+                    {t("chat.journal.cancel")}
                   </button>
                   <button
                     onClick={handleSaveEdit}
                     disabled={!editTitle.trim()}
                     className="rounded bg-blue-600 px-2 py-1 text-[10px] font-medium text-white hover:bg-blue-500 disabled:opacity-50"
                   >
-                    Save
+                    {t("chat.journal.save")}
                   </button>
                 </div>
               </div>
@@ -291,7 +316,7 @@ export function JournalPanel({ threadId, onClose }: Props) {
               <div className="space-y-2">
                 <h4 className="flex items-center gap-1.5 text-xs font-medium text-amber-400">
                   <AlertCircle size={12} />
-                  Proposed ({proposals.length})
+                  {t("chat.journal.proposed", { count: proposals.length })}
                 </h4>
                 {proposals.map((p, i) => (
                   <div
@@ -300,10 +325,10 @@ export function JournalPanel({ threadId, onClose }: Props) {
                   >
                     <div className="mb-1 flex items-center gap-1.5">
                       <span className="rounded bg-amber-500/20 px-1.5 py-0.5 text-[10px] font-medium text-amber-400">
-                        {p.kind}
+                        {kindLabel(p.kind, t)}
                       </span>
                       <span className="text-[10px] text-zinc-400">
-                        {Math.round(p.confidence * 100)}% confidence
+                        {t("chat.journal.confidence", { confidence: Math.round(p.confidence * 100) })}
                       </span>
                     </div>
                     <h4 className="mb-1 text-sm font-medium text-zinc-200">
@@ -318,13 +343,13 @@ export function JournalPanel({ threadId, onClose }: Props) {
                         className="flex items-center gap-1 rounded bg-green-600 px-2 py-0.5 text-[10px] font-medium text-white hover:bg-green-500"
                       >
                         <Check size={10} />
-                        Accept
+                        {t("chat.journal.accept")}
                       </button>
                       <button
                         onClick={() => dismissProposal(i)}
                         className="rounded px-2 py-0.5 text-[10px] text-zinc-400 hover:bg-zinc-800 hover:text-zinc-300"
                       >
-                        Dismiss
+                        {t("chat.journal.dismiss")}
                       </button>
                     </div>
                   </div>
@@ -334,7 +359,7 @@ export function JournalPanel({ threadId, onClose }: Props) {
 
             {/* Loading */}
             {loading && (
-              <p className="py-4 text-center text-xs text-zinc-400">Loading...</p>
+              <p className="py-4 text-center text-xs text-zinc-400">{t("chat.journal.loading")}</p>
             )}
 
             {/* Grouped entries */}
@@ -346,7 +371,7 @@ export function JournalPanel({ threadId, onClose }: Props) {
                   <div key={kind} className="space-y-1.5">
                     <h4 className="flex items-center gap-1.5 text-xs font-medium text-zinc-400">
                       <ChevronDown size={12} />
-                      {kind} ({items.length})
+                      {kindLabel(kind, t)} ({items.length})
                     </h4>
                     {items.map((entry) => (
                       <EntryCard
@@ -363,9 +388,9 @@ export function JournalPanel({ threadId, onClose }: Props) {
             {/* Empty state */}
             {!loading && entries.length === 0 && proposals.length === 0 && (
               <div className="py-8 text-center">
-                <p className="text-xs text-zinc-400">No journal entries yet.</p>
+                <p className="text-xs text-zinc-400">{t("chat.journal.empty")}</p>
                 <p className="mt-1 text-[10px] text-zinc-500">
-                  Add entries from response blocks or use the + button above.
+                  {t("chat.journal.emptyHelp")}
                 </p>
               </div>
             )}

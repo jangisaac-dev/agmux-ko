@@ -7,6 +7,7 @@ import { useProjectStore } from "../../stores/projectStore";
 import { useSessionNameStore } from "../../stores/sessionNameStore";
 import { useSettingsStore } from "../../stores/settingsStore";
 import { prettifyCodexModelName } from "../../lib/types";
+import { localeTag, t as appT, useT } from "../../i18n";
 
 export interface CodexThread {
   id: string;
@@ -103,10 +104,10 @@ export function getThreadsForProject(
   });
 }
 
-export function getThreadName(thread: CodexThread): string {
+export function getThreadName(thread: CodexThread, translate: typeof appT = appT): string {
   if (thread.preview) return thread.preview;
   const source = thread.source?.kind ?? "cli";
-  return `${source} session`;
+  return translate("sidebar.codex.sessionName", { source });
 }
 
 /** Parse a timestamp that may be an ISO string, Unix seconds, or Unix ms */
@@ -122,17 +123,17 @@ function toDate(value: number | string | undefined | null): Date {
   return new Date(value);
 }
 
-export function formatTime(value: number | string | undefined | null): string {
+export function formatTime(value: number | string | undefined | null, translate: typeof appT = appT): string {
   try {
     const date = toDate(value);
     if (date.getTime() === 0) return "";
     const now = new Date();
     const diffMs = now.getTime() - date.getTime();
     const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
-    if (diffDays === 0) return "today";
-    if (diffDays === 1) return "yesterday";
-    if (diffDays < 7) return `${diffDays}d ago`;
-    return date.toLocaleDateString();
+    if (diffDays === 0) return translate("sidebar.time.today");
+    if (diffDays === 1) return translate("sidebar.time.yesterday");
+    if (diffDays < 7) return translate("sidebar.time.daysAgo", { count: diffDays });
+    return date.toLocaleDateString(localeTag());
   } catch {
     return "";
   }
@@ -156,6 +157,7 @@ export function CodexThreadsForProject({
   resetKey?: number;
   projectCwd?: string;
 }) {
+  const t = useT();
   const pageSize = useSettingsStore((s) => Math.max(1, s.settings.defaultThreadsVisible ?? PAGE_SIZE_FALLBACK));
   const [visibleCount, setVisibleCount] = useState(pageSize);
   const selectedCodexSessionId = useUiStore((s) => s.selectedCodexSessionId);
@@ -219,7 +221,7 @@ export function CodexThreadsForProject({
           ) : (
             <MessageSquare size={12} className="shrink-0 text-[color:var(--accent)]" />
           )}
-          <span className="flex-1 truncate">{sessionNames[thread.id] || getThreadName(thread)}</span>
+          <span className="flex-1 truncate">{sessionNames[thread.id] || getThreadName(thread, t)}</span>
           {unreadSessionIds[thread.id] && thread.id !== selectedCodexSessionId && (
             <span className="h-2 w-2 shrink-0 rounded-full bg-[var(--accent)]" />
           )}
@@ -232,7 +234,7 @@ export function CodexThreadsForProject({
             CX
           </span>
           <span className="shrink-0 text-[10px] text-zinc-400">
-            {formatTime(thread.updatedAt)}
+            {formatTime(thread.updatedAt, t)}
           </span>
         </button>
         );
@@ -243,7 +245,7 @@ export function CodexThreadsForProject({
           className="flex w-full items-center gap-1.5 rounded px-3 py-1 text-left text-xs text-zinc-400 hover:bg-zinc-800 hover:text-zinc-300"
         >
           <ChevronDown size={12} />
-          <span>Show more ({Math.min(remaining, pageSize)} of {remaining})</span>
+          <span>{t("sidebar.threads.showMoreCount", { shown: Math.min(remaining, pageSize), remaining })}</span>
         </button>
       )}
     </>

@@ -10,6 +10,7 @@ import { AgentTerminalView } from "../thread/AgentTerminalView";
 import { DraftChatView } from "../thread/DraftChatView";
 import { OpenCodeSdkSessionView } from "../thread/OpenCodeSdkSessionView";
 import { useUiStore } from "../../stores/uiStore";
+import { useT } from "../../i18n";
 
 type PaneId = string;
 
@@ -18,6 +19,7 @@ interface Props {
 }
 
 export function SplitPane({ paneId }: Props) {
+  const t = useT();
   const pane = useSplitViewStore((s) => s.panes[paneId]);
   const focusedPaneId = useSplitViewStore((s) => s.focusedPaneId);
   const setFocusedPane = useSplitViewStore((s) => s.setFocusedPane);
@@ -65,7 +67,7 @@ export function SplitPane({ paneId }: Props) {
       if (!thread) {
         return (
           <div className="flex flex-1 items-center justify-center text-xs text-zinc-500">
-            Thread not found
+            {t("layout.splitPane.threadNotFound")}
           </div>
         );
       }
@@ -76,7 +78,7 @@ export function SplitPane({ paneId }: Props) {
       if (!tab.claudeSessionId || !tab.claudeSessionCwd) {
         return (
           <div className="flex flex-1 items-center justify-center text-xs text-zinc-500">
-            Session data missing
+            {t("layout.splitPane.sessionDataMissing")}
           </div>
         );
       }
@@ -95,7 +97,7 @@ export function SplitPane({ paneId }: Props) {
       if (!tab.codexSessionId) {
         return (
           <div className="flex flex-1 items-center justify-center text-xs text-zinc-500">
-            Session data missing
+            {t("layout.splitPane.sessionDataMissing")}
           </div>
         );
       }
@@ -115,7 +117,7 @@ export function SplitPane({ paneId }: Props) {
       if (!tab.terminalSessionId || !tab.terminalSessionCwd) {
         return (
           <div className="flex flex-1 items-center justify-center text-xs text-zinc-500">
-            Terminal data missing
+            {t("layout.splitPane.terminalDataMissing")}
           </div>
         );
       }
@@ -132,7 +134,7 @@ export function SplitPane({ paneId }: Props) {
       if (!tab.opencodeThreadId || !tab.opencodeSessionCwd) {
         return (
           <div className="flex flex-1 items-center justify-center text-xs text-zinc-500">
-            Session data missing
+            {t("layout.splitPane.sessionDataMissing")}
           </div>
         );
       }
@@ -172,7 +174,7 @@ export function SplitPane({ paneId }: Props) {
             <div className="rounded-full bg-zinc-900/50 p-4 ring-1 ring-white/5">
               <Layers size={24} strokeWidth={1.5} className="opacity-50" />
             </div>
-            <p className="text-xs text-zinc-400">No tab open</p>
+            <p className="text-xs text-zinc-400">{t("layout.splitPane.noTabOpen")}</p>
           </div>
         ) : (
           /* Render ALL tabs but only show the active one — keeps terminals alive across tab switches */

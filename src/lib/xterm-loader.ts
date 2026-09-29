@@ -27,6 +27,7 @@ import { SerializeAddon } from "@xterm/addon-serialize";
 import { SearchAddon } from "@xterm/addon-search";
 import "@xterm/xterm/css/xterm.css";
 import { enableShiftForceSelection } from "./terminalSelection";
+import { installHangulIme } from "./xtermHangulIme";
 import {
   getAppVisibility,
   subscribeAppVisibility,
@@ -666,6 +667,8 @@ export async function prepareTerminalFont(
 export function attachCanvas(bundle: XtermBundle): void {
   // SelectionService exists only after open(); Shift-force must run here.
   enableShiftForceSelection(bundle.term as unknown as { [key: string]: unknown });
+  // The helper textarea also exists only after open().
+  installHangulIme(bundle.term);
   try {
     const canvas = new CanvasAddon();
     bundle.term.loadAddon(canvas);

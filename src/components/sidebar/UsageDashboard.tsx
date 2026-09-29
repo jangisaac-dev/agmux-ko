@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState, type ComponentType } from "react";
 import { Activity, Clock, DollarSign, Hash, Loader2, RefreshCw, TrendingUp } from "lucide-react";
+import { localeTag, useT } from "../../i18n";
 import {
   getModelBreakdown,
   getPaceInfo,
@@ -54,7 +55,7 @@ function formatActiveMs(ms: number): string {
   return `${Math.round(hours)}h`;
 }
 
-function formatResetTime(resetsAt: string | null): string {
+function formatResetTime(resetsAt: string | null, t: ReturnType<typeof useT>): string {
   if (!resetsAt) return "";
   const numeric = Number(resetsAt);
   const target = Number.isFinite(numeric) && numeric > 1_000_000_000
@@ -63,12 +64,12 @@ function formatResetTime(resetsAt: string | null): string {
   if (Number.isNaN(target.getTime())) return "";
 
   const diffMs = target.getTime() - Date.now();
-  if (diffMs <= 0) return "now";
+  if (diffMs <= 0) return t("usage.time.now");
   const diffMin = Math.floor(diffMs / 60_000);
-  if (diffMin < 60) return `${diffMin}m`;
+  if (diffMin < 60) return t("usage.time.minutes", { count: diffMin });
   const diffHours = Math.ceil(diffMin / 60);
-  if (diffHours < 24) return `${diffHours}h`;
-  return `${Math.ceil(diffHours / 24)}d`;
+  if (diffHours < 24) return t("usage.time.hours", { count: diffHours });
+  return t("usage.time.days", { count: Math.ceil(diffHours / 24) });
 }
 
 function paceColor(status: PaceStatus): string {
@@ -91,7 +92,7 @@ function usageBarColor(percent: number): string {
 }
 
 function dayLabel(dateStr: string): string {
-  return new Date(`${dateStr}T12:00:00`).toLocaleDateString("en-US", {
+  return new Date(`${dateStr}T12:00:00`).toLocaleDateString(localeTag(), {
     weekday: "short",
   });
 }
@@ -130,17 +131,18 @@ function RateLimitCard({
   label: string;
   window: PaceWindow | null;
 }) {
+  const t = useT();
   if (!window) {
     return (
       <div className="app-card p-4">
         <p className="mb-2 text-xs font-medium text-zinc-400">{label}</p>
-        <p className="text-[11px] text-zinc-500">Unavailable</p>
+        <p className="text-[11px] text-zinc-500">{t("usage.dashboard.unavailable")}</p>
       </div>
     );
   }
 
   const percent = Math.min(100, Math.max(0, window.utilization));
-  const resetText = formatResetTime(window.resetsAt);
+  const resetText = formatResetTime(window.resetsAt, t);
 
   return (
     <div className="app-card p-4">
@@ -159,15 +161,15 @@ function RateLimitCard({
       <div className="flex items-center justify-between gap-2">
         <span className={`text-[10px] font-medium ${paceColor(window.paceStatus)}`}>
           {window.paceStatus === "behind"
-            ? `Behind pace by ${Math.abs(Math.round(window.delta))}%`
+            ? t("usage.pace.behind", { percent: Math.abs(Math.round(window.delta)) })
             : window.paceStatus === "ahead"
-              ? `Ahead of pace by ${Math.round(window.delta)}%`
+              ? t("usage.pace.ahead", { percent: Math.round(window.delta) })
               : window.paceStatus === "well_over"
-                ? `Well over pace by ${Math.round(window.delta)}%`
+                ? t("usage.pace.wellOver", { percent: Math.round(window.delta) })
                 : window.paceLabel}
         </span>
         {resetText ? (
-          <span className="text-[10px] text-zinc-500">Resets {resetText}</span>
+          <span className="text-[10px] text-zinc-500">{t("usage.time.resets", { time: resetText })}</span>
         ) : null}
       </div>
     </div>
@@ -197,8 +199,9 @@ function StatCard({
 }
 
 function DailyChart({ data }: { data: UsageSummary["dailyBreakdown"] }) {
+  const t = useT();
   if (data.length === 0) {
-    return <p className="py-4 text-center text-[11px] text-zinc-500">No daily data yet</p>;
+    return <p className="py-4 text-center text-[11px] text-zinc-500">{t("usage.dashboard.noDailyData")}</p>;
   }
 
   const maxTokens = Math.max(...data.map((day) => day.inputTokens + day.outputTokens), 1);
@@ -231,11 +234,11 @@ function DailyChart({ data }: { data: UsageSummary["dailyBreakdown"] }) {
         <div className="flex items-center gap-3 text-[9px] text-zinc-500">
           <span className="flex items-center gap-1">
             <span className="inline-block h-2 w-2 rounded-sm bg-blue-500" />
-            Input
+            {t("usage.detail.input")}
           </span>
           <span className="flex items-center gap-1">
             <span className="inline-block h-2 w-2 rounded-sm bg-blue-300/60" />
-            Output
+            {t("usage.detail.output")}
           </span>
         </div>
       </div>
@@ -244,8 +247,9 @@ function DailyChart({ data }: { data: UsageSummary["dailyBreakdown"] }) {
 }
 
 function ModelList({ models }: { models: ModelUsage[] }) {
+  const t = useT();
   if (models.length === 0) {
-    return <p className="py-4 text-center text-[11px] text-zinc-500">No model data yet</p>;
+    return <p className="py-4 text-center text-[11px] text-zinc-500">{t("usage.dashboard.noModelData")}</p>;
   }
 
   return (
@@ -280,6 +284,7 @@ type ProviderData = {
 const EMPTY_PROVIDER_DATA: ProviderData = { summary: null, models: [], pace: null, error: null };
 
 export function UsageDashboard() {
+  const t = useT();
   const [provider, setProvider] = useState<Provider>("claude");
   const [summary, setSummary] = useState<UsageSummary | null>(null);
   const [models, setModels] = useState<ModelUsage[]>([]);
@@ -317,7 +322,7 @@ export function UsageDashboard() {
       let nextModels = modelsResult.status === "fulfilled" ? modelsResult.value : [];
       const nextPace = paceResult.status === "fulfilled" ? paceResult.value : null;
       let nextError = !nextSummary && nextModels.length === 0 && !nextPace
-        ? "Unable to fetch usage data"
+        ? "usage.dashboard.fetchError"
         : null;
 
       let result: ProviderData = { summary: nextSummary, models: nextModels, pace: nextPace, error: nextError };
@@ -338,7 +343,7 @@ export function UsageDashboard() {
           nextSummary = s2.status === "fulfilled" ? s2.value : nextSummary;
           nextModels = m2.status === "fulfilled" ? m2.value : nextModels;
           nextError = !nextSummary && nextModels.length === 0 && !nextPace
-            ? "Unable to fetch usage data"
+            ? "usage.dashboard.fetchError"
             : null;
           result = { summary: nextSummary, models: nextModels, pace: nextPace, error: nextError };
           cacheRef.current[activeProvider] = result;
@@ -348,7 +353,7 @@ export function UsageDashboard() {
         }
       });
     } catch {
-      const result: ProviderData = { ...EMPTY_PROVIDER_DATA, error: "Unable to fetch usage data" };
+      const result: ProviderData = { ...EMPTY_PROVIDER_DATA, error: "usage.dashboard.fetchError" };
       cacheRef.current[activeProvider] = result;
       if (activeProvider === providerRef.current) {
         applyData(result);
@@ -381,9 +386,9 @@ export function UsageDashboard() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-lg font-semibold text-zinc-100">Usage</h2>
+          <h2 className="text-lg font-semibold text-zinc-100">{t("usage.dashboard.title")}</h2>
           <p className="mt-0.5 text-xs text-zinc-500">
-            Rate limits, token history, and model mix across the last 30 days.
+            {t("usage.dashboard.description")}
           </p>
         </div>
         <button
@@ -391,7 +396,7 @@ export function UsageDashboard() {
           onClick={() => fetchAll(provider)}
           disabled={loading}
           className="rounded-lg p-2 text-zinc-400 transition-colors hover:bg-white/6 hover:text-zinc-200 disabled:opacity-50"
-          title="Refresh"
+          title={t("usage.dashboard.refresh")}
         >
           <RefreshCw size={15} className={loading ? "animate-spin" : ""} />
         </button>
@@ -408,18 +413,18 @@ export function UsageDashboard() {
       {!loading && error && isEmpty ? (
         <div className="app-card p-8 text-center">
           <Activity size={24} className="mx-auto mb-2 text-zinc-600" />
-          <p className="text-sm text-zinc-400">{error}</p>
+          <p className="text-sm text-zinc-400">{t(error)}</p>
         </div>
       ) : null}
 
       {!loading && !error && isEmpty ? (
         <div className="app-card p-8 text-center">
           <Activity size={24} className="mx-auto mb-2 text-zinc-600" />
-          <p className="text-sm text-zinc-400">No usage data yet</p>
+          <p className="text-sm text-zinc-400">{t("usage.dashboard.noUsageData")}</p>
           <p className="mt-1 text-xs text-zinc-500">
-            Start a{" "}
-            {provider === "claude" ? "Claude" : provider === "codex" ? "Codex" : "Grok"} session to
-            populate this dashboard.
+            {t("usage.dashboard.startSession", {
+              provider: provider === "claude" ? "Claude" : provider === "codex" ? "Codex" : "Grok",
+            })}
           </p>
         </div>
       ) : null}
@@ -428,16 +433,16 @@ export function UsageDashboard() {
         <>
           <div className="grid grid-cols-2 gap-3">
             <RateLimitCard
-              label={provider === "claude" ? "Session (5-hour)" : "Session"}
+              label={provider === "claude" ? t("usage.window.sessionFiveHour") : t("usage.window.session")}
               window={pace?.session ?? null}
             />
             <RateLimitCard
               label={
                 provider === "claude"
-                  ? "Weekly (7-day)"
+                  ? t("usage.window.weeklySevenDay")
                   : provider === "grok"
-                    ? "Credits"
-                    : "Weekly"
+                    ? t("usage.window.credits")
+                    : t("usage.window.weekly")
               }
               window={pace?.weekly ?? null}
             />
@@ -447,22 +452,22 @@ export function UsageDashboard() {
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
               <StatCard
                 icon={TrendingUp}
-                label="Tokens (30d)"
+                label={t("usage.dashboard.tokensDays", { count: 30 })}
                 value={formatTokens(summary.totalInputTokens + summary.totalOutputTokens)}
               />
               <StatCard
                 icon={Clock}
-                label="Time (30d)"
+                label={t("usage.dashboard.timeDays", { count: 30 })}
                 value={formatActiveMs(summary.totalActiveMs ?? 0)}
               />
               <StatCard
                 icon={DollarSign}
-                label="Cost (30d)"
+                label={t("usage.dashboard.costDays", { count: 30 })}
                 value={formatCost(summary.totalCostUsd)}
               />
               <StatCard
                 icon={Hash}
-                label="Sessions (30d)"
+                label={t("usage.dashboard.sessionsDays", { count: 30 })}
                 value={summary.sessionCount.toString()}
               />
             </div>
@@ -470,13 +475,13 @@ export function UsageDashboard() {
 
           {summary ? (
             <div className="app-card p-4">
-              <p className="mb-3 text-xs font-medium text-zinc-400">Daily Usage (Last 7 Days)</p>
+              <p className="mb-3 text-xs font-medium text-zinc-400">{t("usage.dashboard.dailyUsageLastDays", { count: 7 })}</p>
               <DailyChart data={summary.dailyBreakdown} />
             </div>
           ) : null}
 
           <div className="app-card p-4">
-            <p className="mb-3 text-xs font-medium text-zinc-400">Model Breakdown (30 Days)</p>
+            <p className="mb-3 text-xs font-medium text-zinc-400">{t("usage.dashboard.modelBreakdownDays", { count: 30 })}</p>
             <ModelList models={models} />
           </div>
         </>

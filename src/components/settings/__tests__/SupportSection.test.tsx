@@ -3,11 +3,11 @@ import { render, screen, fireEvent, waitFor, cleanup } from "@testing-library/re
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { invoke } from "@tauri-apps/api/core";
 import { SupportSection } from "../SupportSection";
-vi.mock("@tauri-apps/api/core", () => ({ invoke: vi.fn() }));
+vi.mock("@tauri-apps/api/core", () => ({ invoke: vi.fn().mockResolvedValue(undefined) }));
 vi.mock("../../../hooks/useNativeFileDrop", () => ({ useNativeFileDrop: vi.fn() }));
 vi.mock("@tauri-apps/plugin-dialog", () => ({ open: vi.fn().mockResolvedValue(["/tmp/screenshot.png"]) }));
 afterEach(cleanup);
-beforeEach(() => { vi.mocked(invoke).mockReset(); });
+beforeEach(() => { vi.mocked(invoke).mockReset(); vi.mocked(invoke).mockResolvedValue(undefined); });
 function fill() {
   fireEvent.change(screen.getByLabelText("Title"), { target: { value: "Cannot open project" } });
   fireEvent.change(screen.getByLabelText("What happened?"), { target: { value: "Clicked Open, nothing happened" } });

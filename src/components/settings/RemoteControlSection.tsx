@@ -23,6 +23,7 @@ import {
 } from "../../lib/commands";
 import { useSettingsStore } from "../../stores/settingsStore";
 import { useSessionNameStore } from "../../stores/sessionNameStore";
+import { localeTag, tx, useT } from "../../i18n";
 import { GlassButton } from "../ui/GlassButton";
 import { PageHeader, SettingsCard, SettingsRow, Toggle } from "./settingsLayout";
 
@@ -49,7 +50,7 @@ function formatCountdown(expiresAtMs: number | null | undefined): string | null 
 function formatDeviceWhen(ms: number): string {
   if (!ms) return "—";
   try {
-    return new Date(ms).toLocaleString(undefined, {
+    return new Date(ms).toLocaleString(localeTag(), {
       month: "short",
       day: "numeric",
       hour: "2-digit",
@@ -62,6 +63,7 @@ function formatDeviceWhen(ms: number): string {
 
 /** High-contrast QR of the auto-pair URL for phone camera scanners. */
 function PairQrCode({ url, expired }: { url: string; expired: boolean }) {
+  const t = useT();
   const [dataUrl, setDataUrl] = useState<string | null>(null);
 
   useEffect(() => {
@@ -88,17 +90,17 @@ function PairQrCode({ url, expired }: { url: string; expired: boolean }) {
     <div
       className="relative mx-auto flex size-[200px] items-center justify-center overflow-hidden rounded-2xl bg-white p-3 shadow-[0_0_0_1px_rgba(255,255,255,0.08)]"
       style={{ opacity: expired ? 0.4 : 1 }}
-      aria-label="QR code — scan with your phone to pair"
+      aria-label={t("remote.qr.ariaLabel")}
     >
       {dataUrl ? (
-        <img src={dataUrl} alt="Scan to pair phone" className="size-full object-contain" />
+        <img src={dataUrl} alt={t("remote.qr.alt")} className="size-full object-contain" />
       ) : (
         <Loader2 className="size-6 animate-spin text-zinc-400" />
       )}
       {expired ? (
         <div className="absolute inset-0 flex items-center justify-center bg-white/70">
           <span className="rounded-md bg-red-500/90 px-2 py-1 text-[11px] font-semibold uppercase tracking-wide text-white">
-            Expired
+            {t("remote.qr.expired")}
           </span>
         </div>
       ) : null}
@@ -107,6 +109,7 @@ function PairQrCode({ url, expired }: { url: string; expired: boolean }) {
 }
 
 export function RemoteControlSection() {
+  const t = useT();
   const remoteEnabled = useSettingsStore((s) => s.settings.remoteControlEnabled ?? false);
   const updateSettings = useSettingsStore((s) => s.updateSettings);
   const [status, setStatus] = useState<RemoteStatus | null>(null);
@@ -258,7 +261,7 @@ export function RemoteControlSection() {
   };
 
   const onRevokeAll = async () => {
-    if (!window.confirm("Revoke all paired phones? They will need a new pair code.")) return;
+    if (!window.confirm(`${t("remote.confirm.revokeAllQuestion")} ${t("remote.confirm.revokeAllEffect")}`)) return;
     setDeviceBusy("all");
     setError(null);
     try {
@@ -274,7 +277,7 @@ export function RemoteControlSection() {
   const onResetIdentity = async () => {
     if (
       !window.confirm(
-        "Reset remote identity? This creates a new Desktop ID, disconnects all phones, and re-enables remote. Use this if remote is stuck with “invalid desktop token”.",
+        `${t("remote.confirm.resetQuestion")} ${t("remote.confirm.resetEffect")} ${t("remote.confirm.resetReason")}`,
       )
     ) {
       return;
@@ -312,30 +315,30 @@ export function RemoteControlSection() {
   const hasLivePair = !!pairCode && !!pairUrl && !expired;
 
   const statusDescription = !remoteEnabled
-    ? "Turn on Remote control to connect this Mac to the relay."
+    ? t("remote.status.disabled")
     : connected
-      ? `Connected · ${status?.threadCount ?? 0} session${(status?.threadCount ?? 0) === 1 ? "" : "s"} available on your phone`
+      ? t("remote.status.connected", { count: status?.threadCount ?? 0 })
       : status?.lastError
-        ? `Connecting… (${status.lastError})`
-        : "Connecting to relay…";
+        ? t("remote.status.connectingError", { error: status.lastError })
+        : t("remote.status.connecting");
 
   return (
     <div>
       <PageHeader
-        title="Remote Control"
-        description="Control your coding agents from your phone — chats and terminals from every provider."
+        title={t("remote.page.title")}
+        description={t("remote.page.description")}
       />
 
       {/* ── 1. Connection (toggle + status) — needed before pair ── */}
       <SettingsCard
         className="mb-5"
-        eyebrow="Remote Control"
-        title="Connection"
-        description="Enable remote control so your phone can reach this Mac over the secure relay."
+        eyebrow={t("remote.page.title")}
+        title={t("remote.connection.title")}
+        description={t("remote.connection.description")}
       >
         <SettingsRow
-          label="Remote control"
-          description="Keeps the Mac awake (including with the lid closed) while enabled. Install the closed-display helper under General → Behavior if needed."
+          label={t("remote.connection.label")}
+          description={`${t("remote.connection.helperDescription.awake")} ${t("remote.connection.helperDescription.install")}`}
         >
           <div className="flex items-center gap-2">
             {busy ? <Loader2 className="size-4 animate-spin text-[var(--text-muted)]" /> : null}
@@ -343,12 +346,12 @@ export function RemoteControlSection() {
           </div>
         </SettingsRow>
 
-        <SettingsRow label="Status" description={statusDescription}>
+        <SettingsRow label={t("remote.status.label")} description={statusDescription}>
           <button
             type="button"
             className="rounded-md p-1.5 text-[var(--text-muted)] transition-colors hover:bg-white/5"
             onClick={() => void refresh()}
-            title="Refresh status"
+            title={t("remote.status.refresh")}
           >
             <RefreshCw className="size-3.5" />
           </button>
@@ -364,15 +367,15 @@ export function RemoteControlSection() {
             {connected ? (
               <>
                 <CheckCircle2 className="size-3.5" />
-                Online
+                {t("remote.status.online")}
               </>
             ) : remoteEnabled ? (
               <>
                 <Loader2 className="size-3.5 animate-spin" />
-                Offline
+                {t("remote.status.offline")}
               </>
             ) : (
-              "Off"
+              t("remote.status.off")
             )}
           </span>
         </SettingsRow>
@@ -381,14 +384,14 @@ export function RemoteControlSection() {
       {/* ── 2. Pair phone — QR first, main action ── */}
       <SettingsCard
         className="mb-5"
-        eyebrow="Remote Control"
-        title="Pair phone"
+        eyebrow={t("remote.page.title")}
+        title={t("remote.pair.title")}
         description={
-          connected
-            ? "Scan the QR with your phone camera — it opens remote.agmux.dev and pairs automatically."
+            connected
+            ? t("remote.pair.description.connected")
             : remoteEnabled
-              ? "Waiting for the relay connection. Leave Remote control on, then the QR will appear."
-              : "Turn on Remote control above, then scan the QR with your phone."
+              ? `${t("remote.pair.description.waiting.first")} ${t("remote.pair.description.waiting.second")}`
+              : t("remote.pair.description.disabled")
         }
       >
         {!remoteEnabled ? (
@@ -400,15 +403,14 @@ export function RemoteControlSection() {
               <Smartphone className="size-6 text-[var(--accent,var(--accent))]" />
             </div>
             <p className="m-0 max-w-sm text-[13px] leading-snug text-[var(--text-muted)]">
-              Flip the Remote control switch on, wait for Online, then point your phone camera at
-              the QR code.
+              {t("remote.pair.disabled.instructions")}
             </p>
           </div>
         ) : !connected ? (
           <div className="settings-row flex flex-col items-center gap-3 px-6 py-8 text-center">
             <Loader2 className="size-7 animate-spin text-[var(--accent,var(--accent))]" />
             <p className="m-0 max-w-sm text-[13px] leading-snug text-[var(--text-muted)]">
-              Connecting to relay… QR appears when this Mac is Online.
+              {t("remote.pair.waiting.instructions")}
             </p>
           </div>
         ) : (
@@ -436,18 +438,18 @@ export function RemoteControlSection() {
                       ) : (
                         <QrCode className="size-3.5" />
                       )}
-                      <span className="ml-1.5">Show QR</span>
+                      <span className="ml-1.5">{t("remote.pair.showQr")}</span>
                     </GlassButton>
                   </div>
                 )}
                 <p className="m-0 text-center text-[12px] text-[var(--text-muted)]">
                   {expired
-                    ? "Code expired — generate a new one"
+                    ? t("remote.pair.codeExpired")
                     : countdown
-                      ? `Expires in ${countdown}`
+                      ? t("remote.pair.expiresIn", { time: countdown })
                       : pairBusy
-                        ? "Generating pair code…"
-                        : "Point your phone camera here"}
+                        ? t("remote.pair.generatingCode")
+                        : t("remote.pair.pointCamera")}
                 </p>
               </div>
 
@@ -457,7 +459,7 @@ export function RemoteControlSection() {
                   <>
                     <div className="w-full text-center sm:text-left">
                       <div className="ui-eyebrow mb-1.5 text-[var(--text-muted)]">
-                        Pairing code
+                        {t("remote.pair.codeLabel")}
                       </div>
                       <div
                         className={`font-mono text-[26px] font-semibold tracking-[0.2em] ${
@@ -481,7 +483,7 @@ export function RemoteControlSection() {
                             <Copy className="size-3.5" />
                           )}
                           <span className="ml-1.5">
-                            {copied === "url" ? "Copied" : "Copy link"}
+                            {copied === "url" ? t("remote.pair.copied") : t("remote.pair.copyLink")}
                           </span>
                         </GlassButton>
                       ) : null}
@@ -497,7 +499,7 @@ export function RemoteControlSection() {
                           <Copy className="size-3.5" />
                         )}
                         <span className="ml-1.5">
-                          {copied === "code" ? "Copied" : "Copy code"}
+                          {copied === "code" ? t("remote.pair.copied") : t("remote.pair.copyCode")}
                         </span>
                       </GlassButton>
                       {pairUrl ? (
@@ -508,7 +510,7 @@ export function RemoteControlSection() {
                           onClick={() => void openPairUrl(pairUrl)}
                         >
                           <ExternalLink className="size-3.5" />
-                          <span className="ml-1.5">Open</span>
+                          <span className="ml-1.5">{t("remote.pair.open")}</span>
                         </GlassButton>
                       ) : null}
                       <GlassButton
@@ -525,19 +527,18 @@ export function RemoteControlSection() {
                         ) : (
                           <RefreshCw className="size-3.5" />
                         )}
-                        <span className="ml-1.5">New code</span>
+                        <span className="ml-1.5">{t("remote.pair.newCode")}</span>
                       </GlassButton>
                     </div>
                     <p className="m-0 text-center text-[11.5px] leading-snug text-[var(--text-muted)] sm:text-left">
-                      Camera app → scan QR, or paste the link in Safari/Chrome on your phone.
-                      Pairs in one tap — no typing.
+                      {t("remote.pair.phoneInstructions.scan")}{" "}{t("remote.pair.phoneInstructions.oneTap")}
                     </p>
                   </>
                 ) : (
                   <p className="m-0 text-center text-[12.5px] leading-snug text-[var(--text-muted)] sm:text-left">
                     {pairBusy
-                      ? "Creating a one-time pair link…"
-                      : "Generate a code to show the QR."}
+                      ? t("remote.pair.creatingLink")
+                      : t("remote.pair.generateCode")}
                   </p>
                 )}
               </div>
@@ -555,15 +556,15 @@ export function RemoteControlSection() {
       {/* ── 3. Paired phones ── */}
       <SettingsCard
         className="mb-5"
-        eyebrow="Remote Control"
-        title="Paired phones"
-        description="Tokens last 90 days. Revoke a device immediately if a phone is lost or shared."
+        eyebrow={t("remote.page.title")}
+        title={t("remote.devices.title")}
+        description={`${t("remote.devices.description.retention")} ${t("remote.devices.description.revoke")}`}
       >
         {devices.length === 0 ? (
           <div className="settings-row px-6 py-4 text-[12.5px] text-[var(--text-muted)]">
             {connected
-              ? "No phones paired yet. Scan the QR above with your phone."
-              : "Paired phones appear when this Mac is Online."}
+              ? `${t("remote.devices.empty.noPhones")} ${t("remote.devices.empty.scanQr")}`
+              : t("remote.devices.empty.waiting")}
           </div>
         ) : (
           <>
@@ -574,14 +575,17 @@ export function RemoteControlSection() {
               >
                 <div className="min-w-0">
                   <p className="m-0 text-[13.5px] text-[var(--text-primary)]">
-                    {d.label || "Phone"}{" "}
+                    {d.label || t("remote.devices.phone")}{" "}
                     <code className="font-mono text-[11px] text-[var(--text-muted)]">
                       {d.tokenPrefix}…
                     </code>
                   </p>
                   <p className="m-0 mt-0.5 text-[11.5px] text-[var(--text-muted)]">
-                    Paired {formatDeviceWhen(d.createdAt)} · last seen{" "}
-                    {formatDeviceWhen(d.lastSeenAt)} · expires {formatDeviceWhen(d.expiresAt)}
+                    {t("remote.devices.when", {
+                      pairedAt: formatDeviceWhen(d.createdAt),
+                      lastSeenAt: formatDeviceWhen(d.lastSeenAt),
+                      expiresAt: formatDeviceWhen(d.expiresAt),
+                    })}
                   </p>
                 </div>
                 <GlassButton
@@ -595,7 +599,7 @@ export function RemoteControlSection() {
                   ) : (
                     <Trash2 className="size-3.5" />
                   )}
-                  <span className="ml-1.5">Revoke</span>
+                  <span className="ml-1.5">{t("remote.devices.revoke")}</span>
                 </GlassButton>
               </div>
             ))}
@@ -611,7 +615,7 @@ export function RemoteControlSection() {
                 ) : (
                   <Trash2 className="size-3.5" />
                 )}
-                <span className="ml-1.5">Revoke all</span>
+                <span className="ml-1.5">{t("remote.devices.revokeAll")}</span>
               </GlassButton>
             </div>
           </>
@@ -621,28 +625,28 @@ export function RemoteControlSection() {
       {/* ── 4. Advanced (desktop id / reset) — secondary ── */}
       <SettingsCard
         className="mb-5"
-        eyebrow="Remote Control"
-        title="Advanced"
-        description="Desktop identity details. Prefer the QR or auto-pair link so the code stays out of browser history."
+        eyebrow={t("remote.page.title")}
+        title={t("remote.advanced.title")}
+        description={`${t("remote.advanced.description.identity")} ${t("remote.advanced.description.preferQr")}`}
       >
         <SettingsRow
-          label="Desktop ID"
+          label={t("remote.advanced.desktopId")}
           description={
             connected
-              ? "Shown only while online. Used if you pair manually on remote.agmux.dev."
-              : "Available after this Mac connects to the relay."
+              ? `${t("remote.advanced.desktopId.onlineDescription.shown")} ${t("remote.advanced.desktopId.onlineDescription.manualPair")}`
+              : t("remote.advanced.desktopId.offlineDescription")
           }
         >
           <div className="flex max-w-[240px] items-center gap-1">
             <code className="truncate font-mono text-[11px] text-[var(--text-secondary)]">
-              {desktopId ?? (remoteEnabled ? "Connecting…" : "—")}
+              {desktopId ?? (remoteEnabled ? t("remote.status.connectingLabel") : "—")}
             </code>
             {desktopId ? (
               <button
                 type="button"
                 className="shrink-0 rounded p-1 text-[var(--text-muted)] transition-colors hover:bg-white/5"
                 onClick={() => void copy("id", desktopId)}
-                title="Copy desktop ID"
+                title={t("remote.advanced.copyDesktopId")}
               >
                 {copied === "id" ? (
                   <CheckCircle2 className="size-3.5 text-[color:var(--accent)]" />
@@ -655,8 +659,8 @@ export function RemoteControlSection() {
         </SettingsRow>
 
         <SettingsRow
-          label="Reset identity"
-          description="New Desktop ID + secret. Use if remote is stuck with an invalid desktop token. All phones must re-pair."
+          label={t("remote.advanced.resetIdentity")}
+          description={`${t("remote.advanced.resetDescription.newIdentity")} ${t("remote.advanced.resetDescription.reason")} ${t("remote.advanced.resetDescription.repair")}`}
         >
           <GlassButton
             size="sm"
@@ -669,33 +673,33 @@ export function RemoteControlSection() {
             ) : (
               <RefreshCw className="size-3.5" />
             )}
-            <span className="ml-1.5">Reset</span>
+            <span className="ml-1.5">{t("remote.advanced.reset")}</span>
           </GlassButton>
         </SettingsRow>
       </SettingsCard>
 
       {/* ── 5. How it works ── */}
       <SettingsCard
-        eyebrow="Remote Control"
-        title="How it works"
-        description="Three steps from this Mac to your phone."
+        eyebrow={t("remote.page.title")}
+        title={t("remote.steps.title")}
+        description={t("remote.steps.description")}
       >
         <div className="settings-row space-y-0 px-6 py-4">
           {[
             {
               step: "1",
-              title: "Turn on Remote control",
-              body: "This Mac connects to the relay and stays reachable while enabled.",
+              title: "remote.steps.enable.title",
+              body: "remote.steps.enable.body",
             },
             {
               step: "2",
-              title: "Scan the QR with your phone",
-              body: "Camera opens remote.agmux.dev and pairs automatically — or copy the link.",
+              title: "remote.steps.scan.title",
+              body: "remote.steps.scan.body",
             },
             {
               step: "3",
-              title: "Chat from anywhere",
-              body: "Open any chat or terminal session on your phone — it keeps running on this Mac.",
+              title: "remote.steps.chat.title",
+              body: "remote.steps.chat.body",
             },
           ].map((item, i, arr) => (
             <div
@@ -716,13 +720,13 @@ export function RemoteControlSection() {
                   className="m-0 text-[13.5px] text-[var(--text-primary)]"
                   style={{ letterSpacing: "-0.015em" }}
                 >
-                  {item.title}
+                  {t(item.title)}
                 </p>
                 <p
                   className="m-0 mt-0.5 text-[12px] leading-snug text-[var(--text-muted)]"
                   style={{ letterSpacing: "-0.01em" }}
                 >
-                  {item.body}
+                  {t(item.body)}
                 </p>
               </div>
             </div>
@@ -730,7 +734,7 @@ export function RemoteControlSection() {
           <div className="mt-2 flex items-center gap-2 text-[11.5px] text-[var(--text-muted)]">
             <Smartphone className="size-3.5 shrink-0" />
             <span>
-              PWA: <span className="text-[var(--text-secondary)]">remote.agmux.dev</span>
+              {tx("remote.steps.pwa", { domain: <span className="text-[var(--text-secondary)]">remote.agmux.dev</span> })}
             </span>
           </div>
         </div>

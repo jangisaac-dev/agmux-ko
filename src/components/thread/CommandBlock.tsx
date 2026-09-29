@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { ChevronDown, ChevronRight, Loader2 } from "lucide-react";
+import { useT } from "../../i18n";
 
 interface CommandBlockProps {
   commandName: string;
@@ -9,6 +10,7 @@ interface CommandBlockProps {
 }
 
 export function CommandBlock({ commandName, output, exitCode }: CommandBlockProps) {
+  const t = useT();
   const isPending = exitCode === undefined;
   const isError = exitCode != null && exitCode !== 0;
   const outputLines = output ? output.split("\n") : [];
@@ -40,7 +42,7 @@ export function CommandBlock({ commandName, output, exitCode }: CommandBlockProp
           {commandName ? (
             <span className="truncate font-mono text-zinc-400">{commandName}</span>
           ) : isPending ? (
-            <span className="text-zinc-500 italic">Running…</span>
+            <span className="text-zinc-500 italic">{t("tools.command.runningEllipsis")}</span>
           ) : null}
         </div>
 
@@ -48,12 +50,12 @@ export function CommandBlock({ commandName, output, exitCode }: CommandBlockProp
         {isPending ? (
           <span className="status-pill status-pill-running shrink-0">
             <Loader2 size={9} className="animate-spin" />
-            running
+            {t("tools.status.running.lowercase")}
           </span>
         ) : isError ? (
-          <span className="status-pill status-pill-error shrink-0">Error</span>
+          <span className="status-pill status-pill-error shrink-0">{t("tools.status.error.title")}</span>
         ) : (
-          <span className="status-pill status-pill-done shrink-0">Done</span>
+          <span className="status-pill status-pill-done shrink-0">{t("tools.status.done.title")}</span>
         )}
 
         {hasOutput && (

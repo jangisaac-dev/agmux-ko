@@ -9,6 +9,7 @@ import { useSettingsStore } from "../../stores/settingsStore";
 import { useSessionNameStore } from "../../stores/sessionNameStore";
 import { gitWorktreeStatus, openTerminal } from "../../lib/commands";
 import { formatLocalModelLabel, isLocalModelSlug } from "../../lib/mlx";
+import { localeTag, useT } from "../../i18n";
 import droidIcon from "../../assets/droid-icon.svg";
 import cursorIcon from "../../assets/cursor-app-icon.png";
 import clineIcon from "../../assets/cline-icon.svg";
@@ -76,18 +77,18 @@ function shortModel(m: string, provider: Provider): string {
   return m;
 }
 
-function relativeTime(iso: string): string {
-  const t = new Date(iso).getTime();
-  if (Number.isNaN(t)) return "";
-  const diffMin = Math.floor((Date.now() - t) / 60000);
-  if (diffMin < 1) return "now";
-  if (diffMin < 60) return `${diffMin}m`;
+function relativeTime(iso: string, translate: ReturnType<typeof useT>): string {
+  const timestamp = new Date(iso).getTime();
+  if (Number.isNaN(timestamp)) return "";
+  const diffMin = Math.floor((Date.now() - timestamp) / 60000);
+  if (diffMin < 1) return translate("sidebar.time.now");
+  if (diffMin < 60) return translate("sidebar.time.minutes", { count: diffMin });
   const hrs = Math.floor(diffMin / 60);
-  if (hrs < 24) return `${hrs}h`;
+  if (hrs < 24) return translate("sidebar.time.hours", { count: hrs });
   const days = Math.floor(hrs / 24);
-  if (days === 1) return "yesterday";
-  if (days < 7) return `${days}d`;
-  return new Date(iso).toLocaleDateString(undefined, { month: "short", day: "numeric" });
+  if (days === 1) return translate("sidebar.time.yesterday");
+  if (days < 7) return translate("sidebar.time.days", { count: days });
+  return new Date(iso).toLocaleDateString(localeTag(), { month: "short", day: "numeric" });
 }
 
 interface MenuPos {
@@ -96,6 +97,7 @@ interface MenuPos {
 }
 
 export function ThreadItem({ thread, isSelected }: Props) {
+  const t = useT();
   const selectThread = useUiStore((s) => s.selectThread);
   const selectProject = useUiStore((s) => s.selectProject);
   const startThread = useThreadStore((s) => s.startThread);
@@ -223,7 +225,7 @@ export function ThreadItem({ thread, isSelected }: Props) {
 
   const metaParts: string[] = [];
   if (thread.model) metaParts.push(shortModel(thread.model, thread.provider));
-  if (thread.last_active) metaParts.push(relativeTime(thread.last_active));
+  if (thread.last_active) metaParts.push(relativeTime(thread.last_active, t));
 
   return (
     <>
@@ -265,12 +267,12 @@ export function ThreadItem({ thread, isSelected }: Props) {
           <div className="sb-txt">
             <div className="flex items-center gap-1 min-w-0">
               {thread.work_mode === "Worktree" && (
-                <span title={`Worktree: ${thread.worktree_branch ?? ""}`}>
+                <span title={t("sidebar.thread.worktreeBranch", { branch: thread.worktree_branch ?? "" })}>
                   <GitBranch size={11} className="shrink-0 text-amber-400/70" />
                 </span>
               )}
               {thread.forked_from_thread_id && (
-                <span title="Forked from another thread">
+                <span title={t("sidebar.thread.forkedFromThread")}>
                   <GitFork size={11} className="shrink-0 text-purple-400/70" />
                 </span>
               )}
@@ -300,14 +302,14 @@ export function ThreadItem({ thread, isSelected }: Props) {
             className="flex w-full items-center gap-2.5 px-3 py-1.5 text-xs text-zinc-300 hover:bg-white/8 hover:text-zinc-100 transition-colors"
           >
             <Pencil size={12} />
-            Rename
+            {t("sidebar.action.rename")}
           </button>
           <button
             onClick={handleResummarize}
             className="flex w-full items-center gap-2.5 px-3 py-1.5 text-xs text-zinc-300 hover:bg-white/8 hover:text-zinc-100 transition-colors"
           >
             <RefreshCw size={12} />
-            Resummarize
+            {t("sidebar.session.resummarize")}
           </button>
           <RecalculateDiffAction target={{ kind: "thread", id: thread.id, cwd: thread.work_dir }} compact />
           <button
@@ -315,7 +317,7 @@ export function ThreadItem({ thread, isSelected }: Props) {
             className="flex w-full items-center gap-2.5 px-3 py-1.5 text-xs text-zinc-300 hover:bg-white/8 hover:text-zinc-100 transition-colors"
           >
             <Archive size={12} />
-            Archive
+            {t("sidebar.archive.action")}
           </button>
           <div className="my-1 border-t border-white/6" />
           <button
@@ -323,7 +325,7 @@ export function ThreadItem({ thread, isSelected }: Props) {
             className="flex w-full items-center gap-2.5 px-3 py-1.5 text-xs text-red-400 hover:bg-red-500/10 hover:text-red-300 transition-colors"
           >
             <Trash2 size={12} />
-            Delete
+            {t("common.delete")}
           </button>
         </div>
       )}
@@ -336,10 +338,10 @@ export function ThreadItem({ thread, isSelected }: Props) {
           />
           <div className="relative w-96 rounded-2xl border border-white/[0.08] bg-zinc-900/90 p-5 shadow-2xl shadow-black/40 backdrop-blur-xl">
             <h3 className="mb-1 text-sm font-semibold text-amber-400">
-              Worktree has uncommitted changes
+              {t("sidebar.thread.dirtyTitle")}
             </h3>
             <p className="mb-3 text-xs text-zinc-400">
-              Commit, stash, or discard changes before archiving or deleting this thread.
+              {t("sidebar.thread.dirtyDescription")}
             </p>
             <div className="mb-4 max-h-40 overflow-y-auto rounded-lg border border-white/[0.04] bg-white/[0.02] p-2">
               {dirtyFiles.map((f, i) => (
@@ -356,13 +358,13 @@ export function ThreadItem({ thread, isSelected }: Props) {
                 }}
                 className="rounded-lg border border-white/[0.06] bg-white/[0.04] px-3 py-1.5 text-xs text-zinc-300 hover:bg-white/[0.08]"
               >
-                Open in Terminal
+                {t("sidebar.thread.openInTerminal")}
               </button>
               <button
                 onClick={() => setShowDirtyDialog(false)}
                 className="rounded-lg px-3 py-1.5 text-xs text-zinc-400 hover:text-zinc-100"
               >
-                Cancel
+                {t("common.cancel")}
               </button>
             </div>
           </div>

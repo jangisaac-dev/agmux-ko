@@ -1,4 +1,5 @@
 import { CheckCircle2, Circle, Loader2, ListTodo } from "lucide-react";
+import { useT } from "../../../i18n";
 import type { ToolRendererProps } from "./types";
 
 interface TodoItem {
@@ -31,6 +32,7 @@ function StatusIcon({ status }: { status: TodoItem["status"] }) {
 }
 
 export function TodoWriteToolRenderer({ input }: ToolRendererProps): React.ReactElement {
+  const t = useT();
   const todos = parseTodos(input);
   const completed = todos.filter((t) => t.status === "completed").length;
   const inProgress = todos.filter((t) => t.status === "in_progress").length;
@@ -40,7 +42,7 @@ export function TodoWriteToolRenderer({ input }: ToolRendererProps): React.React
   if (total === 0) {
     return (
       <div className="rounded-xl border border-white/[0.06] bg-white/[0.02] px-3.5 py-2.5 text-[11px] text-zinc-500">
-        Empty to-do list
+        {t("tools.todoWrite.empty")}
       </div>
     );
   }
@@ -59,17 +61,17 @@ export function TodoWriteToolRenderer({ input }: ToolRendererProps): React.React
       <div className="flex items-center gap-2 px-3.5 py-2">
         <ListTodo size={13} className={allDone ? "text-[color:var(--accent)]" : "text-violet-400"} />
         <span className="text-xs font-medium text-zinc-300">
-          {completed}/{total} completed
+          {t("tools.todoWrite.completedCount", { completed, total })}
         </span>
         {allDone && (
           <span className="rounded-full border border-[color:var(--accent)]/20 bg-[var(--accent-dim)] px-1.5 py-px text-[9px] font-medium text-[color:var(--accent)]">
-            done
+            {t("tools.status.done.lowercase")}
           </span>
         )}
         {inProgress > 0 && (
           <span className="flex items-center gap-1 rounded-full border border-amber-500/20 bg-amber-500/10 px-1.5 py-px text-[9px] font-medium text-amber-400">
             <Loader2 size={8} className="animate-spin" />
-            {inProgress} active
+            {t("tools.todoWrite.activeCount", { count: inProgress })}
           </span>
         )}
       </div>

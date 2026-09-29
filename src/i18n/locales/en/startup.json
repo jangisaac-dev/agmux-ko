@@ -1,0 +1,20 @@
+{
+  "startup.opening": "Opening agmux…",
+  "startup.back": "Back",
+  "startup.title.failed": "agmux could not open your data",
+  "startup.dataNotReset": "Your data has not been reset. You can restart, restore a saved database, or contact Support.",
+  "startup.dataFolder": "Data folder",
+  "startup.restartApp": "Restart app",
+  "startup.contactSupport": "Contact Support",
+  "startup.openDataFolder": "Open data folder",
+  "startup.savedDatabase": "Saved database",
+  "startup.restore.description.snapshot": "Restoring rolls app records back to this snapshot.",
+  "startup.restore.description.backup": "The current database is copied into the backups folder first.",
+  "startup.restore.description.providerFiles": "Provider conversation files are separate.",
+  "startup.restore.confirm": "I want to restore this saved database.",
+  "startup.restore.restoring": "Restoring…",
+  "startup.restore.restoreDatabase": "Restore database",
+  "startup.restore.restored": "Database restored. Restart the app to try opening it.",
+  "startup.noBackup": "No automatic database backup is available. Contact Support before changing your data files.",
+  "startup.support.startupFailed": "Startup failed: {{error}}"
+}

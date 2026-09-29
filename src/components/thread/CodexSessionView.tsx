@@ -117,6 +117,7 @@ import { ContextRing } from "./ContextRing";
 import type { ContextUsage } from "./ContextRing";
 import { SEND_BTN_ACTIVE, SEND_BTN_IDLE, STOP_BTN } from "./composerChrome";
 import { OpenCodeThinkingIndicator } from "./OpenCodeThinkingIndicator";
+import { localeTag, t as translate, tx, useT } from "../../i18n";
 import {
   flashTurnAfterScroll,
   mapTurnIdsToUserKeys,
@@ -124,7 +125,6 @@ import {
   resolveUserOrdinalForTurn,
 } from "../../lib/threadTimelineScroll";
 import {
-  codexThinkingPhase,
   formatMcpStartupDetail,
   parseMcpStartupStatusEvent,
   reduceMcpStartingServers,
@@ -398,13 +398,13 @@ function formatCodexPermissionsDescription(params: Record<string, unknown>): str
   const firstWrite = writePaths.find((p): p is string => typeof p === "string");
   const firstRead = readPaths.find((p): p is string => typeof p === "string");
 
-  if (firstWrite) return `Allow write access: ${shortenCodexApprovalPath(firstWrite)}`;
-  if (firstRead) return `Allow read access: ${shortenCodexApprovalPath(firstRead)}`;
+  if (firstWrite) return translate("session.codex.permission.writeAccess", { path: shortenCodexApprovalPath(firstWrite) });
+  if (firstRead) return translate("session.codex.permission.readAccess", { path: shortenCodexApprovalPath(firstRead) });
 
   const network = permissions?.network as Record<string, unknown> | undefined;
-  if (network?.enabled === true) return "Allow network access";
+  if (network?.enabled === true) return translate("session.codex.permission.networkAccess");
 
-  return "Permission profile update required";
+  return translate("session.codex.permission.profileUpdateRequired");
 }
 
 function formatCodexFileApprovalDescription(params: Record<string, unknown>): {
@@ -420,12 +420,14 @@ function formatCodexFileApprovalDescription(params: Record<string, unknown>): {
   const diff = typeof params.diff === "string" ? params.diff : "";
   const stats = diff ? countDiffLines(diff) : { additions: 0, deletions: 0 };
   const statParts = [
-    stats.additions > 0 ? `+${stats.additions}` : "",
-    stats.deletions > 0 ? `-${stats.deletions}` : "",
+    stats.additions > 0 ? `+${stats.additions.toLocaleString(localeTag())}` : "",
+    stats.deletions > 0 ? `-${stats.deletions.toLocaleString(localeTag())}` : "",
   ].filter(Boolean);
   const suffix = statParts.length > 0 ? ` · ${statParts.join(" ")}` : "";
   return {
-    description: shortenedPath ? `Modify file: ${shortenedPath}${suffix}` : "Approval required",
+    description: shortenedPath
+      ? translate("session.codex.fileApproval.modifyFile", { path: shortenedPath, stats: suffix })
+      : translate("session.codex.fileApproval.required"),
     path,
   };
 }
@@ -2606,7 +2608,7 @@ function codexSubagentReference(item: ConversationItem): SubagentReference | nul
     childId: collabReceiverThreadIds(item.toolInput)[0] || collabSpawnResultThreadId(item.content) || undefined,
     title: collab.subject ?? "Agent",
     prompt: firstNonEmptyString(item.toolInput?.prompt, item.toolInput?.message) || undefined,
-    status: item.toolIsError || collab.lead === "Failed" || collab.lead === "Interrupted"
+    status: item.toolIsError || collab.status === "failed" || collab.status === "interrupted"
       ? "failed"
       : lifecycle === "waiting" || lifecycle === "waiting_for_input"
         ? "waiting"
@@ -2881,11 +2883,18 @@ function permRowIconClass(selected: boolean) {
   }`;
 }
 
+const CODEX_COMMAND_LEAD_KEYS: Record<string, string> = {
+  Serving: "session.codex.command.serving",
+  Running: "session.codex.command.running",
+  Ran: "session.codex.command.ran",
+};
+
 const PermissionSelector = memo(function PermissionSelector({
   permissionMode,
   onChangePermissionMode,
   onSetFastMode,
 }: PermissionSelectorProps) {
+  const t = useT();
   const [showPermMenu, setShowPermMenu] = useState(false);
   const permMenuRef = useRef<HTMLDivElement>(null);
 
@@ -2908,14 +2917,14 @@ const PermissionSelector = memo(function PermissionSelector({
         : "";
   const pillTitle =
     permissionMode === "full"
-      ? "Full Permissions — auto-approves all actions"
+      ? t("session.codex.permission.fullTooltip")
       : permissionMode === "auto"
-        ? "Auto Review — Codex reviews risky actions for you"
-        : "Default — asks for approval";
+        ? t("session.codex.permission.autoTooltip")
+        : t("session.codex.permission.defaultTooltip");
   const PillIcon =
     permissionMode === "full" ? ShieldOff : permissionMode === "auto" ? Zap : Shield;
   const pillLabel =
-    permissionMode === "full" ? "Full Perms" : permissionMode === "auto" ? "Auto" : "Default";
+    permissionMode === "full" ? t("session.codex.permission.fullShort") : permissionMode === "auto" ? t("session.codex.permission.autoShort") : t("session.codex.permission.default");
 
   return (
     <div className="relative" ref={permMenuRef}>
@@ -2932,7 +2941,7 @@ const PermissionSelector = memo(function PermissionSelector({
         {showPermMenu && (
           <div className="absolute bottom-full left-0 z-30 mb-2" style={{ width: 280 }}>
             <DropdownPopover>
-              <DropdownHeader title="Permissions" />
+              <DropdownHeader title={t("session.common.permissions")} />
               <DropdownRow
                 selected={permissionMode === "default"}
                 onClick={() => { onChangePermissionMode("default"); onSetFastMode(false); setShowPermMenu(false); }}
@@ -2941,8 +2950,8 @@ const PermissionSelector = memo(function PermissionSelector({
                     <Shield size={14} />
                   </span>
                 }
-                title="Default"
-                meta="Approve each action"
+                title={t("session.codex.permission.default")}
+                meta={t("session.codex.permission.approveEach")}
               />
               <DropdownRow
                 selected={permissionMode === "auto"}
@@ -2952,8 +2961,8 @@ const PermissionSelector = memo(function PermissionSelector({
                     <Zap size={14} />
                   </span>
                 }
-                title="Auto Review"
-                meta="Subagent reviews risky actions"
+                title={t("session.codex.permission.autoReview")}
+                meta={t("session.codex.permission.subagentReviewsRisky")}
               />
               <DropdownRow
                 selected={permissionMode === "full"}
@@ -2963,8 +2972,8 @@ const PermissionSelector = memo(function PermissionSelector({
                     <ShieldOff size={14} />
                   </span>
                 }
-                title="Full permissions"
-                meta="Auto-approve all actions"
+                title={t("session.codex.permission.full")}
+                meta={t("session.codex.permission.autoApproveAll")}
               />
             </DropdownPopover>
           </div>
@@ -2992,10 +3001,15 @@ const ModelEffortSelector = memo(function ModelEffortSelector({
   onSetModel,
   onSetEffort,
 }: ModelEffortSelectorProps) {
+  const t = useT();
   const [showModelMenu, setShowModelMenu] = useState(false);
 
   const selectedModelLabel = modelOptions.find((m) => m.slug === model)?.name ?? model;
-  const effortOptions = codexEffortsForModel(model);
+  const effortOptions = codexEffortsForModel(model).map((option) => ({
+    ...option,
+    label: t("composer.reasoning.codex.label." + option.value),
+    description: t("composer.reasoning.codex.description." + option.value),
+  }));
 
   return (
     <>
@@ -3007,7 +3021,7 @@ const ModelEffortSelector = memo(function ModelEffortSelector({
         <button
           onClick={() => setShowModelMenu((v) => !v)}
           className={`${CBTN} min-w-0 !text-[var(--text-primary)]`}
-          title={`Model: ${selectedModelLabel}`}
+          title={t("session.codex.modelTitle", { model: selectedModelLabel })}
         >
           <span className="grid h-[15px] w-[15px] shrink-0 place-items-center overflow-hidden rounded">
             <img src={chatgptIcon} alt="" width={15} height={15} />
@@ -3018,7 +3032,7 @@ const ModelEffortSelector = memo(function ModelEffortSelector({
         {showModelMenu && (
           <div className="absolute bottom-full left-0 z-50 mb-2" style={{ width: 260 }}>
             <DropdownPopover withArrow>
-              <DropdownHeader title="Model" kbd="⌘M" />
+              <DropdownHeader title={t("session.codex.model")} kbd="⌘M" />
               {modelOptions.map((m) => {
                 const selected = m.slug === model;
                 return (
@@ -3203,9 +3217,9 @@ function collabAgentDisplayName(input: Record<string, unknown> | undefined): str
 
 /** "Harvey Agent" / "frontend_perf Agent" — Codex app style subject. */
 function collabLaunchSubject(name: string): string {
-  if (!name) return "Agent";
+  if (!name) return translate("session.codex.agent");
   if (/\bagents?\b/i.test(name)) return name;
-  return `${name} Agent`;
+  return `${name}${translate("session.codex.agentSuffix")}`;
 }
 
 /**
@@ -3220,7 +3234,7 @@ function collabLaunchSubject(name: string): string {
 export function collabAgentRowLabel(
   toolName: string | undefined,
   input: Record<string, unknown> | undefined,
-): { lead: string; subject?: string; detail?: string; running: boolean; hidden?: boolean } | null {
+): { lead: string; status?: "failed" | "interrupted" | "completed" | "launched"; subject?: string; detail?: string; running: boolean; hidden?: boolean } | null {
   const action = collabToolAction(toolName);
   if (!action) return null;
   const name = collabAgentDisplayName(input);
@@ -3237,22 +3251,22 @@ export function collabAgentRowLabel(
       // keep the spinner until a real lifecycle stamp (wait / list_agents /
       // interrupt / turn end).
       if (failed || lifecycle === "failed") {
-        return { lead: "Failed", subject, detail: "failed", running: false };
+        return { lead: "Failed", status: "failed", subject, detail: "failed", running: false };
       }
       if (lifecycle === "interrupted" || lifecycle === "cancelled" || lifecycle === "canceled") {
-        return { lead: "Interrupted", subject, running: false };
+        return { lead: "Interrupted", status: "interrupted", subject, running: false };
       }
       if (lifecycle === "closed" || isFinishedCollabStatus(lifecycle)) {
-        return { lead: "Completed", subject, running: false };
+        return { lead: "Completed", status: "completed", subject, running: false };
       }
-      return { lead: "Launched", subject, running: true };
+      return { lead: "Launched", status: "launched", subject, running: true };
     }
     case "wait":
     case "close":
     case "send":
     case "interrupt":
     case "list":
-      return { lead: "Launched", subject, running: false, hidden: true };
+      return { lead: "Launched", status: "launched", subject, running: false, hidden: true };
     case "other":
       // Unknown collaboration tools (e.g. followup_task) retain their details.
       return null;
@@ -3290,6 +3304,7 @@ function CodexHeader() {
  *  (and prevents the spacing collapse that `last:pb-6` on item wrappers used
  *  to mask). */
 function CodexFooter({ context }: { context?: CodexFooterContext }) {
+  const t = useT();
   if (!context || !context.sending) {
     return <div className={context?.hasStickyTodo ? "pb-2" : "pb-6"} />;
   }
@@ -3313,12 +3328,14 @@ function CodexFooter({ context }: { context?: CodexFooterContext }) {
           <span className="h-2 w-2 animate-pulse rounded-full bg-amber-400" />
           <AlertTriangle size={13} className="text-amber-400 shrink-0" />
           <span className="text-xs font-medium text-white/50 antialiased">
-            May be unresponsive{" "}
-            <span className="ui-meta text-white/30">
-              {Math.floor(elapsedSeconds / 60)}:
-              {String(elapsedSeconds % 60).padStart(2, "0")}
-            </span>
-            <span className="text-amber-400/60 ml-1">— try stopping and resending</span>
+            {tx("session.codex.mayBeUnresponsive", {
+              elapsed: (
+                <span className="ui-meta text-white/30">
+                  {Math.floor(elapsedSeconds / 60)}:{String(elapsedSeconds % 60).padStart(2, "0")}
+                </span>
+              ),
+              reason: <span className="text-amber-400/60 ml-1">{t("session.codex.unresponsiveReason")}</span>,
+            })}
           </span>
         </div>
       </div>
@@ -3337,12 +3354,12 @@ function CodexFooter({ context }: { context?: CodexFooterContext }) {
           fontSize: 11,
         }}
       >
-        {(contextUsage.lastInputTokens ?? 0).toLocaleString()} in ·{" "}
-        {(contextUsage.lastOutputTokens ?? 0).toLocaleString()} out
+        {(contextUsage.lastInputTokens ?? 0).toLocaleString(localeTag())} {t("session.sdk.tokens.in")} ·{" "}
+        {(contextUsage.lastOutputTokens ?? 0).toLocaleString(localeTag())} {t("session.sdk.tokens.out")}
         {(contextUsage.lastCachedInputTokens ?? 0) > 0 && (
           <>
             {" "}
-            · {(contextUsage.lastCachedInputTokens ?? 0).toLocaleString()} cache
+            · {(contextUsage.lastCachedInputTokens ?? 0).toLocaleString(localeTag())} {t("session.sdk.tokens.cache")}
           </>
         )}
       </span>
@@ -3422,6 +3439,7 @@ const MessageList = memo(function MessageList({
   stallDetected,
   hasStickyTodo,
 }: MessageListProps) {
+  const t = useT();
   const [expandedDiffs, setExpandedDiffs] = useState<Record<string, boolean>>({});
   // Which completed turns the user has re-opened, keyed by turn summary id.
   const [expandedTurns, setExpandedTurns] = useState<Record<string, boolean>>({});
@@ -3741,7 +3759,7 @@ const MessageList = memo(function MessageList({
       <div className="flex min-h-0 flex-1 items-center justify-center px-4 py-6">
         <div className="flex flex-col items-center gap-3 text-zinc-400">
           <Loader2 size={24} className="animate-spin" />
-          <p className="text-sm">Loading conversation history...</p>
+          <p className="text-sm">{t("session.codex.loadingHistory")}</p>
         </div>
       </div>
     );
@@ -3751,7 +3769,7 @@ const MessageList = memo(function MessageList({
     return (
       <div className="flex min-h-0 flex-1 items-center justify-center px-4 py-6">
         <div className="flex flex-col items-center gap-3 text-zinc-400">
-          <p className="text-sm">No messages in this thread yet.</p>
+          <p className="text-sm">{t("session.codex.noMessagesYet")}</p>
         </div>
       </div>
     );
@@ -3811,7 +3829,7 @@ const MessageList = memo(function MessageList({
           className="absolute bottom-3 left-1/2 z-20 flex -translate-x-1/2 items-center gap-1.5 rounded-full border border-white/10 bg-zinc-800/90 px-3 py-1.5 text-xs text-white/60 shadow-lg backdrop-blur transition-all hover:bg-zinc-700 hover:text-white/90"
         >
           <ChevronDown size={14} />
-          Jump to latest
+          {t("session.common.jumpToLatest")}
         </button>
       )}
 
@@ -3836,6 +3854,7 @@ function entrySpacingClass(entry: CodexTimelineEntry): string {
  *  The only per-message action the mockup calls for that we can honour —
  *  duration, token counts, and retry have no backing data. */
 function AgentMessage({ content }: { content: string }) {
+  const t = useT();
   const [copied, setCopied] = useState(false);
 
   const handleCopy = useCallback(() => {
@@ -3858,8 +3877,8 @@ function AgentMessage({ content }: { content: string }) {
       <button
         type="button"
         onClick={handleCopy}
-        title="Copy message"
-        aria-label="Copy message"
+        title={t("session.common.copyMessage")}
+        aria-label={t("session.common.copyMessage")}
         className="absolute -top-1 right-0 rounded-md p-1.5 text-[var(--text-tertiary)] opacity-0 transition-opacity hover:bg-white/[0.06] hover:text-[var(--text-secondary)] focus-visible:opacity-100 group-hover/msg:opacity-100"
       >
         {copied ? <Check size={13} className="text-[color:var(--accent)]" /> : <Copy size={13} />}
@@ -3895,12 +3914,12 @@ export function renderCodexToolItem(
         <div key={item.id}>
           <CodexToolRow
             icon={<Terminal size={13} />}
-            lead={failed && incomplete ? "Failed" : lead}
+            lead={failed && incomplete ? translate("session.common.failed") : translate(CODEX_COMMAND_LEAD_KEYS[lead] ?? "session.codex.command.ran")}
             subject={subject}
-            detail={incomplete && !failed ? "No exit status recorded" : undefined}
+            detail={incomplete && !failed ? translate("session.codex.noExitStatus") : undefined}
             subjectClassName={failed ? "text-red-400" : incomplete ? undefined : "text-green-400"}
             status={running ? "running" : failed ? "error" : incomplete ? "idle" : "ok"}
-            toggle={{ open, openLabel: "hide", closedLabel: "output", onToggle }}
+            toggle={{ open, openLabel: translate("session.common.hide"), closedLabel: translate("session.common.output"), onToggle }}
           />
           <CodexCollapse open={open}>
             <CodexTermBlock command={item.commandName || subject} output={item.content} exitCode={item.exitCode} isError={item.toolIsError} />
@@ -3914,7 +3933,7 @@ export function renderCodexToolItem(
         <CodexToolRow
           key={item.id}
           icon={<File size={13} />}
-          lead="Read"
+          lead={translate("session.codex.read")}
           subject={relativeToWorkDir(item.content, workDir)}
         />
       );
@@ -3925,7 +3944,7 @@ export function renderCodexToolItem(
         <CodexToolRow
           key={item.id}
           icon={<Search size={13} />}
-          lead="Searched"
+          lead={translate("session.codex.searched")}
           subject={item.webSearchQuery ? `"${item.webSearchQuery}"` : undefined}
           status={searching ? "running" : "ok"}
         />
@@ -3946,7 +3965,7 @@ export function renderCodexToolItem(
             subjectClassName="text-cyan-400"
             detail={item.mcpDurationMs ? `${Math.round(item.mcpDurationMs)}ms` : undefined}
             status={running ? "running" : failed ? "error" : "ok"}
-            toggle={body ? { open, openLabel: "hide", closedLabel: "result", onToggle } : undefined}
+            toggle={body ? { open, openLabel: translate("session.common.hide"), closedLabel: translate("session.common.result"), onToggle } : undefined}
           />
           <CodexCollapse open={open && Boolean(body)}>
             <CodexOutputBlock title={title} body={body} isError={failed} />
@@ -3962,14 +3981,14 @@ export function renderCodexToolItem(
         <div key={item.id}>
           <CodexToolRow
             icon={<Bot size={13} />}
-            lead="Agent"
+            lead={translate("session.codex.agent")}
             subject={summary}
             subjectMono={false}
             subjectClassName="text-blue-400"
             status={pending ? "running" : item.subagentIsError ? "error" : "ok"}
             toggle={
               !pending && item.content
-                ? { open, openLabel: "hide", closedLabel: "output", onToggle }
+              ? { open, openLabel: translate("session.common.hide"), closedLabel: translate("session.common.output"), onToggle }
                 : undefined
             }
           />
@@ -3986,6 +4005,7 @@ export function renderCodexToolItem(
 
     case "tool": {
       const name = item.toolName ?? "Tool";
+      const displayName = item.toolName ?? translate("session.codex.tool");
       if (hiddenCodexControl(name)) return null;
       const questions = codexAsyncQuestions(item);
       if (questions.length) return <div className="space-y-2 text-sm text-[var(--text-primary)]">{questions.map((q) => <MarkdownContent key={q.id} content={q.question} />)}</div>;
@@ -4006,11 +4026,15 @@ export function renderCodexToolItem(
         Object.keys(detailsInput).length > 0 ? safeJsonString(detailsInput) : "";
       const contentPart = name !== "Code execution" && isMeaninglessToolBody(item.content) ? "" : item.content;
       const body = [inputJson, contentPart].filter((part) => part.trim()).join("\n\n");
-      const lead = collab?.lead ?? name;
+      const lead = collab?.status
+        ? translate(`session.codex.collab.${collab.status}`)
+        : collab?.lead ?? displayName;
       const subject = collab
         ? collab.subject
         : summarizeToolInput(item.toolInput) || undefined;
-      const detail = collab?.detail ?? (name === "Code execution" && !item.content ? "Result unavailable" : undefined);
+      const detail = collab?.status === "failed"
+        ? translate("session.common.failedLower")
+        : collab?.detail ?? (name === "Code execution" && !item.content ? translate("session.codex.resultUnavailable") : undefined);
       const status = item.toolIsError
         ? "error"
         : name === "Code execution"
@@ -4027,11 +4051,11 @@ export function renderCodexToolItem(
             subjectClassName={collab ? "text-blue-400" : undefined}
             detail={detail}
             status={status}
-            toggle={body ? { open, openLabel: "hide", closedLabel: "details", onToggle } : undefined}
+            toggle={body ? { open, openLabel: translate("session.common.hide"), closedLabel: translate("session.common.details"), onToggle } : undefined}
           />
           <CodexCollapse open={open && Boolean(body)}>
             <CodexOutputBlock
-              title={subject ? `${lead} ${subject}` : lead}
+              title={subject ? translate("session.codex.toolTitle", { lead, subject }) : lead}
               body={body}
               isError={item.toolIsError ?? false}
             />
@@ -4091,12 +4115,12 @@ function renderTimelineEntryInner(
       <div key={entry.id} className="animate-glass-in" data-testid="codex-turn-summary">
         <CodexToolRow
           icon={<Sparkles size={13} />}
-          lead={`Thought for ${formatTurnDuration(entry.durationMs)}`}
+          lead={translate("session.common.thoughtFor", { duration: formatTurnDuration(entry.durationMs) })}
           tone="thinking"
           toggle={{
             open,
-            openLabel: "hide",
-            closedLabel: `${entry.entries.length} step${entry.entries.length === 1 ? "" : "s"}`,
+            openLabel: translate("session.common.hide"),
+            closedLabel: translate("session.common.stepCount", { count: entry.entries.length, value: entry.entries.length.toLocaleString(localeTag()) }),
             onToggle: () => setExpandedTurns?.((prev) => ({ ...prev, [entry.id]: !prev[entry.id] })),
           }}
         />
@@ -4126,7 +4150,11 @@ function renderTimelineEntryInner(
     const fc = entry.fileChange;
     const open = expandedDiffs[fc.id] ?? false;
     const kind = fc.kind ?? "modify";
-    const lead = kind === "create" ? "Wrote" : kind === "delete" ? "Deleted" : "Edited";
+    const lead = kind === "create"
+      ? translate("session.codex.fileChange.wrote")
+      : kind === "delete"
+        ? translate("session.codex.fileChange.deleted")
+        : translate("session.codex.fileChange.edited");
     const icon =
       kind === "create" ? <FilePlus size={13} /> : kind === "delete" ? <FileMinus size={13} /> : <FilePenLine size={13} />;
     const subjectClassName =
@@ -4144,7 +4172,7 @@ function renderTimelineEntryInner(
           deletions={fc.deletions}
           toggle={
             fc.diff
-              ? { open, openLabel: "hide diff", closedLabel: "show diff", onToggle: () => setExpandedDiffs((prev) => ({ ...prev, [fc.id]: !prev[fc.id] })) }
+              ? { open, openLabel: translate("session.codex.hideDiff"), closedLabel: translate("session.codex.showDiff"), onToggle: () => setExpandedDiffs((prev) => ({ ...prev, [fc.id]: !prev[fc.id] })) }
               : undefined
           }
         />
@@ -4200,12 +4228,16 @@ function renderTimelineEntryInner(
       <div className="animate-glass-in" data-testid="codex-command-group">
         <CodexToolRow
           icon={allCommands ? <Terminal size={13} /> : <Wrench size={13} />}
-          lead={allCommands ? "Ran" : "Used"}
-          subject={allCommands ? `${n} commands` : `${n} tools`}
+          lead={allCommands ? translate("session.codex.group.ran") : translate("session.codex.group.used")}
+          subject={allCommands
+            ? translate("session.codex.group.commandCount", { count: n, value: n.toLocaleString(localeTag()) })
+            : translate("session.codex.group.toolCount", { count: n, value: n.toLocaleString(localeTag()) })}
           subjectClassName={subjectClass}
-          detail={failedCount > 0 && !anyRunning ? `${failedCount} failed` : anyIncomplete && !anyRunning ? "No exit status recorded" : undefined}
+          detail={failedCount > 0 && !anyRunning
+            ? translate("session.codex.group.failedCount", { count: failedCount, value: failedCount.toLocaleString(localeTag()) })
+            : anyIncomplete && !anyRunning ? translate("session.codex.noExitStatus") : undefined}
           status={status}
-          toggle={{ open, openLabel: "hide", closedLabel: allCommands ? "commands" : "tools", onToggle }}
+          toggle={{ open, openLabel: translate("session.common.hide"), closedLabel: allCommands ? translate("session.common.commands") : translate("session.common.tools"), onToggle }}
         />
         <CodexCollapse open={open}>
           <div
@@ -4243,7 +4275,7 @@ function renderTimelineEntryInner(
                   <img
                     key={i}
                     src={url}
-                    alt={`Attached image ${i + 1}`}
+                    alt={translate("session.codex.attachedImageAlt", { index: i + 1 })}
                     className="max-h-48 max-w-full rounded-lg border border-white/10 object-contain"
                   />
                 ))}
@@ -4285,7 +4317,7 @@ function renderTimelineEntryInner(
         <div key={item.id} className={`animate-glass-in ${historyOpacity}`}>
           <CodexToolRow
             icon={isDone ? <Check size={13} /> : undefined}
-            lead={isDone ? "Context compacted" : "Compacting context…"}
+            lead={isDone ? translate("session.codex.compaction.completed") : translate("session.codex.compaction.inProgress")}
             status={isDone ? "ok" : "running"}
             tone="thinking"
           />
@@ -4378,6 +4410,7 @@ const InputBar = memo(function InputBar({
   chatDirtySinceSpawnRef,
   contextUsage,
 }: InputBarProps) {
+  const t = useT();
   const [inputValue, setInputValue] = useState("");
   const [optimizing, setOptimizing] = useState(false);
   const [showDiff, setShowDiff] = useState(false);
@@ -4445,7 +4478,7 @@ const InputBar = memo(function InputBar({
         setCustomPrompts(
           prompts.map((p) => ({
             name: p.name,
-            description: "Custom prompt",
+            description: "session.codex.customPrompt",
             source: "user",
           })),
         );
@@ -4461,8 +4494,12 @@ const InputBar = memo(function InputBar({
   // Slash command filtering
   const showSlashPopup = isSlashQuery(inputValue);
   const codexCommands = useMemo(
-    () => mergeCommands(getCommandsForProvider("Codex"), customPrompts, "Codex"),
-    [customPrompts],
+    () => mergeCommands(
+      getCommandsForProvider("Codex"),
+      customPrompts.map((prompt) => ({ ...prompt, description: t(prompt.description) })),
+      "Codex",
+    ),
+    [customPrompts, t],
   );
   const filteredSlashCommands = showSlashPopup
     ? filterCommands(codexCommands, inputValue)
@@ -4588,6 +4625,9 @@ const InputBar = memo(function InputBar({
   }, []);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
+    // IME composition (Japanese/Chinese): Enter confirms the conversion. macOS
+    // WebKit sends Korean without composition, so isComposing stays false there.
+    if (e.nativeEvent.isComposing) return;
     if (
       handleTextFieldCmdArrowNav(
         e,
@@ -4658,15 +4698,15 @@ const InputBar = memo(function InputBar({
                 <button
                   onClick={() => onSteer(msg.id)}
                   className="flex shrink-0 items-center gap-1 rounded-lg bg-white/10 backdrop-blur-sm px-2.5 py-1 text-xs font-medium text-white/80 hover:bg-white/15 transition-colors"
-                  title="Interrupt and send this message now"
+                  title={t("session.common.interruptAndSendNow")}
                 >
                   <CornerDownRight size={12} />
-                  Steer
+                  {t("session.common.steer")}
                 </button>
                 <button
                   onClick={() => onDeleteQueued(msg.id)}
                   className="shrink-0 rounded p-1 text-white/40 hover:bg-white/10 hover:text-white/70 transition-colors"
-                  title="Remove from queue"
+                  title={t("session.common.removeFromQueue")}
                 >
                   <Trash2 size={14} />
                 </button>
@@ -4736,12 +4776,12 @@ const InputBar = memo(function InputBar({
               disabled={isDisabled}
               placeholder={
                 sending
-                  ? "Type to queue a follow-up..."
+                  ? t("session.codex.placeholder.queueFollowUp")
                   : connected
                     ? running
-                      ? "Ask for follow-up changes"
-                      : "Ask Codex..."
-                    : "Connecting..."
+                      ? t("session.codex.placeholder.followUpChanges")
+                      : t("session.codex.placeholder.askCodex")
+                    : t("session.codex.placeholder.connecting")
               }
               rows={1}
               className="composer-input w-full resize-none bg-transparent text-[15px] leading-[1.55] text-[var(--text-primary)] outline-none disabled:opacity-50 min-h-[26px] antialiased focus:ring-0"
@@ -4791,20 +4831,20 @@ const InputBar = memo(function InputBar({
             <button
               onClick={() => onSetPlanMode(!planMode)}
               className={`${CBTN} ${planMode ? CBTN_PLAN : ""}`}
-              title={planMode ? "Plan mode ON" : "Plan mode OFF"}
+                    title={planMode ? t("session.codex.planModeOn") : t("session.codex.planModeOff")}
             >
               <Map size={15} className="shrink-0" />
-              <span>Plan</span>
+              <span>{t("session.codex.plan")}</span>
             </button>
 
             {/* Fast mode — not in the design, but real wired functionality */}
             <button
               onClick={() => onSetFastMode(!fastMode)}
               className={`${CBTN} ${fastMode ? CBTN_FAST : ""}`}
-              title={fastMode ? "Fast mode ON" : "Fast mode OFF"}
+              title={fastMode ? t("session.codex.fastModeOn") : t("session.codex.fastModeOff")}
             >
               <Bolt size={15} className="shrink-0" />
-              <span>Fast</span>
+              <span>{t("session.codex.fast")}</span>
             </button>
 
             <div className="min-w-0 flex-1" />
@@ -4821,7 +4861,7 @@ const InputBar = memo(function InputBar({
               onClick={handleOptimize}
               disabled={isDisabled || !inputValue.trim() || optimizing}
               className={`${CBTN_SQ} composer-action-amber disabled:opacity-30`}
-              title="Optimize prompt"
+              title={t("session.codex.optimizePrompt")}
             >
               {optimizing ? <Loader2 size={15} className="animate-spin" /> : <WandSparkles size={15} />}
             </button>
@@ -4831,7 +4871,7 @@ const InputBar = memo(function InputBar({
               <button
                 onClick={onStop}
                 className={STOP_BTN}
-                title="Stop (Esc)"
+                title={t("session.common.stopEsc")}
               >
                 <Square size={15} fill="currentColor" />
               </button>
@@ -4840,7 +4880,7 @@ const InputBar = memo(function InputBar({
                 onClick={handleSend}
                 disabled={isDisabled || !inputValue.trim()}
                 className={inputValue.trim() && !isDisabled ? SEND_BTN_ACTIVE : SEND_BTN_IDLE}
-                title={sending ? "Queue message" : "Send message"}
+                title={sending ? t("session.common.queueMessage") : t("session.common.sendMessage")}
               >
                 <ArrowUp size={16} />
               </button>
@@ -4856,10 +4896,10 @@ const InputBar = memo(function InputBar({
         <div className="mx-1.5 mt-2 flex items-center gap-1">
           <div
             className={`${CBTN} cursor-default`}
-            title={isWorktree ? "Session is running in a worktree" : "Session is running in the main repo"}
+            title={isWorktree ? t("session.codex.runningInWorktree") : t("session.codex.runningInMainRepo")}
           >
             {isWorktree ? <GitBranchIcon size={15} className="shrink-0" /> : <FolderIcon size={15} className="shrink-0" />}
-            <span>{isWorktree ? "Worktree" : "Local"}</span>
+            <span>{isWorktree ? t("session.common.worktree") : t("session.common.local")}</span>
           </div>
           <div className="min-w-0 flex-1" />
           <GitBranchSelector workDir={workDir} active={active} />
@@ -4873,6 +4913,7 @@ const InputBar = memo(function InputBar({
 // CodexSessionView — main component
 // ---------------------------------------------------------------------------
 export function CodexSessionView({ session, embedded, compact = false, initialViewMode }: Props) {
+  const t = useT();
   const sessionUiKey = `codex:${session.id}`;
   const codexDefaultView = useSettingsStore((s) => s.settings.codexDefaultView);
   const terminalOpen = useUiStore((s) => s.sessionTerminalOpenByKey[sessionUiKey] ?? false);
@@ -5923,7 +5964,7 @@ export function CodexSessionView({ session, embedded, compact = false, initialVi
     setShowTerminalFullAutoConfirm(false);
     const spawnWorkDir = sessionCwd || session.cwd || workDir;
     if (!spawnWorkDir || spawnWorkDir === "/") {
-      setTerminalSpawnError("The session's working folder is unavailable.");
+      setTerminalSpawnError(translate("session.codex.workingFolderUnavailable"));
       return;
     }
     terminalRestartingRef.current = true;
@@ -6524,7 +6565,7 @@ export function CodexSessionView({ session, embedded, compact = false, initialVi
             setSending(false);
             setMcpStartingServers([]);
             setConnected(false);
-            setError("System error occurred");
+            setError(translate("session.codex.systemError"));
           }
           break;
         }
@@ -7525,7 +7566,7 @@ export function CodexSessionView({ session, embedded, compact = false, initialVi
           const fileApproval = command ? null : formatCodexFileApprovalDescription(params);
           const description = command
             ? (() => { const first = command.split("\n")[0] ?? command; return first.length > 80 ? first.slice(0, 77) + "…" : first; })()
-            : fileApproval?.description ?? "Approval required";
+            : fileApproval?.description ?? translate("session.codex.approvalRequired");
           const toolName = command ? "Bash" : "Edit";
           const queuedId = eventRequestId;
           setApprovalQueue((prev) => [...prev, {
@@ -7571,8 +7612,8 @@ export function CodexSessionView({ session, embedded, compact = false, initialVi
           const description = message
             ? (message.length > 80 ? message.slice(0, 77) + "…" : message)
             : serverName
-              ? `MCP tool: ${serverName}`
-              : "MCP tool approval required";
+              ? translate("session.codex.mcpToolDescription", { serverName })
+              : translate("session.codex.mcpApprovalRequired");
           setApprovalQueue((prev) => prev.some((entry) => entry.id === eventRequestId) ? prev : [...prev, {
             id: eventRequestId,
             description,
@@ -7623,7 +7664,7 @@ export function CodexSessionView({ session, embedded, compact = false, initialVi
         case "error": {
           const turnError = params.error as { message?: string };
           const willRetry = params.willRetry as boolean;
-          const msg = turnError?.message ?? "Unknown error";
+          const msg = turnError?.message ?? translate("session.common.unknownError");
           if (!willRetry) {
             setError(msg);
             setSending(false);
@@ -7633,7 +7674,7 @@ export function CodexSessionView({ session, embedded, compact = false, initialVi
 
         case "codex/serverDisconnected": {
           // App-server process died or stdout closed — clear all busy state
-          const reason = (params.reason as string) ?? "Codex server disconnected";
+          const reason = (params.reason as string) ?? translate("session.codex.serverDisconnected");
           setSending(false);
           setRunning(false);
           setConnected(false);
@@ -7767,8 +7808,8 @@ export function CodexSessionView({ session, embedded, compact = false, initialVi
 
   useEffect(() => {
     if (viewMode !== "terminal" || !terminalPermission) return;
-    sendNotification("agmux — Approval Required", terminalPermission, {
-      threadId: session.id, provider: "Codex",
+    sendNotification(translate("session.notification.codexApprovalTitle"), terminalPermission, {
+      threadId: session.id, provider: "Codex", kind: "approval",
     });
   }, [terminalPermission, viewMode, session.id]);
 
@@ -7806,9 +7847,10 @@ export function CodexSessionView({ session, embedded, compact = false, initialVi
   // Notify when approval is needed
   useEffect(() => {
     if (!pendingApproval) return;
-    sendNotification("agmux — Approval Required", pendingApproval.description, {
+    sendNotification(translate("session.notification.codexApprovalTitle"), pendingApproval.description, {
       threadId: session.id,
       provider: "Codex",
+      kind: "approval",
     });
   }, [pendingApproval, session.id]);
 
@@ -7861,9 +7903,10 @@ export function CodexSessionView({ session, embedded, compact = false, initialVi
       markTurnStart(session.id);
     }
     if (prevSendingRef.current && !sending && !pendingApproval && !pendingUserInput) {
-      sendNotification("agmux — Codex Finished", "Codex has finished working.", {
+      sendNotification(translate("session.notification.codexFinishedTitle"), translate("session.notification.codexFinishedBody"), {
         threadId: session.id,
         provider: "Codex",
+        kind: "complete",
       });
       const startedAt = turnStartTimeRef.current;
       const durationMs = startedAt !== null ? Date.now() - startedAt : undefined;
@@ -8081,7 +8124,7 @@ export function CodexSessionView({ session, embedded, compact = false, initialVi
     } catch (err) {
       console.error("Failed to interrupt turn:", err);
       setStopping(false);
-      setError(`Failed to stop Codex: ${String(err)}`);
+      setError(translate("session.codex.stopFailed", { error: String(err) }));
     }
     // An interrupt response acknowledges the request, not turn completion.
     // Keep the turn active so follow-ups queue until turn/completed (or the
@@ -8180,13 +8223,13 @@ export function CodexSessionView({ session, embedded, compact = false, initialVi
         bypassTooltip={
           viewMode === "terminal"
             ? terminalFullAuto
-              ? "Auto-approve on — click to restart Codex with standard permissions"
-              : "Click to restart Codex with auto-approve (workspace-write sandbox, no prompts)"
+              ? t("session.codex.fullAutoOnTooltip")
+              : t("session.codex.fullAutoOffTooltip")
             : permissionMode === "full"
-              ? "Full Permissions — auto-approves all actions"
+              ? t("session.codex.permission.fullTooltip")
               : permissionMode === "auto"
-                ? "Auto Review active — top-bar lock toggles Full Permissions only"
-                : "Default — asks for approval"
+                ? t("session.codex.autoReviewActiveTooltip")
+                : t("session.codex.permission.defaultTooltip")
         }
       />
       )}
@@ -8216,7 +8259,7 @@ export function CodexSessionView({ session, embedded, compact = false, initialVi
           provider="Codex"
           isActive={isCodexActive && viewMode !== "chat"}
           timelineScrollEnabled={viewMode === "terminal"}
-          loadingLabel={terminalRestarting ? "Reconnecting Codex" : "Starting Codex session"}
+          loadingLabel={terminalRestarting ? t("session.codex.reconnecting") : t("session.codex.startingSession")}
           onUserLine={handleTerminalUserLine}
           onOutputActivity={handleTerminalOutputActivity}
           onPermissionPrompt={viewMode === "terminal" ? setTerminalPermission : undefined}
@@ -8232,11 +8275,11 @@ export function CodexSessionView({ session, embedded, compact = false, initialVi
       {/* Login banner */}
       {authStatus === "unauthenticated" && (
         <div className="flex items-center gap-3 px-4 py-2 bg-yellow-900/20 border-b border-yellow-800/30 text-sm text-yellow-300">
-          <span>Not logged in to Codex</span>
+          <span>{t("session.codex.notLoggedIn")}</span>
           {loginPending ? (
             <>
               <Loader2 className="w-3 h-3 animate-spin" />
-              <span className="text-xs">Logging in...</span>
+              <span className="text-xs">{t("session.codex.loggingIn")}</span>
               <button
                 onClick={() => {
                   codexLoginCancel(workDir, loginPending).catch(() => {});
@@ -8244,7 +8287,7 @@ export function CodexSessionView({ session, embedded, compact = false, initialVi
                 }}
                 className="text-xs text-zinc-400 hover:text-zinc-200 underline"
               >
-                Cancel
+                {t("session.common.cancel")}
               </button>
             </>
           ) : (
@@ -8256,7 +8299,7 @@ export function CodexSessionView({ session, embedded, compact = false, initialVi
               }}
               className="text-xs bg-yellow-700/50 hover:bg-yellow-700/70 px-2 py-0.5 rounded"
             >
-              Log in
+              {t("session.codex.logIn")}
             </button>
           )}
         </div>
@@ -8282,7 +8325,11 @@ export function CodexSessionView({ session, embedded, compact = false, initialVi
         elapsedSeconds={elapsedSeconds}
         turnStartMs={turnStartTime}
         contextUsage={codexContextUsage}
-        thinkingPhase={stopping ? "Stopping…" : codexThinkingPhase(turnHasActivity ? [] : mcpStartingServers)}
+        thinkingPhase={stopping
+          ? t("session.codex.status.stopping")
+          : !turnHasActivity && mcpStartingServers.length > 0
+            ? t("session.codex.status.startingMcp")
+            : t("session.codex.status.thinking")}
         thinkingDetail={turnHasActivity ? null : formatMcpStartupDetail(mcpStartingServers)}
         historyLoading={historyLoading}
         starting={starting}
@@ -8321,7 +8368,7 @@ export function CodexSessionView({ session, embedded, compact = false, initialVi
             key={pendingUserInput ? `request-${pendingUserInput.requestId}` : asyncQuestion!.id}
             questions={pendingUserInput?.questions ?? asyncQuestion!.questions}
             onSubmit={pendingUserInput ? handleUserInputAnswer : async (answers) => {
-              if (!threadId) throw new Error("Reconnect to send your answer.");
+              if (!threadId) throw new Error(t("session.codex.reconnectToAnswer"));
               const text = asyncQuestion!.questions.map((q) => `${q.question}\n${answers[q.id].answers.join(", ")}`).join("\n\n");
               if (sendingRef.current && activeTurnIdRef.current) {
                 await codexSteerTurn(workDir, threadId, activeTurnIdRef.current, text, null);
@@ -8407,14 +8454,13 @@ export function CodexSessionView({ session, embedded, compact = false, initialVi
             style={{ background: "var(--surface-1)", borderColor: "var(--glass-border)", color: "var(--text-primary)" }}
           >
             <h2 className="text-base font-semibold mb-2">
-              {terminalFullAuto ? "Disable auto-approve?" : "Enable auto-approve?"}
+              {terminalFullAuto ? t("session.codex.disableAutoApprove") : t("session.codex.enableAutoApprove")}
             </h2>
             <p className="text-sm" style={{ color: "var(--text-secondary)" }}>
-              This auto-approves all tool calls (shell, file writes, edits) for this session inside
-              the Codex workspace-write sandbox (<code>--sandbox workspace-write --ask-for-approval never</code>).
-              Codex's approval/sandbox flags are set at process start, so this requires restarting
-              the running session. The conversation will be resumed automatically — no messages are
-              lost, but in-flight work will be cancelled.
+              {tx("session.codex.autoApproveConfirmation", {
+                command: <code>--sandbox workspace-write --ask-for-approval never</code>,
+              })}{" "}
+              {t("session.codex.restartRequiredExplanation")} {t("session.codex.resumeAfterRestart")}
             </p>
             <div className="mt-4 flex justify-end gap-2">
               <button
@@ -8423,7 +8469,7 @@ export function CodexSessionView({ session, embedded, compact = false, initialVi
                 className="rounded-md border px-3 py-1.5 text-sm"
                 style={{ borderColor: "var(--glass-border)", color: "var(--text-secondary)" }}
               >
-                Cancel
+                {t("session.common.cancel")}
               </button>
               <button
                 type="button"
@@ -8431,7 +8477,7 @@ export function CodexSessionView({ session, embedded, compact = false, initialVi
                 className="rounded-md px-3 py-1.5 text-sm font-medium"
                 style={{ background: "var(--status-amber)", color: "#0a0a0b" }}
               >
-                {terminalFullAuto ? "Restart with standard permissions" : "Restart with auto-approve"}
+                {terminalFullAuto ? t("session.codex.restartStandardPermissions") : t("session.codex.restartAutoApprove")}
               </button>
             </div>
           </div>

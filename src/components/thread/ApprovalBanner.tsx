@@ -3,6 +3,8 @@ import { Send, Clock, FileText, Terminal, Search, Bot, AlertTriangle, ChevronDow
 import { GlassButton } from "../ui/GlassButton";
 import { InlineDiff, FileWriteView } from "./InlineDiff";
 import { relativeToWorkDir } from "./tools/types";
+import { tx, useT } from "../../i18n";
+import { isEditableKeyboardTarget } from "../../lib/textFieldNav";
 
 interface Props {
   type: "approval" | "question";
@@ -51,6 +53,7 @@ function AllowPatternsMenu({
   /** "md" = inline banner's 30px middle-button row; "lg" = dialog's 40px row. */
   size?: "md" | "lg";
 }) {
+  const t = useT();
   const [open, setOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement | null>(null);
 
@@ -69,12 +72,12 @@ function AllowPatternsMenu({
       <button
         type="button"
         onClick={() => setOpen((o) => !o)}
-        title="Auto-approve future commands matching a pattern"
+        title={t("approval.allowPatterns.title")}
         className={`inline-flex items-center gap-1 rounded-[7px] border border-blue-400/30 bg-blue-400/[0.08] px-3 text-xs font-medium text-blue-400 transition-colors duration-200 hover:bg-blue-400/[0.14] hover:border-blue-400/45 fx-quiet ${
           size === "lg" ? "min-h-[40px]" : "min-h-[30px]"
         }`}
       >
-        Always allow
+        {t("approval.allowPatterns.label")}
         <ChevronDown size={11} className={`transition-transform ${open ? "rotate-180" : ""}`} />
       </button>
       {open && (
@@ -143,6 +146,7 @@ function ToolDetail({
   detail: string;
   workDir?: string | null;
 }) {
+  const t = useT();
   let parsed: Record<string, unknown> | null = null;
   try {
     parsed = JSON.parse(detail);
@@ -259,7 +263,7 @@ function ToolDetail({
     const dirPath = formatted.slice(0, formatted.lastIndexOf("/"));
 
     // Short action label based on tool name (lowerTool already declared above)
-    const actionLabel = lowerTool === "write" ? "Write" : lowerTool === "edit" || lowerTool === "multiedit" ? "Edit" : lowerTool === "read" ? "Read" : null;
+    const actionLabel = lowerTool === "write" ? t("approval.actions.write") : lowerTool === "edit" || lowerTool === "multiedit" ? t("approval.actions.edit") : lowerTool === "read" ? t("approval.actions.read") : null;
 
     // For Edit, show old preview so the user knows what's being changed
     const editPreview = oldStr ? (oldStr.length > 80 ? oldStr.slice(0, 80) + "…" : oldStr) : null;
@@ -312,7 +316,7 @@ function ToolDetail({
           <div className="min-w-0">
             <code className="text-xs text-zinc-200">{pattern}</code>
             {searchPath && (
-              <div className="text-[11px] text-zinc-500 truncate mt-0.5">in {searchPath}</div>
+              <div className="text-[11px] text-zinc-500 truncate mt-0.5">{t("approval.searchPath", { path: searchPath })}</div>
             )}
           </div>
         </div>
@@ -370,6 +374,7 @@ export function ApprovalBanner({
   pendingCount,
   workDir,
 }: Props) {
+  const t = useT();
   const hasPatternMenu =
     !!onAllowPattern && Array.isArray(allowPatterns) && allowPatterns.length > 0;
   const [answerText, setAnswerText] = useState("");
@@ -385,6 +390,8 @@ export function ApprovalBanner({
         e.preventDefault();
         onApprove();
       } else if (e.key === "Backspace") {
+        // In a text field ⌘⌫ deletes to line start; only deny from elsewhere.
+        if (isEditableKeyboardTarget(e.target)) return;
         e.preventDefault();
         onReject();
       }
@@ -402,13 +409,13 @@ export function ApprovalBanner({
         return (
           <div className="mx-3 my-2 flex items-center gap-2.5 rounded-[10px] border border-white/[0.08] bg-white/[0.02] px-4 py-3 text-xs text-zinc-400">
             <Clock size={12} className="shrink-0" />
-            <span className="italic flex-1">Approval timed out</span>
+            <span className="italic flex-1">{t("approval.timedOut")}</span>
             <button
               type="button"
               onClick={dismiss}
               className="shrink-0 rounded px-2 py-0.5 text-[11px] text-zinc-400 hover:bg-white/[0.06] hover:text-zinc-200"
             >
-              Dismiss
+              {t("approval.dismiss")}
             </button>
           </div>
         );
@@ -422,10 +429,10 @@ export function ApprovalBanner({
             <div className="flex items-baseline gap-2 text-[13px] font-medium text-[var(--text-primary)]">
               {toolName ? (
                 <span className="truncate">
-                  Run <span className="font-mono text-[var(--text-secondary)]">{toolName}</span>?
+                  {tx("approval.runTool", { toolName: <span className="font-mono text-[var(--text-secondary)]">{toolName}</span> })}
                 </span>
               ) : (
-                <span>Permission required</span>
+                <span>{t("approval.permissionRequired")}</span>
               )}
               {pendingCount != null && pendingCount > 1 && (
                 <span className="shrink-0 text-[10px] font-normal text-zinc-500">1/{pendingCount}</span>
@@ -443,7 +450,7 @@ export function ApprovalBanner({
           )}
           <div className="flex shrink-0 items-center gap-1.5">
             <GlassButton variant="primary" size="md" onClick={onReject}>
-              Deny <span className="ui-kbd">⌘⌫</span>
+              {tx("approval.shortcuts.deny", { shortcut: <span className="ui-kbd">⌘⌫</span> })}
             </GlassButton>
             {hasPatternMenu ? (
               <AllowPatternsMenu patterns={allowPatterns!} onPick={onAllowPattern!} size="md" />
@@ -451,15 +458,15 @@ export function ApprovalBanner({
               onAllowForSession && (
                 <button
                   onClick={onAllowForSession}
-                  title="Auto-approve this tool for all sessions in this project"
+                  title={t("approval.allowProject.title")}
                   className="inline-flex items-center gap-1.5 rounded-[7px] border border-blue-400/30 bg-blue-400/[0.08] px-3 text-xs font-medium text-blue-400 transition-colors duration-200 hover:bg-blue-400/[0.14] hover:border-blue-400/45 fx-quiet min-h-[30px]"
                 >
-                  Allow for Project
+                  {t("approval.allowProject.label")}
                 </button>
               )
             )}
             <GlassButton variant="accent" size="md" className="approval-accept" onClick={onApprove}>
-              Accept <span className="ui-kbd opacity-70">⌘⏎</span>
+              {tx("approval.shortcuts.accept", { shortcut: <span className="ui-kbd opacity-70">⌘⏎</span> })}
             </GlassButton>
           </div>
         </div>
@@ -480,17 +487,17 @@ export function ApprovalBanner({
               <div className="flex items-baseline gap-2 text-[13px] font-medium text-white">
                 {toolName ? (
                   <span className="truncate">
-                    Run <span className="font-mono text-zinc-200">{toolName}</span>?
+                    {tx("approval.runTool", { toolName: <span className="font-mono text-zinc-200">{toolName}</span> })}
                   </span>
                 ) : (
-                  <span>Permission required</span>
+                  <span>{t("approval.permissionRequired")}</span>
                 )}
                 {pendingCount != null && pendingCount > 1 && (
                   <span className="shrink-0 text-[10px] font-normal text-zinc-500">1/{pendingCount}</span>
                 )}
               </div>
               <div className="mt-0.5 truncate font-mono text-[11px] text-zinc-400">
-                awaiting user · ⌘⏎ accept · ⌘⌫ deny
+                {t("approval.awaitingShortcuts", { acceptShortcut: "⌘⏎", denyShortcut: "⌘⌫" })}
               </div>
             </div>
             {remaining !== null && !timedOut && (
@@ -502,7 +509,7 @@ export function ApprovalBanner({
             {!timedOut && (
               <div className="flex shrink-0 items-center gap-1.5">
                 <GlassButton variant="primary" size="lg" onClick={onReject}>
-                  Deny <span className="ui-kbd">⌘⌫</span>
+                  {tx("approval.shortcuts.deny", { shortcut: <span className="ui-kbd">⌘⌫</span> })}
                 </GlassButton>
                 {hasPatternMenu ? (
                   <AllowPatternsMenu patterns={allowPatterns!} onPick={onAllowPattern!} size="lg" />
@@ -510,15 +517,15 @@ export function ApprovalBanner({
                   onAllowForSession && (
                     <button
                       onClick={onAllowForSession}
-                      title="Auto-approve this tool for all sessions in this project"
+                      title={t("approval.allowProject.title")}
                       className="inline-flex items-center gap-1.5 rounded-[7px] border border-blue-400/30 bg-blue-400/[0.08] px-3 text-xs font-medium text-blue-400 hover:bg-blue-400/[0.14] transition-colors fx-quiet min-h-[40px]"
                     >
-                      Allow for Project
+                      {t("approval.allowProject.label")}
                     </button>
                   )
                 )}
                 <GlassButton variant="accent" size="lg" className="approval-accept" onClick={onApprove}>
-                  Accept <span className="ui-kbd opacity-70">⌘⏎</span>
+                  {tx("approval.shortcuts.accept", { shortcut: <span className="ui-kbd opacity-70">⌘⏎</span> })}
                 </GlassButton>
               </div>
             )}
@@ -532,13 +539,13 @@ export function ApprovalBanner({
           )}
           {timedOut && (
             <div className="approval-footer flex items-center gap-2 border-t border-amber-500/15 bg-black/20 px-4 py-2.5 text-xs italic text-zinc-400">
-              <span className="flex-1">Approval timed out</span>
+              <span className="flex-1">{t("approval.timedOut")}</span>
               <button
                 type="button"
                 onClick={dismiss}
                 className="shrink-0 rounded px-2 py-0.5 text-[11px] not-italic text-zinc-300 hover:bg-white/[0.06] hover:text-zinc-100"
               >
-                Dismiss
+                {t("approval.dismiss")}
               </button>
             </div>
           )}
@@ -573,7 +580,7 @@ export function ApprovalBanner({
           value={answerText}
           onChange={(e) => setAnswerText(e.target.value)}
           onKeyDown={handleKeyDown}
-          placeholder="Type your answer..."
+          placeholder={t("approval.answer.placeholder")}
           className="flex-1 rounded-lg border border-white/[0.08] bg-white/[0.04] px-3 py-2 text-xs text-zinc-100 placeholder-zinc-500 outline-none transition-colors focus:border-blue-400/60 focus:bg-white/[0.06]"
           autoFocus
         />
@@ -583,7 +590,7 @@ export function ApprovalBanner({
           className="flex shrink-0 items-center gap-1.5 rounded-lg bg-blue-600 px-4 py-2 text-xs font-medium text-white hover:bg-blue-500 disabled:opacity-50 transition-colors"
         >
           <Send size={12} />
-          Send
+          {t("approval.answer.send")}
         </button>
       </div>
     </div>
@@ -596,7 +603,7 @@ export function ApprovalBanner({
         <div className="relative w-full max-w-md rounded-[20px] border border-blue-500/20 bg-zinc-900/95 p-5 shadow-2xl shadow-black/50 backdrop-blur-xl animate-glass-in fx-dialog">
           <div className="mb-3 flex items-center gap-2 text-blue-400">
             <Send size={16} />
-            <span className="text-sm font-semibold">Input Required</span>
+            <span className="text-sm font-semibold">{t("approval.answer.inputRequired")}</span>
           </div>
           {questionContent}
         </div>

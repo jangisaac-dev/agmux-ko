@@ -1,6 +1,7 @@
 import { useState, useCallback } from "react";
 import { X } from "lucide-react";
 import { readImageBase64 } from "../../lib/commands";
+import { useT } from "../../i18n";
 
 export interface ImageAttachment {
   id: string;
@@ -189,6 +190,7 @@ interface Props {
 }
 
 export function ImageAttachmentBar({ images, onRemove, disabled }: Props) {
+  const t = useT();
   return (
     <div className="flex items-start gap-2 px-4 py-2">
       {images.map((img) => (
@@ -202,7 +204,7 @@ export function ImageAttachmentBar({ images, onRemove, disabled }: Props) {
             onClick={() => onRemove(img.id)}
             disabled={disabled}
             className="absolute -right-1.5 -top-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-zinc-700 text-zinc-300 opacity-0 transition-opacity group-hover:opacity-100 hover:bg-red-600 hover:text-white disabled:pointer-events-none"
-            title="Remove image"
+            title={t("thread.attachment.removeImage")}
           >
             <X size={10} />
           </button>

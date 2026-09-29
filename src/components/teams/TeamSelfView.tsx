@@ -12,21 +12,18 @@ import {
   Timer,
 } from "lucide-react";
 import {
-  agoLabel,
   fmtMoney,
   fmtPct,
-  fmtSessions,
   fmtTokens,
-  sessionsCard,
   parseTeamsTs,
   teamsLeave,
   teamsSelfView,
-  TEAM_RANGE_LABELS,
   TEAM_RANGES,
   type MemberDetail,
   type TeamMembership,
   type TeamRange,
 } from "../../lib/teams";
+import { localeTag, useT, tx } from "../../i18n";
 import { GlassButton } from "../ui/GlassButton";
 import { DailyTrends, MixBars, Sparkline } from "./charts";
 import { OutputPanel, ToolMix } from "./TeamDashboard";
@@ -34,12 +31,14 @@ import {
   Banner,
   DisclosureBlock,
   EmptyState,
+  fmtTeamSessions,
   Panel,
   Pill,
   RangeSeg,
   RoleBadge,
   Skeleton,
   StatCard,
+  teamAgoLabel,
 } from "./primitives";
 
 export function TeamSelfView({
@@ -51,6 +50,7 @@ export function TeamSelfView({
   onLeft?: () => void;
   onOpenPrivacy?: () => void;
 }) {
+  const t = useT();
   const [range, setRange] = useState<TeamRange>("30d");
   const [data, setData] = useState<MemberDetail | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -77,7 +77,7 @@ export function TeamSelfView({
   const leave = async () => {
     if (
       !window.confirm(
-        `Leave ${team.name}? Uploads stop immediately. Aggregates already sent stay with the team.`,
+        t("teams.self.leaveConfirmation", { name: team.name }),
       )
     ) {
       return;
@@ -103,42 +103,42 @@ export function TeamSelfView({
           <RoleBadge role={team.role} />
         </div>
         <div className="mt-1.5 text-[11.5px] text-[var(--text-muted)]">
-          Your stats only. You can&apos;t see other members here.
+          {t("teams.self.ownStatsOnly")}
         </div>
       </div>
       <div className="flex-1" />
-      <RangeSeg value={range} onChange={setRange} options={TEAM_RANGES} labels={TEAM_RANGE_LABELS} />
+      <RangeSeg value={range} onChange={setRange} options={TEAM_RANGES} />
     </div>
   );
 
   const membershipPanel = (
-    <Panel title="Membership" padded={false}>
+    <Panel title={t("teams.panels.membership")} padded={false}>
       <div className="flex items-center gap-3 border-b border-white/[0.06] px-3.5 py-[11px]">
         <div className="min-w-0 flex-1">
-          <div className="text-[12.5px] font-medium text-[var(--text-primary)]">Metrics upload</div>
+          <div className="text-[12.5px] font-medium text-[var(--text-primary)]">{t("teams.self.metricsUpload")}</div>
           <div className="mt-0.5 text-[11.5px] text-[var(--text-muted)]">
-            Required while you&apos;re on a team. Aggregates only.{" "}
+            {t("teams.self.metricsUploadExplanation")} {" "}
             {onOpenPrivacy ? (
               <button
                 onClick={onOpenPrivacy}
                 className="text-[var(--status-blue)] underline-offset-2 hover:underline"
               >
-                See the list
+                {t("teams.actions.seeTheList")}
               </button>
             ) : null}
           </div>
         </div>
-        <Pill tone="ok">on</Pill>
+        <Pill tone="ok">{t("teams.self.on")}</Pill>
       </div>
       <div className="flex items-center gap-3 px-3.5 py-[11px]">
         <div className="min-w-0 flex-1">
-          <div className="text-[12.5px] font-medium text-[var(--text-primary)]">Leave {team.name}</div>
+          <div className="text-[12.5px] font-medium text-[var(--text-primary)]">{t("teams.self.leaveTeamTitle", { name: team.name })}</div>
           <div className="mt-0.5 text-[11.5px] text-[var(--text-muted)]">
-            Uploads stop immediately. Aggregates already sent stay with the team.
+            {t("teams.self.leaveTeamExplanation")}
           </div>
         </div>
         <GlassButton icon={LogOut} size="sm" variant="destructive" onClick={leave} disabled={leaving}>
-          {leaving ? "Leaving…" : "Leave team"}
+          {leaving ? t("teams.self.leaving") : t("teams.self.leaveTeam")}
         </GlassButton>
       </div>
     </Panel>
@@ -167,11 +167,11 @@ export function TeamSelfView({
         <Panel padded={false}>
           <EmptyState
             icon={AlertTriangle}
-            title="Couldn't load your stats"
+            title={t("teams.self.loadErrorTitle")}
             body={error}
             actions={
               <GlassButton size="sm" onClick={() => void load()}>
-                Try again
+                {t("teams.actions.tryAgain")}
               </GlassButton>
             }
           />
@@ -190,8 +190,8 @@ export function TeamSelfView({
         <Panel padded={false}>
           <EmptyState
             icon={CloudOff}
-            title="Nothing uploaded yet"
-            body="Open a session in agmux — your first upload usually lands within a few minutes."
+            title={t("teams.self.nothingUploadedTitle")}
+            body={t("teams.self.nothingUploadedBody")}
           />
         </Panel>
         {membershipPanel}
@@ -199,9 +199,9 @@ export function TeamSelfView({
     );
   }
 
-  const t = data.totals;
-  const tokens = fmtTokens(t.tokens);
-  const cost = fmtMoney(t.costUsd);
+  const totals = data.totals;
+  const tokens = fmtTokens(totals.tokens);
+  const cost = fmtMoney(totals.costUsd);
   const stale =
     data.member.last_upload_at &&
     Date.now() - parseTeamsTs(data.member.last_upload_at) > 86_400_000;
@@ -212,45 +212,47 @@ export function TeamSelfView({
 
       {stale ? (
         <Banner tone="warn" icon={AlertTriangle}>
-          <b className="font-medium">Partial data.</b> Last successful upload was{" "}
-          {agoLabel(data.member.last_upload_at)}, so recent days are incomplete. Your manager sees the
-          same staleness.
+          {tx("teams.self.partialDataMessage", {
+            label: <b className="font-medium">{t("teams.self.partialDataLabel")}</b>,
+            time: String(teamAgoLabel(data.member.last_upload_at, t)),
+          })}
         </Banner>
       ) : null}
 
       <div className="grid grid-cols-5 gap-2">
-        <StatCard icon={Timer} label="Active" value={t.activeHours.toFixed(1)} unit="h" />
+        <StatCard icon={Timer} label={t("teams.stats.active")} value={totals.activeHours.toFixed(1)} unit="h" />
         <StatCard
           icon={Coins}
-          label="Reported tokens" help="Measured usage from verified agmux-created sessions. Unverified history and unavailable provider reports are excluded."
+          label={t("teams.stats.reportedTokens")} help={t("teams.stats.reportedTokensHelp")}
           value={tokens.value}
           unit={tokens.unit}
-          note={`${fmtPct(t.cacheHitRate)} cache hit`}
+          note={t("teams.self.cacheHitRate", { rate: fmtPct(totals.cacheHitRate) })}
         />
         <StatCard
           icon={MessageSquare}
-          {...sessionsCard(t)}
-          value={fmtSessions(t)}
-          note={`${t.turns.toLocaleString()} turns · ${t.toolCalls.toLocaleString()} tools`}
+          label={totals.sessionsStartedIncomplete ? t("teams.stats.partialSessions") : t("teams.stats.sessions")}
+          help={totals.sessionsStartedIncomplete ? t("teams.stats.partialSessionsHelp") : t("teams.stats.sessionsHelp")}
+          value={fmtTeamSessions(totals)}
+          note={`${t("teams.stats.turnCount", { count: totals.turns, countDisplay: totals.turns.toLocaleString(localeTag()) })} · ${t("teams.stats.toolCount", { count: totals.toolCalls, countDisplay: totals.toolCalls.toLocaleString(localeTag()) })}`}
         />
-        <StatCard icon={Receipt} label={t.costIncomplete === false ? "Est. cost" : "Partial est. cost"} value={cost.value} unit={cost.unit} help="Missing prices or usage details are excluded; not an invoice." />
-        <StatCard icon={Layers} label="Peak conc." value={String(t.peakConcurrent)} />
+        <StatCard icon={Receipt} label={totals.costIncomplete === false ? t("teams.stats.estimatedCost") : t("teams.stats.partialEstimatedCost")} value={cost.value} unit={cost.unit} help={t("teams.stats.costHelp")} />
+        <StatCard icon={Layers} label={t("teams.stats.peakConcurrency")} value={String(totals.peakConcurrent)} />
       </div>
 
       <div className="grid grid-cols-[2fr_1fr] items-start gap-3">
-        <Panel title="Daily trends" sub="what your team sees for you">
+        <Panel title={t("teams.panels.dailyTrends")} sub={t("teams.self.dailyTrendsSubtitle")}>
           <DailyTrends days={data.daily} />
           <div className="mt-2">
             <Sparkline values={data.daily.map((d) => d.activeHours)} />
           </div>
         </Panel>
-        <Panel title="Provider & model mix">
+        <Panel title={t("teams.panels.providerAndModelMix")}>
           <div className="flex flex-col gap-2.5">
             <MixBars slices={data.providerMix} />
             {data.modelMix?.length ? (
               <>
                 <hr className="my-1 border-0 border-t border-white/[0.06]" />
-                <div className="ui-eyebrow text-[var(--text-muted)]">Top models</div>
+                <div className="ui-eyebrow text-[var(--text-muted)]">{t("teams.panels.topModels")}</div>
                 <MixBars slices={data.modelMix.slice(0, 5)} mono />
               </>
             ) : null}
@@ -260,21 +262,21 @@ export function TeamSelfView({
 
       <div className="grid grid-cols-2 items-start gap-3">
         <Panel
-          title="What your agents did"
+          title={t("teams.panels.whatAgentsDid")}
           right={
             <span className="tabular-nums text-[11.5px] text-[var(--text-muted)]">
-              {data.totals.toolCalls.toLocaleString()} tool calls
+              {t("teams.stats.toolCallCount", { count: data.totals.toolCalls, countDisplay: data.totals.toolCalls.toLocaleString(localeTag()) })}
             </span>
           }
         >
           <ToolMix totals={data.totals} />
         </Panel>
-        <Panel title="Output & reliability" sub="code written, calls failed">
+        <Panel title={t("teams.panels.outputAndReliability")} sub={t("teams.panels.codeWrittenCallsFailed")}>
           <OutputPanel totals={data.totals} />
         </Panel>
       </div>
 
-      <Panel title="What managers can see">
+      <Panel title={t("teams.self.whatManagersCanSee")}>
         <DisclosureBlock />
       </Panel>
 

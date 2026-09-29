@@ -2,6 +2,7 @@ import { create } from "zustand";
 import type { Update } from "@tauri-apps/plugin-updater";
 import { isExpiredAssetError, updaterCheckOptions, updaterDownloadOptions } from "../lib/betaUpdates";
 import { useSettingsStore } from "./settingsStore";
+import { t } from "../i18n";
 
 type UpdateStatus =
   | "idle"
@@ -211,7 +212,7 @@ export const useUpdateStore = create<UpdateState>((set, get) => ({
       const { relaunch } = await import("@tauri-apps/plugin-process");
       await relaunch();
     } catch (e) {
-      set({ status: "error", errorMessage: `Failed to restart: ${String(e)}` });
+      set({ status: "error", errorMessage: t("update.restart.failed", { error: String(e) }) });
     }
   },
 

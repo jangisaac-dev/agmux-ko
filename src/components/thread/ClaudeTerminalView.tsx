@@ -1,4 +1,5 @@
 import { useEffect, useLayoutEffect, useRef, useCallback, useState } from "react";
+import { useT } from "../../i18n";
 import { usePtyOutput } from "../../hooks/usePtyOutput";
 import { useIsSessionHiddenInPanes } from "../../hooks/useIsSessionActive";
 import {
@@ -94,6 +95,7 @@ export function ClaudeTerminalView({
   isResume = false,
   isActive = false,
 }: Props) {
+  const t = useT();
   const monoFont = useSettingsStore((s) => s.settings.monoFont);
   const terminalFontSize = useSettingsStore((s) => s.settings.terminalFontSize);
   const terminalScrollback = useSettingsStore((s) => s.settings.terminalScrollback);
@@ -123,7 +125,7 @@ export function ClaudeTerminalView({
   const [loaderVisible, setLoaderVisible] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
   const [progress, setProgress] = useState(0);
-  const [progressLabel, setProgressLabel] = useState("Loading terminal…");
+  const [progressLabel, setProgressLabel] = useState("terminal.progressLoadingTerminal");
 
   // Refs that track state outside React's render cycle so the PTY data
   // handler (called many times per second) doesn't trigger re-renders.
@@ -386,7 +388,7 @@ export function ClaudeTerminalView({
     if (!bundle || !loadingRef.current) return;
 
     setProgress(95);
-    setProgressLabel("Rendering…");
+    setProgressLabel("terminal.progressRendering");
 
     fit();
     bundle.flushBatched();
@@ -394,7 +396,7 @@ export function ClaudeTerminalView({
     requestAnimationFrame(() => {
       requestAnimationFrame(() => {
         setProgress(98);
-        setProgressLabel("Waiting for TUI…");
+        setProgressLabel("terminal.progressWaitingForTui");
         loadingRef.current = false;
         setLoading(false);
         // Give the terminal a brief moment to settle before revealing it.
@@ -618,7 +620,7 @@ export function ClaudeTerminalView({
         if (!progressBumpedRef.current) {
           progressBumpedRef.current = true;
           setProgress(75);
-          setProgressLabel("Receiving session data…");
+          setProgressLabel("terminal.progressReceivingSessionData");
         }
         checkReady();
       }
@@ -668,14 +670,14 @@ export function ClaudeTerminalView({
     const cleanups: VoidFunction[] = [];
 
     setProgress(10);
-    setProgressLabel("Loading terminal…");
+    setProgressLabel("terminal.progressLoadingTerminal");
 
     const init = async () => {
       const homeDirPath = await getCachedHomeDir();
       if (cancelled) return;
 
       setProgress(40);
-      setProgressLabel("Starting terminal…");
+      setProgressLabel("terminal.progressStartingTerminal");
 
       // Force-load the primary font BEFORE constructing xterm so the WebGL
       // glyph atlas is built against the correct cell metrics. Without this,
@@ -714,7 +716,7 @@ export function ClaudeTerminalView({
       bundle.term.write("\x1b[?25l");
 
       setProgress(60);
-      setProgressLabel("Fitting terminal…");
+      setProgressLabel("terminal.progressFittingTerminal");
 
       // Reset all session-specific state.
       hasInitialFitRef.current = false;
@@ -1236,7 +1238,7 @@ export function ClaudeTerminalView({
         <div className={`absolute inset-0 z-10 flex flex-col items-center justify-center gap-6 fx-term ${isLight ? "bg-white" : "bg-black"}`}>
           <div className="flex items-center gap-2">
             <span className="font-mono text-sm text-zinc-400">$</span>
-            <span className="font-mono text-sm text-zinc-400">{progressLabel}</span>
+            <span className="font-mono text-sm text-zinc-400">{t(progressLabel)}</span>
           </div>
           <div className="w-56 overflow-hidden rounded-full bg-zinc-800/60">
             <div
@@ -1244,14 +1246,14 @@ export function ClaudeTerminalView({
               style={{ width: `${progress}%` }}
             />
           </div>
-          <p className="text-xs text-zinc-500">Starting Claude Code</p>
+          <p className="text-xs text-zinc-500">{t("terminal.startingClaudeCode")}</p>
         </div>
       )}
 
       <TaskTerminalPrompt threadId={threadId} ready={tuiReady && status === "Running" && hasOutput} />
       {isDragging && (
         <div className="drag-drop-overlay pointer-events-none absolute inset-0 z-20 flex items-center justify-center rounded-lg border-2 border-dashed border-blue-500/50 bg-blue-500/10 backdrop-blur-sm">
-          <p className="text-sm font-medium text-blue-400">Drop image to send to Claude</p>
+          <p className="text-sm font-medium text-blue-400">{t("terminal.dropImageToSendToClaude")}</p>
         </div>
       )}
     </div>

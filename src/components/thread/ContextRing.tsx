@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import { AnimatePresence, motion } from "framer-motion";
+import { useT } from "../../i18n";
 
 export interface ContextUsage {
   /** Current context window consumption — input tokens from the latest API call */
@@ -51,6 +52,7 @@ function usageColor(pct: number): string {
 }
 
 export function ContextRing({ usage, compact = false }: Props) {
+  const t = useT();
   const [showTooltip, setShowTooltip] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
   const tooltipRef = useRef<HTMLDivElement>(null);
@@ -152,41 +154,41 @@ export function ContextRing({ usage, compact = false }: Props) {
             transition={{ duration: 0.15 }}
             className="absolute bottom-full right-0 z-50 mb-2 w-52 rounded-xl border border-white/10 bg-gradient-to-b from-[var(--surface-popover-gradient-from)] to-[var(--surface-popover-gradient-to)] backdrop-blur-2xl backdrop-saturate-150 px-4 py-3 shadow-2xl"
           >
-            <p className="text-[11px] font-semibold text-zinc-300 mb-2">Context window{usage.isEstimate ? " (estimate)" : ""}:</p>
+            <p className="text-[11px] font-semibold text-zinc-300 mb-2">{usage.isEstimate ? t("thread.context.windowEstimate") : t("thread.context.window")}</p>
             <p className="text-[11px] text-zinc-400">
-              {approx}{Math.round(pct)}% used ({approx}{Math.round(pctLeft)}% left)
+              {t("thread.context.usedAndLeft", { used: `${approx}${Math.round(pct)}`, left: `${approx}${Math.round(pctLeft)}` })}
             </p>
             <p className="text-[11px] text-zinc-400 mt-0.5">
-              {approx}{formatTokens(usage.usedTokens)} / {formatTokens(usage.maxTokens)} context used
+              {t("thread.context.contextUsed", { used: `${approx}${formatTokens(usage.usedTokens)}`, max: formatTokens(usage.maxTokens) })}
             </p>
             {usage.totalProcessedTokens > usage.usedTokens && (
               <p className="text-[10px] text-zinc-500 mt-0.5">
-                Total processed: {formatTokens(usage.totalProcessedTokens)} tokens
+                {t("thread.context.totalProcessed", { count: formatTokens(usage.totalProcessedTokens) })}
               </p>
             )}
             {!usage.isEstimate && (
               <div className="mt-1.5 pt-1.5 border-t border-white/5 space-y-0.5">
                 <p className="text-[10px] text-zinc-500">
-                  In: {formatTokens(usage.inputTokens)} · Out: {formatTokens(usage.outputTokens)}
+                  {t("thread.context.inputOutput", { input: formatTokens(usage.inputTokens), output: formatTokens(usage.outputTokens) })}
                 </p>
                 {(usage.cacheReadTokens > 0 || usage.cacheCreationTokens > 0) && (
                   <p className="text-[10px] text-zinc-500">
-                    Cache read: {formatTokens(usage.cacheReadTokens)} · write: {formatTokens(usage.cacheCreationTokens)}
+                    {t("thread.context.cacheReadWrite", { read: formatTokens(usage.cacheReadTokens), write: formatTokens(usage.cacheCreationTokens) })}
                   </p>
                 )}
                 {usage.totalCostUsd > 0 && (
                   <p className="text-[10px] text-zinc-500">
-                    Cost: ${usage.totalCostUsd < 0.01 ? usage.totalCostUsd.toFixed(4) : usage.totalCostUsd.toFixed(2)}
+                    {t("thread.context.cost", { amount: usage.totalCostUsd < 0.01 ? usage.totalCostUsd.toFixed(4) : usage.totalCostUsd.toFixed(2) })}
                   </p>
                 )}
                 <p className="text-[10px] text-zinc-500">
-                  {usage.numTurns} turn{usage.numTurns !== 1 ? "s" : ""}
+                  {t("thread.context.turns", { count: usage.numTurns })}
                 </p>
               </div>
             )}
             {usage.compactsAutomatically && (
               <p className="text-[10px] text-zinc-500 mt-1 italic">
-                Automatically compacts its context when needed.
+                {t("thread.context.autoCompacts")}
               </p>
             )}
           </motion.div>

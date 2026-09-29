@@ -9,6 +9,7 @@ import {
   X,
 } from "lucide-react";
 import { motion } from "framer-motion";
+import { useT } from "../../i18n";
 import { stopShell } from "../../lib/commands";
 import TerminalCmdK from "./TerminalCmdK";
 import TerminalInstance, {
@@ -46,6 +47,7 @@ export default function TerminalPanel(props: Props) {
 }
 
 function TerminalPanelContent({ shellId, workDir, onClose }: Props) {
+  const t = useT();
   const [height, setHeight] = useState(DEFAULT_HEIGHT);
   const [aiPopupOpen, setAiPopupOpen] = useState(false);
   const [tabs, setTabs] = useState<TabState[]>(() => [
@@ -275,7 +277,7 @@ function TerminalPanelContent({ shellId, workDir, onClose }: Props) {
       <div
         onMouseDown={handleDragStart}
         className="terminal-panel-drag flex shrink-0 cursor-row-resize items-center justify-center"
-        aria-label="Resize terminal panel"
+        aria-label={t("terminal.resizeTerminalPanel")}
       >
         <div className="terminal-panel-drag-grip" />
       </div>
@@ -306,8 +308,8 @@ function TerminalPanelContent({ shellId, workDir, onClose }: Props) {
           <button
             type="button"
             onClick={handleNewShell}
-            title="New shell"
-            aria-label="New shell"
+            title={t("terminal.newShell")}
+            aria-label={t("terminal.newShell")}
             className="terminal-panel-gb terminal-panel-gb-icon-sm"
             style={{ marginLeft: 2 }}
           >
@@ -326,8 +328,8 @@ function TerminalPanelContent({ shellId, workDir, onClose }: Props) {
             type="button"
             onClick={openCmdK}
             className="terminal-panel-gb"
-            title="Ask AI (⌘K)"
-            aria-label="Ask AI"
+            title={t("terminal.askAiShortcut")}
+            aria-label={t("terminal.askAi")}
           >
             <Sparkles size={11} />
             <span
@@ -344,8 +346,8 @@ function TerminalPanelContent({ shellId, workDir, onClose }: Props) {
             type="button"
             onClick={handleClose}
             className="terminal-panel-gb terminal-panel-gb-icon-sm"
-            title="Close panel"
-            aria-label="Close panel"
+            title={t("terminal.closePanel")}
+            aria-label={t("terminal.closePanel")}
           >
             <ChevronDown size={12} />
           </button>
@@ -395,6 +397,7 @@ interface TabProps {
 }
 
 function TerminalTab({ tab, active, onSelect, onClose }: TabProps) {
+  const t = useT();
   const isRunning = tab.status === "running";
 
   return (
@@ -431,19 +434,19 @@ function TerminalTab({ tab, active, onSelect, onClose }: TabProps) {
             size={10}
             className="terminal-tab-spinner"
             color="rgb(245,158,11)"
-            aria-label="Command running"
+            aria-label={t("terminal.commandRunning")}
           />
         ) : (
           <span
             className="terminal-tab-dot"
-            aria-label="Shell idle"
+            aria-label={t("terminal.shellIdle")}
           />
         )
       )}
       <span
         role="button"
         tabIndex={-1}
-        aria-label="Close tab"
+        aria-label={t("terminal.closeTab")}
         onClick={(e) => {
           e.stopPropagation();
           onClose();

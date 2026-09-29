@@ -7,10 +7,12 @@ import {
   sendNotification as tauriNotify,
 } from "@tauri-apps/plugin-notification";
 import { useSettingsStore } from "../stores/settingsStore";
+import { useT } from "../i18n";
 
 const STORAGE_KEY = "xanom_notification_prompt_dismissed";
 
 export function NotificationPromptDialog() {
+  const t = useT();
   const [open, setOpen] = useState(false);
   const [permissionState, setPermissionState] = useState<"idle" | "requesting" | "granted" | "denied">("idle");
   const setupDone = useSettingsStore((s) => s.settings.setupWizardCompleted);
@@ -45,7 +47,7 @@ export function NotificationPromptDialog() {
       const result = await requestPermission();
       if (result === "granted") {
         setPermissionState("granted");
-        tauriNotify({ title: "agmux", body: "Notifications are now enabled!" });
+        tauriNotify({ title: "agmux", body: t("notifications.enabledToast") });
         setTimeout(() => {
           setOpen(false);
           localStorage.setItem(STORAGE_KEY, "true");
@@ -99,10 +101,10 @@ export function NotificationPromptDialog() {
                   </div>
                   <div>
                     <h2 className="text-lg font-semibold text-zinc-100">
-                      Enable Notifications
+                      {t("notifications.title")}
                     </h2>
                     <p className="text-sm text-zinc-500">
-                      Stay in the loop
+                      {t("notifications.subtitle")}
                     </p>
                   </div>
                 </div>
@@ -110,7 +112,7 @@ export function NotificationPromptDialog() {
 
               <div className="px-6 pb-4">
                 <p className="text-[13px] leading-relaxed text-zinc-400">
-                  Get notified when your agents finish working, need approval, or have a question — even when agmux isn't in focus.
+                  {t("notifications.description")}
                 </p>
               </div>
 
@@ -119,7 +121,7 @@ export function NotificationPromptDialog() {
                   onClick={handleDismiss}
                   className="flex-1 rounded-xl border border-zinc-700 px-4 py-2.5 text-[13px] font-medium text-zinc-400 transition-colors hover:bg-zinc-800 hover:text-zinc-300 fx-quiet"
                 >
-                  Not now
+                  {t("notifications.notNow")}
                 </button>
                 <button
                   onClick={handleEnable}
@@ -127,12 +129,12 @@ export function NotificationPromptDialog() {
                   className="flex-1 rounded-xl bg-amber-500 px-4 py-2.5 text-[13px] font-semibold text-black transition-colors hover:bg-amber-400 disabled:opacity-60 fx-accent"
                 >
                   {permissionState === "granted"
-                    ? "Enabled!"
+                    ? t("notifications.enabled")
                     : permissionState === "requesting"
-                      ? "Requesting..."
+                      ? t("notifications.requesting")
                       : permissionState === "denied"
-                        ? "Try again"
-                        : "Enable"}
+                        ? t("notifications.tryAgain")
+                        : t("notifications.enable")}
                 </button>
               </div>
             </div>

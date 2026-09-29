@@ -1,0 +1,17 @@
+{
+  "app.accountNotifications": "Account notifications",
+  "app.accountNotice.title": "{{provider}} account",
+  "app.openAccounts": "Open Accounts",
+  "app.shuttingDown": "Shutting down…",
+  "app.quit.title": "Quit agmux?",
+  "app.quit.runningSessions_one": "You have {{count}} session running.",
+  "app.quit.runningSessions_other": "You have {{count}} sessions running.",
+  "app.quit.runningSessionsWarning": "Running sessions will be stopped.",
+  "app.quit.button": "Quit",
+  "app.contactSupport": "Contact Support",
+  "app.error.back": "Back to error",
+  "app.error.title": "Something went wrong",
+  "app.error.description": "agmux encountered an unexpected error. Try reloading the app.",
+  "app.error.reload": "Reload App",
+  "app.error.copyDetails": "Copy details"
+}

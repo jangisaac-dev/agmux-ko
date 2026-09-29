@@ -50,6 +50,14 @@ paths:
 ## Settings cleanup
 - `CleanupSection` scans before confirmation. `sessionNameStore` rechecks cache fingerprints, verified native activity, manual names and open/running IDs before removing entries older than 90 days; unknown ages are kept. Discovery calls from Home/ProjectGroup use `mode="discovery"` so cleared summaries are not immediately regenerated. Real prompts and explicit resummarization still work. Native cleanup is a finite allowlist in `commands/cleanup.rs`; never broaden it to transcripts, attachments, thread state, project memory or Teams data.
 
+## Translation (i18n)
+- UI copy goes through `src/i18n`: in components `const t = useT()` (re-renders on language change; the returned `t` changes identity only when the language does, so memos keyed on it recompute on a switch) and `t("area.key", { name })`. When a sentence contains elements (`<code>`, `<kbd>`, links) use `tx("area.key", { cmd: <code>…</code> })` so the sentence stays one key; never split a sentence across keys. Non-React code may import `t` directly (resolved at call time). Dates/numbers for display: pass `localeTag()` instead of a hardcoded `"en-US"`.
+- English source text: `src/i18n/locales/en/<area>.json`, flat keys prefixed with the file's area (`setup.welcome.title` lives in `setup.json`). Korean: `locales/ko/<area>.json`; missing Korean falls back to English. English plurals use `_one`/`_other` keys with a numeric `count`.
+- `settings.uiLanguage` is `system` | `en` | `ko`; `system` follows `navigator.language`. `src-tauri/Info.plist` declares en/ko, otherwise WKWebView reports English on a Korean Mac.
+- Never translate product/provider names, model IDs, paths, commands, shortcuts, provider-produced text, or values used as IDs/logic keys. Compare IDs, not labels. Module-level label constants store keys and translate at render. Do not call `t` in `settingsStore` or its imports (circular import).
+- Korean in terminals: the installed app's WebKit sends Hangul to xterm's helper textarea with no composition events (first jamo `insertText`, then in-place `insertReplacementText`, keydown 229 after the input; xterm.js #6084). xterm 5.5 forwards only `insertText`, so `lib/xtermHangulIme.ts` (installed from `attachCanvas`) mirrors each Hangul edit to the PTY as DELs plus the new tail and blocks xterm's own handling of that input. Composer Enter handlers skip `e.nativeEvent.isComposing` (Japanese/Chinese conversion) but must not gate on keyCode 229.
+- Tests run in English (`src/stores/__tests__/setup.ts` pins `navigator.language`); `src/i18n/__tests__` checks every Korean key and its `{{placeholders}}` against English.
+
 ## Components
 - Dialogs return `null` when `!open` — they remount each time (useState resets)
 - `@tauri-apps/plugin-dialog` must be dynamically imported (see `useDialogOpen()` pattern)

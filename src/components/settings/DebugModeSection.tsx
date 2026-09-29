@@ -3,8 +3,10 @@ import { useEffect, useRef, useState } from "react";
 import { getDebugStatus, setDebugEnabled, type DebugStatus } from "../../lib/debugMode";
 import { GlassButton } from "../ui/GlassButton";
 import { PageHeader, SettingsCard, SettingsRow, Toggle } from "./settingsLayout";
+import { useT } from "../../i18n";
 
 export function DebugModeSection() {
+  const t = useT();
   const [status, setStatus] = useState<DebugStatus | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -38,25 +40,25 @@ export function DebugModeSection() {
   };
   return (
     <div>
-      <PageHeader title="Debug Mode" description="Record recent performance so an agent can investigate slowdowns." />
+      <PageHeader title={t("settings.nav.debug")} description={t("settings.debug.description")} />
       <SettingsCard
-        eyebrow="Recorder"
-        title={status?.enabled ? "Recording" : "Off"}
-        description="Captures CPU, memory, process counts, interface responsiveness and selected background operation timings every five seconds. Keeps up to ten minutes locally. Starting a new capture replaces the previous one; stopping keeps it available for review."
+        eyebrow={t("settings.debug.recorder")}
+        title={t(status?.enabled ? "settings.debug.recording" : "settings.debug.off")}
+        description={`${t("settings.debug.recorderDescription.first")} ${t("settings.debug.recorderDescription.second")} ${t("settings.debug.recorderDescription.third")}`}
       >
-        <SettingsRow label="Debug Mode" description={`${status?.recordCount ?? 0} samples saved · Resets to off when agmux restarts`}>
-          {status && <Toggle label="Debug Mode" enabled={status.enabled} disabled={busy} onChange={() => void toggle()} />}
+        <SettingsRow label={t("settings.nav.debug")} description={`${t("settings.debug.samplesSaved", { count: status?.recordCount ?? 0 })} · ${t("settings.debug.resetOnRestart")}`}>
+          {status && <Toggle label={t("settings.nav.debug")} enabled={status.enabled} disabled={busy} onChange={() => void toggle()} />}
         </SettingsRow>
-        <SettingsRow label="Privacy" description="No prompts, file contents, command arguments or credentials are recorded. Nothing is uploaded." />
+        <SettingsRow label={t("settings.debug.privacy")} description={`${t("settings.debug.privacyDescription.first")} ${t("settings.debug.privacyDescription.second")}`} />
         {(error || status?.lastError) && (
           <div role="alert" className="px-6 py-3.5 text-[12px] text-red-400/90">{error || status?.lastError}</div>
         )}
       </SettingsCard>
-      <SettingsCard eyebrow="Investigate" title="Share the capture" description="Hand the recording to an agent, or send it to Support.">
-        <SettingsRow label="Ask your agent" description="“Read agmux’s debug diagnostics and investigate the CPU spikes.” Connected agents can use debug_status and debug_recent. Existing agent sessions may need their MCP connection refreshed after installing this update." />
-        <SettingsRow label="Local capture" description={<code className="break-all">~/.agmux/debug/diagnostics.json</code>} />
-        <SettingsRow label="Send a report to Support" description="Attach what you're seeing so it can be looked at directly.">
-          <GlassButton size="sm" onClick={() => useSettingsStore.getState().openSettings("support")}>Open Support</GlassButton>
+      <SettingsCard eyebrow={t("settings.debug.investigate")} title={t("settings.debug.shareCapture")} description={t("settings.debug.shareCaptureDescription")}>
+        <SettingsRow label={t("settings.debug.askAgent")} description={`${t("settings.debug.askAgentDescription.first")} ${t("settings.debug.askAgentDescription.second")} ${t("settings.debug.askAgentDescription.third")}`} />
+        <SettingsRow label={t("settings.debug.localCapture")} description={<code className="break-all">~/.agmux/debug/diagnostics.json</code>} />
+        <SettingsRow label={t("settings.debug.sendSupportReport")} description={t("settings.debug.sendSupportReportDescription")}>
+          <GlassButton size="sm" onClick={() => useSettingsStore.getState().openSettings("support")}>{t("settings.debug.openSupport")}</GlassButton>
         </SettingsRow>
       </SettingsCard>
     </div>

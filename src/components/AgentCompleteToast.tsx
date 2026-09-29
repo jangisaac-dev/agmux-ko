@@ -10,6 +10,7 @@ import { useTaskViewStore } from "../stores/taskViewStore";
 import { useSplitViewStore } from "../stores/splitViewStore";
 import { dismissViewedAgentCompleteToasts, showAgentCompleteToast } from "../lib/agentToast";
 import { navigateToSession } from "../lib/navigateToSession";
+import { useT } from "../i18n";
 
 const AUTO_DISMISS_MS = 5000;
 
@@ -68,6 +69,7 @@ function formatDuration(ms: number | null): string {
 }
 
 function ToastItem({ toast, windowFocused, isLight }: { toast: ToastModel; windowFocused: boolean; isLight: boolean }) {
+  const t = useT();
   const dismissToast = useToastStore((s) => s.dismissToast);
   const flat = (useSettingsStore((s) => s.settings.surfaceStyle) ?? "flat") === "flat";
   const [hovered, setHovered] = useState(false);
@@ -276,7 +278,7 @@ function ToastItem({ toast, windowFocused, isLight }: { toast: ToastModel; windo
           >
             {toast.agentName}
           </span>
-          <span style={{ flexShrink: 0 }}>finished</span>
+          <span style={{ flexShrink: 0 }}>{t("notify.complete.finished")}</span>
           <span
             className="ui-chip sm fx-soft-green"
             style={{
@@ -286,7 +288,7 @@ function ToastItem({ toast, windowFocused, isLight }: { toast: ToastModel; windo
               border: isLight ? "1px solid rgba(217,119,6,0.40)" : "1px solid color-mix(in srgb, var(--accent) 22%, transparent)",
             }}
           >
-            Done
+            {t("notify.complete.done")}
           </span>
         </div>
         <div
@@ -305,9 +307,9 @@ function ToastItem({ toast, windowFocused, isLight }: { toast: ToastModel; windo
               <span style={{ opacity: 0.5, padding: "0 4px" }}>·</span>
             </>
           ) : null}
-          <span className="fx-green tabular-nums" style={{ color: isLight ? "#0f172a" : "#e4e4e7" }}>{finalLinesAdded}</span> lines added
+          <span className="fx-green tabular-nums" style={{ color: isLight ? "#0f172a" : "#e4e4e7" }}>{finalLinesAdded}</span> {t("notify.complete.linesAdded", { count: finalLinesAdded })}
           <span style={{ opacity: 0.5, padding: "0 4px" }}>·</span>
-          <span className="fx-red tabular-nums" style={{ color: isLight ? "#0f172a" : "#e4e4e7" }}>{finalLinesRemoved}</span> lines removed
+          <span className="fx-red tabular-nums" style={{ color: isLight ? "#0f172a" : "#e4e4e7" }}>{finalLinesRemoved}</span> {t("notify.complete.linesRemoved", { count: finalLinesRemoved })}
           <span style={{ opacity: 0.5, padding: "0 4px" }}>·</span>
           <span style={{ color: isLight ? "#0f172a" : "#e4e4e7" }}>{duration}</span>
         </div>
@@ -330,7 +332,7 @@ function ToastItem({ toast, windowFocused, isLight }: { toast: ToastModel; windo
             cursor: "pointer",
           }}
         >
-          Dismiss
+          {t("labels.dismiss")}
         </button>
         <button
           type="button"
@@ -348,7 +350,7 @@ function ToastItem({ toast, windowFocused, isLight }: { toast: ToastModel; windo
             cursor: "pointer",
           }}
         >
-          View
+          {t("notify.complete.view")}
         </button>
       </div>
 

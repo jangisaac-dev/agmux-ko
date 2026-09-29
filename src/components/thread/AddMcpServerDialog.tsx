@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { X, Plus, Trash2 } from "lucide-react";
+import { tx, useT } from "../../i18n";
 import { useSkillsStore } from "../../stores/skillsStore";
 
 interface AddMcpServerDialogProps {
@@ -14,6 +15,7 @@ interface EnvRow {
 
 export function AddMcpServerDialog({ open, onClose }: AddMcpServerDialogProps) {
   const addMcpServer = useSkillsStore((s) => s.addMcpServer);
+  const t = useT();
 
   const [name, setName] = useState("");
   const [transport, setTransport] = useState<"stdio" | "sse">("stdio");
@@ -64,13 +66,13 @@ export function AddMcpServerDialog({ open, onClose }: AddMcpServerDialogProps) {
 
     const trimmedName = name.trim();
     if (!trimmedName) {
-      setError("Name is required.");
+      setError(t("tools.addMcpServer.error.nameRequired"));
       return;
     }
 
     const commandOrUrl = transport === "stdio" ? command.trim() : url.trim();
     if (!commandOrUrl) {
-      setError(transport === "stdio" ? "Command is required." : "URL is required.");
+      setError(transport === "stdio" ? t("tools.addMcpServer.error.commandRequired") : t("tools.addMcpServer.error.urlRequired"));
       return;
     }
 
@@ -108,7 +110,7 @@ export function AddMcpServerDialog({ open, onClose }: AddMcpServerDialogProps) {
       <div className="relative z-10 w-full max-w-md rounded-xl border border-white/[0.08] bg-zinc-900 shadow-2xl">
         {/* Header */}
         <div className="flex items-center justify-between border-b border-white/[0.06] px-5 py-4">
-          <h2 className="text-sm font-semibold text-zinc-100">Add MCP Server</h2>
+          <h2 className="text-sm font-semibold text-zinc-100">{t("tools.addMcpServer.title")}</h2>
           <button
             onClick={handleClose}
             className="flex h-6 w-6 items-center justify-center rounded-md text-zinc-400 transition-colors hover:bg-white/[0.06] hover:text-zinc-300"
@@ -122,20 +124,20 @@ export function AddMcpServerDialog({ open, onClose }: AddMcpServerDialogProps) {
           {/* Name */}
           <div>
             <label className="mb-1.5 block text-xs font-medium text-zinc-400">
-              Name <span className="text-red-400">*</span>
+              {tx("tools.addMcpServer.nameLabel", { required: <span className="text-red-400">*</span> })}
             </label>
             <input
               type="text"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder="e.g. filesystem"
+              placeholder={t("tools.addMcpServer.examplePlaceholder", { example: "filesystem" })}
               className="h-8 w-full rounded-lg border border-white/[0.06] bg-zinc-800/60 px-3 text-xs text-zinc-100 placeholder-zinc-600 outline-none focus:border-blue-600/50 focus:ring-1 focus:ring-blue-600/20"
             />
           </div>
 
           {/* Transport */}
           <div>
-            <label className="mb-1.5 block text-xs font-medium text-zinc-400">Transport</label>
+            <label className="mb-1.5 block text-xs font-medium text-zinc-400">{t("tools.addMcpServer.transport")}</label>
             <div className="flex gap-2">
               {(["stdio", "sse"] as const).map((t) => (
                 <button
@@ -159,26 +161,25 @@ export function AddMcpServerDialog({ open, onClose }: AddMcpServerDialogProps) {
             <>
               <div>
                 <label className="mb-1.5 block text-xs font-medium text-zinc-400">
-                  Command <span className="text-red-400">*</span>
+                  {tx("tools.addMcpServer.commandLabel", { required: <span className="text-red-400">*</span> })}
                 </label>
                 <input
                   type="text"
                   value={command}
                   onChange={(e) => setCommand(e.target.value)}
-                  placeholder="e.g. npx"
+                  placeholder={t("tools.addMcpServer.examplePlaceholder", { example: "npx" })}
                   className="h-8 w-full rounded-lg border border-white/[0.06] bg-zinc-800/60 px-3 text-xs text-zinc-100 placeholder-zinc-600 outline-none focus:border-blue-600/50 focus:ring-1 focus:ring-blue-600/20"
                 />
               </div>
               <div>
                 <label className="mb-1.5 block text-xs font-medium text-zinc-400">
-                  Args{" "}
-                  <span className="text-zinc-500">(space-separated)</span>
+                  {tx("tools.addMcpServer.argsLabel", { format: <span className="text-zinc-500">{t("tools.addMcpServer.spaceSeparated")}</span> })}
                 </label>
                 <input
                   type="text"
                   value={args}
                   onChange={(e) => setArgs(e.target.value)}
-                  placeholder="e.g. -y @modelcontextprotocol/server-filesystem /tmp"
+                  placeholder={t("tools.addMcpServer.examplePlaceholder", { example: "-y @modelcontextprotocol/server-filesystem /tmp" })}
                   className="h-8 w-full rounded-lg border border-white/[0.06] bg-zinc-800/60 px-3 text-xs text-zinc-100 placeholder-zinc-600 outline-none focus:border-blue-600/50 focus:ring-1 focus:ring-blue-600/20"
                 />
               </div>
@@ -186,13 +187,13 @@ export function AddMcpServerDialog({ open, onClose }: AddMcpServerDialogProps) {
           ) : (
             <div>
               <label className="mb-1.5 block text-xs font-medium text-zinc-400">
-                URL <span className="text-red-400">*</span>
+                {tx("tools.addMcpServer.urlLabel", { required: <span className="text-red-400">*</span> })}
               </label>
               <input
                 type="text"
                 value={url}
                 onChange={(e) => setUrl(e.target.value)}
-                placeholder="e.g. http://localhost:8080/sse"
+                placeholder={t("tools.addMcpServer.examplePlaceholder", { example: "http://localhost:8080/sse" })}
                 className="h-8 w-full rounded-lg border border-white/[0.06] bg-zinc-800/60 px-3 text-xs text-zinc-100 placeholder-zinc-600 outline-none focus:border-blue-600/50 focus:ring-1 focus:ring-blue-600/20"
               />
             </div>
@@ -201,14 +202,14 @@ export function AddMcpServerDialog({ open, onClose }: AddMcpServerDialogProps) {
           {/* Env vars */}
           <div>
             <div className="mb-1.5 flex items-center justify-between">
-              <label className="text-xs font-medium text-zinc-400">Environment Variables</label>
+              <label className="text-xs font-medium text-zinc-400">{t("tools.addMcpServer.environmentVariables")}</label>
               <button
                 type="button"
                 onClick={addEnvRow}
                 className="flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[10px] text-zinc-400 transition-colors hover:bg-white/[0.06] hover:text-zinc-300"
               >
                 <Plus size={11} />
-                Add
+                {t("tools.addMcpServer.add")}
               </button>
             </div>
             {envRows.length > 0 && (
@@ -219,7 +220,7 @@ export function AddMcpServerDialog({ open, onClose }: AddMcpServerDialogProps) {
                       type="text"
                       value={row.key}
                       onChange={(e) => updateEnvRow(i, "key", e.target.value)}
-                      placeholder="KEY"
+                      placeholder={t("tools.addMcpServer.keyPlaceholder")}
                       className="h-7 w-32 shrink-0 rounded-md border border-white/[0.06] bg-zinc-800/60 px-2 font-mono text-[11px] text-zinc-100 placeholder-zinc-600 outline-none focus:border-blue-600/50"
                     />
                     <span className="text-zinc-500">=</span>
@@ -227,7 +228,7 @@ export function AddMcpServerDialog({ open, onClose }: AddMcpServerDialogProps) {
                       type="text"
                       value={row.value}
                       onChange={(e) => updateEnvRow(i, "value", e.target.value)}
-                      placeholder="value"
+                      placeholder={t("tools.addMcpServer.valuePlaceholder")}
                       className="h-7 flex-1 rounded-md border border-white/[0.06] bg-zinc-800/60 px-2 text-[11px] text-zinc-100 placeholder-zinc-600 outline-none focus:border-blue-600/50"
                     />
                     <button
@@ -245,7 +246,7 @@ export function AddMcpServerDialog({ open, onClose }: AddMcpServerDialogProps) {
 
           {/* Scope */}
           <div>
-            <label className="mb-1.5 block text-xs font-medium text-zinc-400">Scope</label>
+            <label className="mb-1.5 block text-xs font-medium text-zinc-400">{t("tools.addMcpServer.scope")}</label>
             <div className="flex gap-2">
               {(["user", "project"] as const).map((s) => (
                 <button
@@ -258,7 +259,7 @@ export function AddMcpServerDialog({ open, onClose }: AddMcpServerDialogProps) {
                       : "border-white/[0.06] bg-zinc-800/60 text-zinc-400 hover:border-white/[0.1] hover:text-zinc-200"
                   }`}
                 >
-                  {s}
+                  {t(s === "user" ? "tools.addMcpServer.scope.user" : "tools.addMcpServer.scope.project")}
                 </button>
               ))}
             </div>
@@ -279,14 +280,14 @@ export function AddMcpServerDialog({ open, onClose }: AddMcpServerDialogProps) {
               disabled={submitting}
               className="rounded-lg border border-white/[0.06] bg-zinc-800/60 px-4 py-1.5 text-xs font-medium text-zinc-300 transition-colors hover:bg-zinc-700/60 disabled:opacity-50"
             >
-              Cancel
+              {t("common.cancel")}
             </button>
             <button
               type="submit"
               disabled={submitting}
               className="rounded-lg bg-blue-600 px-4 py-1.5 text-xs font-medium text-white transition-colors hover:bg-blue-500 disabled:opacity-50"
             >
-              {submitting ? "Adding..." : "Add Server"}
+              {submitting ? t("tools.addMcpServer.adding") : t("tools.addMcpServer.addServer")}
             </button>
           </div>
         </form>

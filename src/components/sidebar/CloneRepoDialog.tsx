@@ -4,6 +4,7 @@ import { X, FolderOpen, GitBranch, ChevronDown } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { invoke } from "@tauri-apps/api/core";
 import { useProjectStore } from "../../stores/projectStore";
+import { useT } from "../../i18n";
 
 interface Props {
   open: boolean;
@@ -30,6 +31,7 @@ function useDialogOpen() {
 type CloneMethod = "https" | "ssh";
 
 export function CloneRepoDialog({ open, onClose }: Props) {
+  const t = useT();
   const [repoUrl, setRepoUrl] = useState("");
   const [destination, setDestination] = useState("");
   const [projectName, setProjectName] = useState("");
@@ -125,7 +127,7 @@ export function CloneRepoDialog({ open, onClose }: Props) {
         : destination;
 
       await invoke<string>("git_clone", { url: cloneUrl, destination: fullDest });
-      await addProject(projectName || "Cloned Project", fullDest);
+      await addProject(projectName || t("setup.clone.defaultProjectName"), fullDest);
       onClose();
     } catch (err) {
       setError(String(err));
@@ -162,11 +164,11 @@ export function CloneRepoDialog({ open, onClose }: Props) {
             <div className="flex items-center justify-between border-b border-white/[0.06] px-5 py-4">
               <div className="flex items-center gap-2">
                 <GitBranch size={14} className="text-zinc-400" />
-                <h2 className="text-sm font-medium text-zinc-200">Clone Repository</h2>
+                <h2 className="text-sm font-medium text-zinc-200">{t("setup.clone.title")}</h2>
               </div>
               <button
                 onClick={onClose}
-                aria-label="Close"
+                aria-label={t("common.close")}
                 className="rounded-md p-1 text-zinc-500 hover:bg-white/[0.06] hover:text-zinc-300 transition-all duration-200"
               >
                 <X size={14} />
@@ -177,7 +179,7 @@ export function CloneRepoDialog({ open, onClose }: Props) {
               {/* Repository URL */}
               <div>
                 <label className="mb-1.5 block text-[12px] font-medium text-zinc-500">
-                  Repository URL
+                  {t("setup.clone.repositoryUrl")}
                 </label>
                 <input
                   type="text"
@@ -193,7 +195,7 @@ export function CloneRepoDialog({ open, onClose }: Props) {
               {/* Clone Method */}
               <div>
                 <label className="mb-1.5 block text-[12px] font-medium text-zinc-500">
-                  Method
+                  {t("setup.clone.method")}
                 </label>
                 <div className="ui-seg flex gap-1 rounded-lg border border-white/[0.06] p-1" style={{ background: "rgba(255,255,255,0.03)" }}>
                   <button
@@ -233,7 +235,7 @@ export function CloneRepoDialog({ open, onClose }: Props) {
                     transition={{ duration: 0.15 }}
                   >
                     <label className="mb-1.5 block text-[12px] font-medium text-zinc-500">
-                      SSH Account
+                      {t("setup.clone.sshAccount")}
                     </label>
                     <div className="relative">
                       <button
@@ -242,7 +244,7 @@ export function CloneRepoDialog({ open, onClose }: Props) {
                         className="flex w-full items-center justify-between rounded-lg border border-white/[0.06] px-3 py-2.5 text-sm text-zinc-300 hover:bg-white/[0.06] transition-all duration-200 fx-input"
                         style={{ background: "rgba(255,255,255,0.03)" }}
                       >
-                        <span>{selectedSshHost || "Select SSH host..."}</span>
+                        <span>{selectedSshHost || t("setup.clone.selectSshHost")}</span>
                         <ChevronDown size={14} className="text-zinc-500" />
                       </button>
                       <AnimatePresence>
@@ -286,7 +288,7 @@ export function CloneRepoDialog({ open, onClose }: Props) {
               {/* Destination Folder */}
               <div>
                 <label className="mb-1.5 block text-[12px] font-medium text-zinc-500">
-                  Clone Into
+                  {t("setup.clone.destination")}
                 </label>
                 <button
                   type="button"
@@ -297,7 +299,7 @@ export function CloneRepoDialog({ open, onClose }: Props) {
                 >
                   <FolderOpen size={14} className="shrink-0 text-zinc-500" />
                   <span className={`flex-1 truncate ${destination ? "text-zinc-300" : "text-zinc-500"}`}>
-                    {destination || "Browse for folder..."}
+                    {destination || t("setup.browseForFolder")}
                   </span>
                 </button>
               </div>
@@ -312,7 +314,7 @@ export function CloneRepoDialog({ open, onClose }: Props) {
                     transition={{ duration: 0.15 }}
                   >
                     <label className="mb-1.5 block text-[12px] font-medium text-zinc-500">
-                      Project Name
+                      {t("setup.projectName")}
                     </label>
                     <input
                       type="text"
@@ -339,7 +341,7 @@ export function CloneRepoDialog({ open, onClose }: Props) {
                   onClick={onClose}
                   className="rounded-lg px-4 py-2 text-sm text-zinc-500 hover:bg-white/[0.06] hover:text-zinc-300 transition-all duration-200"
                 >
-                  Cancel
+                  {t("common.cancel")}
                 </button>
                 <button
                   type="submit"
@@ -347,7 +349,7 @@ export function CloneRepoDialog({ open, onClose }: Props) {
                   className="rounded-lg px-4 py-2 text-sm font-medium text-[#14110a] transition-all duration-200 disabled:opacity-40 hover:brightness-110 fx-accent"
                   style={{ backgroundColor: "var(--accent)" }}
                 >
-                  {loading ? "Cloning..." : "Clone"}
+                  {loading ? t("setup.clone.cloning") : t("setup.clone.submit")}
                 </button>
               </div>
             </form>

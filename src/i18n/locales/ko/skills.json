@@ -1,0 +1,16 @@
+{
+  "skills.official": "공식",
+  "skills.community": "커뮤니티",
+  "skills.remove": "제거",
+  "skills.installed": "설치됨",
+  "skills.install": "설치",
+  "skills.searchPlaceholder": "스킬 검색...",
+  "skills.refresh": "스킬 새로고침",
+  "skills.installedCount_one": "{{count}}개 설치됨",
+  "skills.installedCount_other": "{{count}}개 설치됨",
+  "skills.availableCount_one": "{{count}}개 사용 가능",
+  "skills.availableCount_other": "{{count}}개 사용 가능",
+  "skills.categories": "카테고리",
+  "skills.category.all": "전체",
+  "skills.category.mcp": "MCP 서버"
+}

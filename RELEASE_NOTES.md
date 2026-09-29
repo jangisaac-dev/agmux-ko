@@ -25,6 +25,7 @@ See `/release` (`.claude/commands/release.md`) for how this file is consumed and
 ## Unreleased
 
 ### New
+- **Korean interface** — agmux can show most of its interface in Korean: sidebar, home, chats and terminals, settings, tasks, Teams, usage and the What's New window. It follows your Mac's language, or choose System, English or 한국어 in Settings → General.
 
 ### Improved
 
@@ -33,6 +34,8 @@ See `/release` (`.claude/commands/release.md`) for how this file is consumed and
 - **No more crash when naming sessions** — The app no longer quits while it names a session whose first message is long and written in Korean or another non-Latin script.
 - **No more crash on large diffs** — Viewing a very large set of changes that contains Korean or other non-Latin text no longer closes the app.
 - **Local model download works again** — Setting up a local model no longer stops with "No llama.cpp release asset found" on the Mac.
+- **Korean typing in terminals** — Typing Korean in a Claude, Codex or other terminal session no longer drops vowels and final consonants.
+- **⌘⌫ deletes to the start of the line** — In terminal sessions ⌘⌫ now clears back to the start of the line, and in a chat's message box it no longer denies a pending tool request.
 
 ## v4.3.0 — 2026-09-26
 

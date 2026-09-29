@@ -1,6 +1,7 @@
 /** agmux Teams — Tauri command bindings and shared types. */
 
 import { invoke } from "@tauri-apps/api/core";
+import { localeTag, t as translate } from "../i18n";
 
 export type TeamRole = "owner" | "manager" | "employee";
 export type TeamRange = "7d" | "14d" | "30d" | "90d";
@@ -8,16 +9,16 @@ export type TeamRange = "7d" | "14d" | "30d" | "90d";
 export const TEAM_RANGES: TeamRange[] = ["7d", "14d", "30d", "90d"];
 
 export const TEAM_RANGE_LABELS: Record<TeamRange, string> = {
-  "7d": "7 days",
-  "14d": "14 days",
-  "30d": "30 days",
-  "90d": "90 days",
+  get "7d"() { return translate("labels.days", { count: 7 }); },
+  get "14d"() { return translate("labels.days", { count: 14 }); },
+  get "30d"() { return translate("labels.days", { count: 30 }); },
+  get "90d"() { return translate("labels.days", { count: 90 }); },
 };
 
 /** Provider ids as stored in metric_hourly → display labels. */
 export function prettyProvider(name: string): string {
   const raw = String(name ?? "").trim();
-  if (!raw) return "Unknown";
+  if (!raw) return translate("labels.unknown");
   const key = raw.toLowerCase().replace(/[\s_-]+/g, "");
   const map: Record<string, string> = {
     claudecode: "Claude Code",
@@ -29,8 +30,8 @@ export function prettyProvider(name: string): string {
     pi: "Pi",
     opencode: "OpenCode",
     mlx: "MLX",
-    other: "Other",
-    unknown: "Unknown",
+    other: translate("labels.other"),
+    unknown: translate("labels.unknown"),
   };
   if (map[key]) return map[key];
   return raw.replace(/([a-z])([A-Z])/g, "$1 $2").replace(/[_-]+/g, " ");
@@ -39,9 +40,9 @@ export function prettyProvider(name: string): string {
 /** Model slugs → human labels (Claude Opus 4.6, GPT 5.3 Codex, Grok 4.5, …). */
 export function prettyModel(slug: string): string {
   let s = String(slug ?? "").trim();
-  if (!s) return "Unknown";
-  if (s === "Other" || s === "other") return "Other";
-  if (s === "unknown") return "Unknown";
+  if (!s) return translate("labels.unknown");
+  if (s === "Other" || s === "other") return translate("labels.other");
+  if (s === "unknown") return translate("labels.unknown");
   if (s.includes("/")) s = s.slice(s.lastIndexOf("/") + 1);
 
   let context = "";
@@ -121,7 +122,7 @@ function capWord(w: string): string {
 
 export function prettyMixLabel(key: string, mono = false): string {
   if (mono) return prettyModel(key);
-  if (key === "Other" || key === "other") return "Other";
+  if (key === "Other" || key === "other") return translate("labels.other");
   if (/[/]|claude-|gpt-|grok|composer|sonnet|opus|haiku|fable/i.test(key)) {
     return prettyModel(key);
   }
@@ -597,7 +598,7 @@ export function fmtTokens(n: number): { value: string; unit: string } {
 export function fmtMoney(n: number): { value: string; unit: string } {
   const s = n.toFixed(2);
   const dot = s.indexOf(".");
-  const intPart = Number(s.slice(0, dot)).toLocaleString("en-US");
+  const intPart = Number(s.slice(0, dot)).toLocaleString(localeTag());
   return { value: `$${intPart}`, unit: s.slice(dot) };
 }
 
@@ -609,14 +610,20 @@ export const fmtPct = (n: number): string => `${Math.round(n * 100)}%`;
  */
 export function fmtSessions(r: { sessionsStarted?: number; sessionsStartedIncomplete?: boolean }): string {
   if (r.sessionsStarted == null) return "—";
-  return r.sessionsStarted.toLocaleString("en-US") + (r.sessionsStartedIncomplete ? "+" : "");
+  return r.sessionsStarted.toLocaleString(localeTag()) + (r.sessionsStartedIncomplete ? "+" : "");
 }
 
 /** Label/help for a Sessions stat card, honest about partial counts. */
-export function sessionsCard(t: { sessionsStarted?: number; sessionsStartedIncomplete?: boolean }): { label: string; help: string } {
-  return t.sessionsStartedIncomplete
-    ? { label: "Sessions (partial)", help: "Sessions started in agmux in this range. Some activity came from an older agmux version that doesn't report session starts, so the real count is higher." }
-    : { label: "Sessions", help: "Sessions started in agmux in this range. Subagents and automatic reviews add to usage, not to this count." };
+export function sessionsCard(summary: { sessionsStarted?: number; sessionsStartedIncomplete?: boolean }): { label: string; help: string } {
+  return summary.sessionsStartedIncomplete
+    ? {
+        label: translate("labels.teams.sessionsPartial"),
+        help: `${translate("labels.teams.sessionsHelp")} ${translate("labels.teams.sessionsPartialHelp")}`,
+      }
+    : {
+        label: translate("labels.teams.sessions"),
+        help: `${translate("labels.teams.sessionsHelp")} ${translate("labels.teams.sessionsCompleteHelp")}`,
+      };
 }
 
 /** Compact active-time label: `<1m` / `12m` / `1.4h` / `18h`. */
@@ -660,28 +667,31 @@ export function fmtWhen(iso: string | null): string | null {
   if (!iso) return null;
   const t = parseTeamsTs(iso);
   if (!Number.isFinite(t)) return null;
-  return new Date(t).toLocaleString();
+  return new Date(t).toLocaleString(localeTag());
 }
 
-/** Compact relative time: "now", "6m", "4h", "2d". */
-export function since(iso: string | null): string | null {
+/** Compact relative time, with either a short unit or an "ago" suffix. */
+function formatRelativeTime(iso: string | null, style: "short" | "ago"): string | null {
   if (!iso) return null;
   const t = parseTeamsTs(iso);
   if (!Number.isFinite(t)) return null;
   // Clamp future (clock skew / residual naive-UTC rows) so we never invent "−7m".
   const ms = Math.max(0, Date.now() - t);
   const m = Math.floor(ms / 60_000);
-  if (m < 1) return "now";
-  if (m < 60) return `${m}m`;
+  if (m < 1) return translate(style === "short" ? "labels.time.now" : "labels.time.justNow");
+  if (m < 60) return translate(`labels.time.${style}.minutes`, { count: m });
   const h = Math.floor(m / 60);
-  if (h < 24) return `${h}h`;
-  return `${Math.floor(h / 24)}d`;
+  if (h < 24) return translate(`labels.time.${style}.hours`, { count: h });
+  return translate(`labels.time.${style}.days`, { count: Math.floor(h / 24) });
+}
+
+/** Compact relative time: "now", "6m", "4h", "2d". */
+export function since(iso: string | null): string | null {
+  return formatRelativeTime(iso, "short");
 }
 
 export function agoLabel(iso: string | null): string | null {
-  const s = since(iso);
-  if (!s) return null;
-  return s === "now" ? "just now" : `${s} ago`;
+  return formatRelativeTime(iso, "ago");
 }
 
 /**

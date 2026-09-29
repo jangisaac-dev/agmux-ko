@@ -1,0 +1,11 @@
+{
+  "whatsNew.category.new": "New",
+  "whatsNew.category.improved": "Improved",
+  "whatsNew.category.fixed": "Fixed",
+  "whatsNew.dontShowAgain": "Don't show again for this version",
+  "whatsNew.title": "What's New",
+  "whatsNew.updatedFrom": " · updated from v{{version}}",
+  "whatsNew.emptyFallback": "Bug fixes and improvements.",
+  "whatsNew.viewFullChangelog": "View full changelog",
+  "whatsNew.gotIt": "Got it"
+}

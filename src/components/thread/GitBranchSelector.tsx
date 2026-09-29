@@ -8,6 +8,7 @@ import {
 } from "../../lib/commands";
 import { isAppForeground, syncPollingToAppForeground } from "../../lib/appVisibility";
 import type { GitBranch } from "../../lib/commands";
+import { useT } from "../../i18n";
 
 interface GitBranchSelectorProps {
   workDir: string;
@@ -23,6 +24,7 @@ interface GitBranchSelectorProps {
  * leaving the chat surface.
  */
 export const GitBranchSelector = memo(function GitBranchSelector({ workDir, active = true }: GitBranchSelectorProps) {
+  const t = useT();
   const [currentBranch, setCurrentBranch] = useState("");
   const [showBranchMenu, setShowBranchMenu] = useState(false);
   const [branches, setBranches] = useState<GitBranch[]>([]);
@@ -104,11 +106,11 @@ export const GitBranchSelector = memo(function GitBranchSelector({ workDir, acti
       setShowBranchMenu(false);
     } catch (err) {
       console.error("Failed to checkout branch:", err);
-      setCheckoutError(typeof err === "string" ? err : (err as Error)?.message || "Checkout failed");
+      setCheckoutError(typeof err === "string" ? err : (err as Error)?.message || t("git.branch.checkoutFailed"));
     } finally {
       setIsCheckingOut(false);
     }
-  }, [workDir, isCheckingOut]);
+  }, [workDir, isCheckingOut, t]);
 
   const handleCreateBranch = useCallback(async () => {
     const name = newBranchName.trim();
@@ -129,7 +131,7 @@ export const GitBranchSelector = memo(function GitBranchSelector({ workDir, acti
       <button
         onClick={handleOpenBranchMenu}
         className="flex items-center gap-1 rounded px-2 py-1 text-xs text-zinc-400 hover:text-zinc-300 transition-colors"
-        title="Switch branch"
+        title={t("git.branch.switch")}
       >
         <GitBranchIcon size={12} />
         <span className="font-medium text-zinc-400 max-w-[120px] truncate">{currentBranch || "..."}</span>
@@ -144,7 +146,7 @@ export const GitBranchSelector = memo(function GitBranchSelector({ workDir, acti
           ) : (
             <>
               {branches.filter((b) => !b.is_remote).length > 0 && (
-                <div className="px-3 py-1 text-[10px] font-medium uppercase tracking-wider text-zinc-500">Local</div>
+                <div className="px-3 py-1 text-[10px] font-medium uppercase tracking-wider text-zinc-500">{t("git.branch.local")}</div>
               )}
               {branches.filter((b) => !b.is_remote).map((b) => (
                 <button
@@ -162,7 +164,7 @@ export const GitBranchSelector = memo(function GitBranchSelector({ workDir, acti
               {branches.filter((b) => b.is_remote).length > 0 && (
                 <>
                   <div className="mx-2 my-1 border-t border-white/5" />
-                  <div className="px-3 py-1 text-[10px] font-medium uppercase tracking-wider text-zinc-500">Remote</div>
+                  <div className="px-3 py-1 text-[10px] font-medium uppercase tracking-wider text-zinc-500">{t("git.branch.remote")}</div>
                 </>
               )}
               {branches.filter((b) => b.is_remote).map((b) => (
@@ -191,7 +193,7 @@ export const GitBranchSelector = memo(function GitBranchSelector({ workDir, acti
                       if (e.key === "Enter") handleCreateBranch();
                       if (e.key === "Escape") { setShowNewBranchInput(false); setNewBranchName(""); }
                     }}
-                    placeholder="branch-name"
+                    placeholder={t("git.branch.namePlaceholder")}
                     className="flex-1 rounded border border-white/10 bg-white/5 px-2 py-1 text-xs text-zinc-200 placeholder-zinc-600 outline-none focus:border-indigo-500/40"
                   />
                   <button onClick={handleCreateBranch} className="rounded p-1 text-indigo-400 hover:bg-indigo-500/10">
@@ -204,7 +206,7 @@ export const GitBranchSelector = memo(function GitBranchSelector({ workDir, acti
                   className="flex w-full items-center gap-2 px-3 py-1.5 text-left text-xs text-zinc-400 hover:bg-white/5 hover:text-zinc-300 transition-colors"
                 >
                   <Plus size={10} />
-                  New branch...
+                  {t("git.branch.newBranch")}
                 </button>
               )}
             </>

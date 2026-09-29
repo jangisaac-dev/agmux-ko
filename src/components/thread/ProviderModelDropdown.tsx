@@ -33,6 +33,7 @@ import cursorIcon from "../../assets/cursor-app-icon.png";
 import clineIcon from "../../assets/cline-icon.svg";
 import geminiIcon from "../../assets/gemini-icon.svg";
 import hermesIcon from "../../assets/hermes-icon.png";
+import { useT, tx } from "../../i18n";
 import {
   DropdownPopover,
   DropdownHeader,
@@ -160,18 +161,18 @@ function ProviderAvatar({ provider }: { provider: Provider }) {
 /** Default OpenCode models shown in the dropdown. OpenCode accepts any
  *  `providerID/modelID` slug the user has authed with. This is a curated
  *  starter set — to add more, log in to the provider via Settings → OpenCode. */
-const OPENCODE_SUBMENU_MODELS: { slug: string; label: string; meta: string }[] = [
-  { slug: "anthropic/claude-sonnet-4-5", label: "Claude Sonnet 4.5", meta: "balanced · default" },
-  { slug: "anthropic/claude-opus-4-5", label: "Claude Opus 4.5", meta: "most capable" },
-  { slug: "anthropic/claude-haiku-4-5", label: "Claude Haiku 4.5", meta: "fast · cheap" },
-  { slug: "openai/gpt-6-sol", label: "GPT 6 Sol", meta: "OpenAI flagship" },
-  { slug: "openai/gpt-6-luna", label: "GPT 6 Luna", meta: "OpenAI fast · cheap" },
-  { slug: "openai/gpt-5.6-sol", label: "GPT 5.6 Sol", meta: "OpenAI flagship" },
-  { slug: "openai/gpt-5.6-terra", label: "GPT 5.6 Terra", meta: "OpenAI balanced" },
-  { slug: "openai/gpt-5.6-luna", label: "GPT 5.6 Luna", meta: "OpenAI fast · cheap" },
-  { slug: "openai/gpt-5.4", label: "GPT 5.4", meta: "OpenAI previous" },
-  { slug: "openai/gpt-5.4-mini", label: "GPT 5.4 mini", meta: "OpenAI fast" },
-  { slug: "google/gemini-2.5-pro", label: "Gemini 2.5 Pro", meta: "Google" },
+const OPENCODE_SUBMENU_MODELS: { slug: string; label: string; metaKey: string }[] = [
+  { slug: "anthropic/claude-sonnet-4-5", label: "Claude Sonnet 4.5", metaKey: "models.meta.balancedDefault" },
+  { slug: "anthropic/claude-opus-4-5", label: "Claude Opus 4.5", metaKey: "models.meta.mostCapable" },
+  { slug: "anthropic/claude-haiku-4-5", label: "Claude Haiku 4.5", metaKey: "models.meta.fastCheap" },
+  { slug: "openai/gpt-6-sol", label: "GPT 6 Sol", metaKey: "models.meta.openAiFlagship" },
+  { slug: "openai/gpt-6-luna", label: "GPT 6 Luna", metaKey: "models.meta.openAiFastCheap" },
+  { slug: "openai/gpt-5.6-sol", label: "GPT 5.6 Sol", metaKey: "models.meta.openAiFlagship" },
+  { slug: "openai/gpt-5.6-terra", label: "GPT 5.6 Terra", metaKey: "models.meta.openAiBalanced" },
+  { slug: "openai/gpt-5.6-luna", label: "GPT 5.6 Luna", metaKey: "models.meta.openAiFastCheap" },
+  { slug: "openai/gpt-5.4", label: "GPT 5.4", metaKey: "models.meta.openAiPrevious" },
+  { slug: "openai/gpt-5.4-mini", label: "GPT 5.4 mini", metaKey: "models.meta.openAiFast" },
+  { slug: "google/gemini-2.5-pro", label: "Gemini 2.5 Pro", metaKey: "models.meta.google" },
 ];
 
 /** Default Grok models shown in the dropdown — mirrors GROK_MODELS but with
@@ -179,15 +180,15 @@ const OPENCODE_SUBMENU_MODELS: { slug: string; label: string; meta: string }[] =
  *  `grok models` at runtime; this is a curated fallback. `grok-4.3` is retired
  *  and intentionally omitted (historical sessions still prettify via
  *  prettifyGrokModel). */
-const GROK_SUBMENU_MODELS: { slug: string; label: string; meta: string }[] = [
-  { slug: "grok-4.7", label: "Grok 4.7", meta: "500K · frontier · default" },
-  { slug: "grok-4.6", label: "Grok 4.6", meta: "500K · previous" },
-  { slug: "grok-4.5", label: "Grok 4.5", meta: "500K · earlier" },
+const GROK_SUBMENU_MODELS: { slug: string; label: string; metaKey: string }[] = [
+  { slug: "grok-4.7", label: "Grok 4.7", metaKey: "models.meta.grokDefault" },
+  { slug: "grok-4.6", label: "Grok 4.6", metaKey: "models.meta.grokPrevious" },
+  { slug: "grok-4.5", label: "Grok 4.5", metaKey: "models.meta.grokEarlier" },
 ];
 
-const GEMINI_SUBMENU_MODELS: { slug: string; label: string; meta: string }[] = [
-  { slug: "gemini-3.8-flash", label: "Gemini 3.8 Flash", meta: "default" },
-  { slug: "gemini-3.1-pro", label: "Gemini 3.1 Pro", meta: "Pro" },
+const GEMINI_SUBMENU_MODELS: { slug: string; label: string; metaKey: string }[] = [
+  { slug: "gemini-3.8-flash", label: "Gemini 3.8 Flash", metaKey: "models.meta.default" },
+  { slug: "gemini-3.1-pro", label: "Gemini 3.1 Pro", metaKey: "models.meta.pro" },
 ];
 
 function geminiBaseSlug(slug: string): string {
@@ -282,6 +283,7 @@ function SubmenuShell({
   showSearch,
   emptyHint,
 }: SubmenuShellProps) {
+  const t = useT();
   const headerHeight = showSearch ? 48 : 0;
   return (
     <div style={{ width, maxHeight, display: "flex", flexDirection: "column" }}>
@@ -295,7 +297,7 @@ function SubmenuShell({
               value={search ?? ""}
               onChange={(e) => onSearch(e.target.value)}
               onClick={(e) => e.stopPropagation()}
-              placeholder="Search models…"
+              placeholder={t("models.dropdown.searchModels")}
               className="flex-1 min-w-0 bg-transparent text-[12.5px] tracking-[-0.01em] text-zinc-200 placeholder-zinc-600 outline-none"
             />
             {search && (
@@ -303,7 +305,7 @@ function SubmenuShell({
                 type="button"
                 onClick={() => onSearch("")}
                 className="font-mono text-[10px] text-zinc-500 hover:text-zinc-300 transition-colors"
-                title="Clear search"
+                title={t("models.dropdown.clearSearch")}
               >
                 esc
               </button>
@@ -347,6 +349,7 @@ function HoverProviderRow({
   onMouseEnter,
   onMouseLeave,
 }: HoverProviderRowProps) {
+  const t = useT();
   const rowBg = isHovered
     ? "bg-white/[0.06]"
     : isActive
@@ -366,7 +369,7 @@ function HoverProviderRow({
           {label}
         </span>
         <span className="mt-0.5 block font-mono text-[10.5px] text-zinc-500 truncate">
-          {activeLabel ? activeLabel : `${count} model${count === 1 ? "" : "s"}`}
+          {activeLabel ? activeLabel : t("models.dropdown.modelCount", { count })}
         </span>
       </span>
       <ChevronRight size={14} className="shrink-0 text-zinc-500" />
@@ -490,6 +493,7 @@ export function ProviderModelDropdown({
   onSelectSession,
   recentProviders: recentProvidersProp,
 }: Props) {
+  const t = useT();
   const sessions = runningSessions ?? [];
   const hasSessions = sessions.length > 0 && !!onSelectSession;
   const storedRecents = useSettingsStore((s) => s.settings.recentProviders ?? EMPTY_RECENT_PROVIDERS);
@@ -502,8 +506,8 @@ export function ProviderModelDropdown({
     !allowedProviders || allowedProviders.includes(p);
   const blockedReason = (p: DraftProvider, m: string | null) => {
     const choice = teamPolicyChoice(p, resolvePolicyModel ? resolvePolicyModel(p, m) : m);
-    return !allow(choice.provider as Provider) ? "Agent blocked by team restrictions"
-      : !teamChoiceAllowed(allowedModels === undefined ? null : allowedModels, choice.model) ? "Model blocked by team restrictions" : undefined;
+    return !allow(choice.provider as Provider) ? t("models.dropdown.agentBlocked")
+      : !teamChoiceAllowed(allowedModels === undefined ? null : allowedModels, choice.model) ? t("models.dropdown.modelBlocked") : undefined;
   };
   const lockedProvider =
     allowedProviders && allowedProviders.length === 1 ? allowedProviders[0] : null;
@@ -517,10 +521,10 @@ export function ProviderModelDropdown({
       ? opencodeModels.map((m) => ({
           slug: m.slug,
           label: m.name,
-          meta: m.connected === false ? `${m.slug} · needs auth` : m.slug,
+          meta: m.connected === false ? `${m.slug} · ${t("models.dropdown.needsAuth")}` : m.slug,
           disconnected: m.connected === false,
         }))
-      : OPENCODE_SUBMENU_MODELS.map((m) => ({ ...m, disconnected: false }));
+      : OPENCODE_SUBMENU_MODELS.map((m) => ({ slug: m.slug, label: m.label, meta: t(m.metaKey), disconnected: false }));
     const recentIdx = new Map<string, number>();
     (opencodeRecents ?? []).forEach((slug, i) => recentIdx.set(slug, i));
     // Sort: recents (newest-first) → connected → disconnected, alphabetical within each bucket.
@@ -535,7 +539,7 @@ export function ProviderModelDropdown({
       if (a.disconnected !== b.disconnected) return a.disconnected ? 1 : -1;
       return a.label.localeCompare(b.label);
     });
-  }, [opencodeModels, opencodeRecents]);
+  }, [opencodeModels, opencodeRecents, t]);
   // Prefer connected count for the provider-row subtitle so a full OpenCode
   // catalog (thousands of un-authed models) doesn't read as "5523 models".
   const opencodeConnectedCount = useMemo(
@@ -746,6 +750,7 @@ export function ProviderModelDropdown({
     provider,
     recents,
     selectedSession,
+    t,
   ]);
   // Trigger icon: session provider, or selected provider (Composer 2.5 uses Cursor logo).
   const displayIconProvider: Provider = selectedSession
@@ -811,8 +816,8 @@ export function ProviderModelDropdown({
           allowedProviders?.length === 0 ? (
             <div className="absolute bottom-full left-0 mb-2 z-50 w-72">
               <DropdownPopover withArrow>
-                <DropdownHeader title="Team restrictions" />
-                <p className="px-3 py-2 text-xs text-[var(--text-secondary)]">No agents are available under the current restrictions.</p>
+                <DropdownHeader title={t("models.dropdown.teamRestrictions")} />
+                <p className="px-3 py-2 text-xs text-[var(--text-secondary)]">{t("models.dropdown.noAgentsUnderRestrictions")}</p>
               </DropdownPopover>
             </div>
           ) : lockedProvider === "Gemini" ? (
@@ -833,7 +838,7 @@ export function ProviderModelDropdown({
                         selected={selected}
                         icon={<ProviderAvatar provider="Gemini" />}
                         title={m.label}
-                        meta={m.meta}
+                        meta={t(m.metaKey)}
                         right={
                           selected ? (
                             <Check size={14} className="text-[color:var(--accent)]" />
@@ -860,7 +865,7 @@ export function ProviderModelDropdown({
                         selected={selected}
                         icon={<ProviderAvatar provider="Grok" />}
                         title={m.label}
-                        meta={m.meta}
+                        meta={t(m.metaKey)}
                         right={
                           selected ? (
                             <Check size={14} className="text-[color:var(--accent)]" />
@@ -903,16 +908,16 @@ export function ProviderModelDropdown({
               return (
                 <div className="absolute bottom-full left-0 mb-2 z-50" style={{ width: 320 }}>
                   <DropdownPopover withArrow>
-                    <DropdownHeader title="OpenCode model" kbd="⌘M" />
+                    <DropdownHeader title={t("models.dropdown.openCodeModel")} kbd="⌘M" />
                     <SubmenuShell
                       search={flyoutQuery}
                       onSearch={setFlyoutQuery}
                       showSearch={showSearch}
                       emptyHint={
                         rows.length === 0 && q
-                          ? `No models match "${q}"`
+                          ? t("models.dropdown.noModelsMatch", { query: q })
                           : rows.length === 0
-                            ? "No connected models — type to search all"
+                            ? t("models.dropdown.noConnectedModelsSearchAll")
                             : undefined
                       }
                     >
@@ -937,7 +942,7 @@ export function ProviderModelDropdown({
                       })}
                       {overflow && (
                         <div className="px-3 py-2 text-center text-[10.5px] font-mono text-zinc-500">
-                          {filtered.length - OPENCODE_RENDER_CAP} more · type to filter
+                          {t("models.dropdown.moreTypeToFilter", { count: filtered.length - OPENCODE_RENDER_CAP })}
                         </div>
                       )}
                     </SubmenuShell>
@@ -955,7 +960,7 @@ export function ProviderModelDropdown({
             <div className="absolute bottom-full left-0 mb-2 z-50 flex items-end">
               <div style={{ width: 260 }} className="shrink-0">
                 <DropdownPopover withArrow>
-                  <DropdownHeader title={hasSessions ? "Model or session" : "Model"} kbd="⌘M" />
+                  <DropdownHeader title={t(hasSessions ? "models.dropdown.modelOrSession" : "models.dropdown.model")} kbd="⌘M" />
                   <div style={{ maxHeight: CASCADE_LIST_MAX_HEIGHT, overflowY: "auto" }}>
                     {hasSessions && (
                       <div
@@ -973,12 +978,12 @@ export function ProviderModelDropdown({
                         </span>
                         <span className="flex-1 min-w-0">
                           <span className="block text-[13.5px] font-medium tracking-[-0.015em] leading-tight truncate text-zinc-200">
-                            Running sessions
+                            {t("models.dropdown.runningSessions")}
                           </span>
                           <span className="mt-0.5 block font-mono text-[10.5px] text-zinc-500 truncate">
                             {selectedSession
                               ? selectedSession.title
-                              : `${sessions.length} live agent${sessions.length === 1 ? "" : "s"}`}
+                              : t("models.dropdown.liveAgentCount", { count: sessions.length })}
                           </span>
                         </span>
                         <ChevronRight size={14} className="shrink-0 text-zinc-500" />
@@ -988,7 +993,7 @@ export function ProviderModelDropdown({
                       <HoverProviderRow
                         key={row.key}
                         providerKey={row.key}
-                        label={row.label}
+                        label={row.key === "MLX" ? t("models.dropdown.localModel") : row.label}
                         count={row.count}
                         isActive={!selectedSession && provider === row.key}
                         isHovered={hoveredProvider === row.key}
@@ -1012,16 +1017,16 @@ export function ProviderModelDropdown({
                       const showSearch = sessions.length > SEARCH_THRESHOLD;
                       return (
                         <>
-                          <DropdownHeader title="Running sessions" />
+                          <DropdownHeader title={t("models.dropdown.runningSessions")} />
                           <SubmenuShell
                             search={flyoutQuery}
                             onSearch={setFlyoutQuery}
                             showSearch={showSearch}
                             emptyHint={
                               rows.length === 0 && q
-                                ? `No sessions match "${q}"`
+                                ? t("models.dropdown.noSessionsMatch", { query: q })
                                 : rows.length === 0
-                                  ? "No live agents"
+                                  ? t("models.dropdown.noLiveAgents")
                                   : undefined
                             }
                           >
@@ -1029,12 +1034,12 @@ export function ProviderModelDropdown({
                               const selected = selectedSessionId === s.id;
                               const stateLabel =
                                 s.state === "waiting"
-                                  ? "needs you"
+                                  ? t("models.dropdown.needsYou")
                                   : s.state === "running"
-                                    ? "working"
+                                    ? t("models.dropdown.working")
                                     : s.state === "unread"
-                                      ? "unread"
-                                      : s.state ?? "live";
+                                      ? t("models.dropdown.unread")
+                                      : s.state ?? t("models.dropdown.live");
                               return (
                                 <DropdownRow
                                   key={s.id}
@@ -1047,9 +1052,9 @@ export function ProviderModelDropdown({
                                     selected ? (
                                       <Check size={14} className="text-[color:var(--accent)]" />
                                     ) : s.state === "waiting" ? (
-                                      <DropdownTag variant="amber">Wait</DropdownTag>
+                                      <DropdownTag variant="amber">{t("models.dropdown.wait")}</DropdownTag>
                                     ) : s.state === "running" ? (
-                                      <DropdownTag variant="accent">Live</DropdownTag>
+                                      <DropdownTag variant="accent">{t("models.dropdown.live")}</DropdownTag>
                                     ) : null
                                   }
                                 />
@@ -1057,7 +1062,7 @@ export function ProviderModelDropdown({
                             })}
                             {overflow && (
                               <div className="px-3 py-2 text-center text-[10.5px] font-mono text-zinc-500">
-                                {filtered.length - rows.length} more · type to filter
+                                {t("models.dropdown.moreTypeToFilter", { count: filtered.length - rows.length })}
                               </div>
                             )}
                           </SubmenuShell>
@@ -1082,7 +1087,7 @@ export function ProviderModelDropdown({
                             search={flyoutQuery}
                             onSearch={setFlyoutQuery}
                             showSearch={showSearch}
-                            emptyHint={rows.length === 0 && q ? `No models match "${q}"` : undefined}
+                            emptyHint={rows.length === 0 && q ? t("models.dropdown.noModelsMatch", { query: q }) : undefined}
                           >
                             {rows.map((m) => {
                               const selected = provider === "ClaudeCode" && claudeMatches(model, m.slug);
@@ -1126,7 +1131,7 @@ export function ProviderModelDropdown({
                             search={flyoutQuery}
                             onSearch={setFlyoutQuery}
                             showSearch={showSearch}
-                            emptyHint={rows.length === 0 && q ? `No models match "${q}"` : undefined}
+                            emptyHint={rows.length === 0 && q ? t("models.dropdown.noModelsMatch", { query: q }) : undefined}
                           >
                             {rows.map(({ m, i }) => {
                               const selected = provider === "Codex" && model === m.slug;
@@ -1138,12 +1143,12 @@ export function ProviderModelDropdown({
                                   selected={selected}
                                   icon={<ProviderAvatar provider="Codex" />}
                                   title={m.name}
-                                  meta="via Codex CLI"
+                                  meta={t("models.dropdown.viaCodexCli")}
                                   right={
                                     selected ? (
                                       <Check size={14} className="text-[color:var(--accent)]" />
                                     ) : i === 0 ? (
-                                      <DropdownTag variant="violet">New</DropdownTag>
+                                      <DropdownTag variant="violet">{t("models.dropdown.new")}</DropdownTag>
                                     ) : null
                                   }
                                 />
@@ -1185,9 +1190,9 @@ export function ProviderModelDropdown({
                             showSearch={showSearch}
                             emptyHint={
                               rows.length === 0 && q
-                                ? `No models match "${q}"`
+                                ? t("models.dropdown.noModelsMatch", { query: q })
                                 : rows.length === 0
-                                  ? "No connected models — type to search all"
+                                  ? t("models.dropdown.noConnectedModelsSearchAll")
                                   : undefined
                             }
                           >
@@ -1212,7 +1217,7 @@ export function ProviderModelDropdown({
                             })}
                             {overflow && (
                               <div className="px-3 py-2 text-center text-[10.5px] font-mono text-zinc-500">
-                                {filtered.length - OPENCODE_RENDER_CAP} more · type to filter
+                                {t("models.dropdown.moreTypeToFilter", { count: filtered.length - OPENCODE_RENDER_CAP })}
                               </div>
                             )}
                           </SubmenuShell>
@@ -1237,7 +1242,7 @@ export function ProviderModelDropdown({
                                   selected={selected}
                                   icon={<ProviderAvatar provider="Gemini" />}
                                   title={m.label}
-                                  meta={m.meta}
+                                  meta={t(m.metaKey)}
                                   right={
                                     selected ? (
                                       <Check size={14} className="text-[color:var(--accent)]" />
@@ -1258,7 +1263,7 @@ export function ProviderModelDropdown({
                             (m) =>
                               fuzzyScore(q, m.label) > 0 ||
                               fuzzyScore(q, m.slug) > 0 ||
-                              fuzzyScore(q, m.meta) > 0,
+                              fuzzyScore(q, t(m.metaKey)) > 0,
                           )
                         : GROK_SUBMENU_MODELS;
                       return (
@@ -1268,7 +1273,7 @@ export function ProviderModelDropdown({
                             search={flyoutQuery}
                             onSearch={setFlyoutQuery}
                             showSearch={showSearch}
-                            emptyHint={rows.length === 0 && q ? `No models match "${q}"` : undefined}
+                            emptyHint={rows.length === 0 && q ? t("models.dropdown.noModelsMatch", { query: q }) : undefined}
                           >
                             {rows.map((m) => {
                               const selected = provider === "Grok" && model === m.slug;
@@ -1280,7 +1285,7 @@ export function ProviderModelDropdown({
                                   selected={selected}
                                   icon={<ProviderAvatar provider="Grok" />}
                                   title={m.label}
-                                  meta={m.meta}
+                                  meta={t(m.metaKey)}
                                   right={
                                     selected ? (
                                       <Check size={14} className="text-[color:var(--accent)]" />
@@ -1314,9 +1319,9 @@ export function ProviderModelDropdown({
                             showSearch={showSearch}
                             emptyHint={
                               rows.length === 0 && q
-                                ? `No models match "${q}"`
+                                ? t("models.dropdown.noModelsMatch", { query: q })
                                 : rows.length === 0
-                                  ? "No models available for this Cursor plan"
+                                  ? t("models.dropdown.noCursorModelsForPlan")
                                   : undefined
                             }
                           >
@@ -1344,20 +1349,11 @@ export function ProviderModelDropdown({
                       const totalCount = mlxModels?.length ?? 0;
                       return (
                         <>
-                          <DropdownHeader title="Local Model" />
+                          <DropdownHeader title={t("models.dropdown.localModel")} />
                           <SubmenuShell>
                             {totalCount === 0 ? (
                               <div className="px-3 py-3 text-xs text-zinc-500">
-                                No MLX models found in LM Studio or HuggingFace caches.
-                                Get one from{" "}
-                                <a
-                                  href="https://huggingface.co/mlx-community"
-                                  className="underline"
-                                  target="_blank"
-                                  rel="noreferrer"
-                                >
-                                  huggingface.co/mlx-community
-                                </a>
+                                {tx("models.dropdown.noMlxModelsFound", { link: <a href="https://huggingface.co/mlx-community" className="underline" target="_blank" rel="noreferrer">huggingface.co/mlx-community</a> })}
                                 .
                               </div>
                             ) : (
@@ -1376,7 +1372,7 @@ export function ProviderModelDropdown({
                                         disabledReason={blockedReason("MLX", m.id)}
                                         selected={selected}
                                         title={prettifyMlxModelName(m.displayName)}
-                                        meta={meta || "MLX local"}
+                                        meta={meta || t("models.dropdown.mlxLocal")}
                                         right={selected ? <Check size={14} className="text-[color:var(--accent)]" /> : null}
                                       />
                                     );
@@ -1392,9 +1388,9 @@ export function ProviderModelDropdown({
                                     setOpen(false);
                                   }}
                                   className="w-full text-left px-3 py-2 text-[12px] text-zinc-300 hover:bg-white/[0.04] rounded-md"
-                                  title="Stop the running mlx_lm.server and free the model from RAM"
+                                  title={t("models.dropdown.stopMlxServer")}
                                 >
-                                  Eject loaded model
+                                  {t("models.dropdown.ejectLoadedModel")}
                                 </button>
                               </div>
                             )}
@@ -1409,10 +1405,10 @@ export function ProviderModelDropdown({
             // Flat layout (used by SDK claudeOnly + legacy callers).
             <div className="absolute bottom-full left-0 mb-2 z-50" style={{ width: 320 }}>
               <DropdownPopover withArrow>
-                <DropdownHeader title={hasSessions ? "Model or session" : "Model"} kbd="⌘M" />
+                <DropdownHeader title={t(hasSessions ? "models.dropdown.modelOrSession" : "models.dropdown.model")} kbd="⌘M" />
                 {hasSessions && (
                   <>
-                    <DropdownSectionHeader>Running sessions</DropdownSectionHeader>
+                    <DropdownSectionHeader>{t("models.dropdown.runningSessions")}</DropdownSectionHeader>
                     {sessions.map((s) => {
                       const selected = selectedSessionId === s.id;
                       return (
@@ -1464,12 +1460,12 @@ export function ProviderModelDropdown({
                               selected={selected}
                               icon={<ProviderAvatar provider="Codex" />}
                               title={m.name}
-                              meta="via Codex CLI"
+                              meta={t("models.dropdown.viaCodexCli")}
                               right={
                                 selected ? (
                                   <Check size={14} className="text-[color:var(--accent)]" />
                                 ) : i === 0 ? (
-                                  <DropdownTag variant="violet">New</DropdownTag>
+                                  <DropdownTag variant="violet">{t("models.dropdown.new")}</DropdownTag>
                                 ) : null
                               }
                             />
@@ -1481,7 +1477,7 @@ export function ProviderModelDropdown({
                 )}
                 {(mlxChatEnabled && (mlxOnly || (mlxModels && mlxModels.length > 0))) && (
                   <>
-                    <DropdownSectionHeader>Local Model</DropdownSectionHeader>
+                    <DropdownSectionHeader>{t("models.dropdown.localModel")}</DropdownSectionHeader>
                     {mlxModels && groupMlxBySource(mlxModels).map((group) => (
                       <div key={group.label}>
                         <div className="px-3 pt-1 pb-0.5 text-[10px] uppercase tracking-wide text-zinc-600">{group.label}</div>
@@ -1495,7 +1491,7 @@ export function ProviderModelDropdown({
                               disabledReason={blockedReason("MLX", m.id)}
                               selected={selected}
                               title={m.displayName}
-                              meta={meta || "MLX local"}
+                              meta={meta || t("models.dropdown.mlxLocal")}
                               right={selected ? <Check size={14} className="text-[color:var(--accent)]" /> : null}
                             />
                           );
@@ -1504,16 +1500,7 @@ export function ProviderModelDropdown({
                     ))}
                     {mlxOnly && (!mlxModels || mlxModels.length === 0) && (
                       <div className="px-3 py-3 text-xs text-zinc-500">
-                        No MLX models found in LM Studio or HuggingFace caches.
-                        Get one from{" "}
-                        <a
-                          href="https://huggingface.co/mlx-community"
-                          className="underline"
-                          target="_blank"
-                          rel="noreferrer"
-                        >
-                          huggingface.co/mlx-community
-                        </a>.
+                        {tx("models.dropdown.noMlxModelsFound", { link: <a href="https://huggingface.co/mlx-community" className="underline" target="_blank" rel="noreferrer">huggingface.co/mlx-community</a> })}
                       </div>
                     )}
                     {/* Eject — kills the running mlx_lm.server child so the
@@ -1526,9 +1513,9 @@ export function ProviderModelDropdown({
                           setOpen(false);
                         }}
                         className="w-full text-left px-3 py-2 text-[12px] text-zinc-300 hover:bg-white/[0.04] rounded-md"
-                        title="Stop the running mlx_lm.server and free the model from RAM"
+                        title={t("models.dropdown.stopMlxServer")}
                       >
-                        Eject loaded model
+                        {t("models.dropdown.ejectLoadedModel")}
                       </button>
                     </div>
                   </>
@@ -1569,7 +1556,7 @@ export function ProviderModelDropdown({
                           selected={selected}
                           icon={<ProviderAvatar provider="Gemini" />}
                           title={m.label}
-                          meta={m.meta}
+                          meta={t(m.metaKey)}
                           right={selected ? <Check size={14} className="text-[color:var(--accent)]" /> : null}
                         />
                       );

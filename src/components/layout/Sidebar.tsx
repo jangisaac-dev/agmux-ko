@@ -22,6 +22,7 @@ import type { ClaudeSession, KimiSession, PiSession, GrokSession } from "../../l
 import { useSessionNameStore } from "../../stores/sessionNameStore";
 import { useThreadStore } from "../../stores/threadStore";
 import { useDesktopCowork } from "../../lib/useDesktopCowork";
+import { useT } from "../../i18n";
 
 /** How often Focus re-checks which rows have aged out of its window. */
 const FOCUS_TICK_MS = 60_000;
@@ -111,6 +112,7 @@ interface SidebarProps {
 }
 
 export function Sidebar({ onReady }: SidebarProps = {}) {
+  const t = useT();
   const [newProjectOpen, setNewProjectOpen] = useState(false);
   const searchOpen = useUiStore((s) => s.searchDialogOpen);
   const projects = useProjectStore((s) => s.projects);
@@ -716,7 +718,7 @@ export function Sidebar({ onReady }: SidebarProps = {}) {
             <button
               onClick={toggleSidebar}
               className="glass-icon-btn p-1.5"
-              title="Expand sidebar (⌘B)"
+              title={t("sidebar.expandSidebar")}
             >
               <PanelLeftOpen size={16} />
             </button>
@@ -766,7 +768,7 @@ export function Sidebar({ onReady }: SidebarProps = {}) {
                   }}
                   className="tbtn"
                   data-active={appMode === "task" ? "true" : "false"}
-                  title="Task View (⌘⇧T)"
+                  title={t("sidebar.taskView")}
                 >
                   <LayoutList size={13} />
                 </button>
@@ -776,7 +778,7 @@ export function Sidebar({ onReady }: SidebarProps = {}) {
                 onMouseDown={(e) => e.stopPropagation()}
                 onClick={() => useUiStore.getState().setSearchDialogOpen(true)}
                 className="tbtn"
-                title="Search (⌘⇧F)"
+                title={t("sidebar.search")}
               >
                 <Search size={13} />
               </button>
@@ -786,23 +788,23 @@ export function Sidebar({ onReady }: SidebarProps = {}) {
                 onClick={() => updateSettings({ multiViewEnabled: !multiViewEnabled })}
                 className={`tbtn ${multiViewEnabled ? "split-on" : ""}`}
                 data-active={multiViewEnabled ? "true" : "false"}
-                title={multiViewEnabled ? "Disable split view" : "Enable split view"}
+                title={t(multiViewEnabled ? "sidebar.disableSplitView" : "sidebar.enableSplitView")}
               >
                 <Columns2 size={13} />
               </button>
-              <button type="button" onMouseDown={(e) => e.stopPropagation()} onClick={() => navBack()} className="tbtn" title="Back">
+              <button type="button" onMouseDown={(e) => e.stopPropagation()} onClick={() => navBack()} className="tbtn" title={t("common.back")}>
                 <ChevronLeft size={13} />
               </button>
-              <button type="button" onMouseDown={(e) => e.stopPropagation()} onClick={() => navForward()} className="tbtn" title="Forward">
+              <button type="button" onMouseDown={(e) => e.stopPropagation()} onClick={() => navForward()} className="tbtn" title={t("sidebar.forward")}>
                 <ChevronRight size={13} />
               </button>
-              <button type="button" onMouseDown={(e) => e.stopPropagation()} onClick={handleRefresh} className="tbtn" title="Refresh sessions">
+              <button type="button" onMouseDown={(e) => e.stopPropagation()} onClick={handleRefresh} className="tbtn" title={t("sidebar.refreshSessions")}>
                 <RefreshCw size={13} className={isLoading ? "animate-spin" : ""} />
               </button>
-              <button type="button" onMouseDown={(e) => e.stopPropagation()} onClick={() => openSettings()} className="tbtn" title="Settings">
+              <button type="button" onMouseDown={(e) => e.stopPropagation()} onClick={() => openSettings()} className="tbtn" title={t("sidebar.settings")}>
                 <Settings size={13} />
               </button>
-              <button type="button" onMouseDown={(e) => e.stopPropagation()} onClick={toggleSidebar} className="tbtn" title="Collapse sidebar">
+              <button type="button" onMouseDown={(e) => e.stopPropagation()} onClick={toggleSidebar} className="tbtn" title={t("sidebar.collapseSidebar")}>
                 <PanelLeftClose size={13} />
               </button>
             </div>
@@ -833,10 +835,10 @@ export function Sidebar({ onReady }: SidebarProps = {}) {
             <div className="sb-thh">
               <span className="lbl">
                 {sidebarTab === "memory" || sidebarTab === "issues" || showFocus
-                  ? "Projects"
+                  ? t("sidebar.section.projects")
                   : appMode === "cowork"
                     ? "Cowork"
-                    : "Threads"}
+                    : t("sidebar.section.threads")}
               </span>
               <button
                 onClick={() => {
@@ -858,7 +860,7 @@ export function Sidebar({ onReady }: SidebarProps = {}) {
                   setNewProjectOpen(true);
                 }}
                 className="add"
-                title={appMode === "cowork" ? "Add folder" : "New project"}
+                title={t(appMode === "cowork" ? "sidebar.project.addFolder" : "sidebar.project.new")}
               >
                 <FolderPlus size={14} />
               </button>
@@ -868,14 +870,14 @@ export function Sidebar({ onReady }: SidebarProps = {}) {
                 <p className="text-sm text-zinc-400">
                   {appMode === "cowork" ? (
                     <>
-                      No folders yet.
+                      {t("sidebar.cowork.noFolders")}
                       <br />
-                      <span className="text-xs opacity-70">Add a folder to load Cowork and ChatGPT Work chats.</span>
+                      <span className="text-xs opacity-70">{t("sidebar.cowork.addFolderHint")}</span>
                     </>
                   ) : (
                     <>
-                      No projects yet. <br />
-                      <span className="text-xs opacity-70">Create one to get started.</span>
+                      {t("sidebar.project.noProjectsYet")} <br />
+                      <span className="text-xs opacity-70">{t("sidebar.project.createOneToStart")}</span>
                     </>
                   )}
                 </p>

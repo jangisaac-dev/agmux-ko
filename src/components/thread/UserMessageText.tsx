@@ -1,5 +1,6 @@
 import { useCallback, useMemo, useState, type ReactNode } from "react";
 import { Check, ChevronDown, ChevronUp, Copy } from "lucide-react";
+import { localeTag, useT } from "../../i18n";
 
 const TRUNCATE_CHAR_THRESHOLD = 2000;
 const TRUNCATE_LINE_THRESHOLD = 25;
@@ -14,6 +15,7 @@ interface UserMessageTextProps {
 }
 
 function CopyPromptButton({ content }: { content: string }) {
+  const t = useT();
   const [copied, setCopied] = useState(false);
 
   const handleCopy = useCallback(() => {
@@ -27,8 +29,8 @@ function CopyPromptButton({ content }: { content: string }) {
     <button
       type="button"
       onClick={handleCopy}
-      title="Copy prompt"
-      aria-label="Copy prompt"
+      title={t("chat.userMessage.copyPrompt")}
+      aria-label={t("chat.userMessage.copyPrompt")}
       className={PROMPT_ACTION_BTN}
     >
       {copied ? <Check size={13} className="text-[color:var(--accent)]" /> : <Copy size={13} />}
@@ -52,6 +54,7 @@ function PromptActionCluster({
 }
 
 export function UserMessageText({ content, className, actions }: UserMessageTextProps) {
+  const t = useT();
   const [expanded, setExpanded] = useState(false);
 
   const { shouldTruncate, lineCount, charCount } = useMemo(() => {
@@ -88,7 +91,7 @@ export function UserMessageText({ content, className, actions }: UserMessageText
           className="mt-2 inline-flex items-center gap-1 rounded-md border border-white/10 bg-white/[0.04] px-2 py-1 text-[11px] font-medium text-white/55 transition-colors hover:bg-white/[0.08] hover:text-white/80"
         >
           <ChevronUp size={12} />
-          Collapse
+          {t("chat.userMessage.collapse")}
         </button>
       </div>
     );
@@ -103,8 +106,10 @@ export function UserMessageText({ content, className, actions }: UserMessageText
         className="group/large inline-flex w-full items-center justify-between gap-2 rounded-lg border border-indigo-400/20 bg-indigo-500/[0.08] px-3 py-2 text-left text-[12px] font-medium text-indigo-100/90 transition-colors hover:border-indigo-400/30 hover:bg-indigo-500/[0.14] hover:text-indigo-50"
       >
         <span className="min-w-0 truncate">
-          Large message ({lineCount.toLocaleString()} lines,{" "}
-          {charCount.toLocaleString()} chars) — click to see full text
+          {t("chat.userMessage.largeMessage", {
+            lineCount: lineCount.toLocaleString(localeTag()),
+            charCount: charCount.toLocaleString(localeTag()),
+          })}
         </span>
         <ChevronDown
           size={13}

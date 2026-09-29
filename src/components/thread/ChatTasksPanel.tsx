@@ -10,6 +10,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { Check, ListChecks, Loader2, X } from "lucide-react";
+import { useT } from "../../i18n";
 
 /** Panel body width (matches Tailwind `w-[288px]`). */
 export const CHAT_TASKS_PANEL_WIDTH_PX = 288;
@@ -89,10 +90,10 @@ function StatusDot({
   );
 }
 
-function statusLabel(status: TodoBarItem["status"]): string {
-  if (status === "completed") return "Completed";
-  if (status === "in_progress") return "In progress";
-  return "Pending";
+function statusLabel(status: TodoBarItem["status"], t: ReturnType<typeof useT>): string {
+  if (status === "completed") return t("chat.tasks.status.completed");
+  if (status === "in_progress") return t("chat.tasks.status.inProgress");
+  return t("chat.tasks.status.pending");
 }
 
 function RailDot({ status }: { status: TodoBarItem["status"] }) {
@@ -127,10 +128,12 @@ function RailDot({ status }: { status: TodoBarItem["status"] }) {
  */
 export function ChatTasksPanel({
   todos,
-  title = "Tasks",
+  title,
   onCollapsedChange,
   embedded = false,
 }: ChatTasksPanelProps): React.ReactElement | null {
+  const t = useT();
+  const panelTitle = title ?? t("chat.tasks.title");
   /** User override; `auto` follows narrow detection. */
   const [mode, setMode] = useState<"auto" | "force-open" | "force-closed">("auto");
   const [narrow, setNarrow] = useState(false);
@@ -227,16 +230,16 @@ export function ChatTasksPanel({
       data-narrow={narrow ? "true" : "false"}
     >
       {embedded && collapsed ? (
-        <button type="button" onClick={expand} aria-label="Expand tasks" aria-expanded={false} className="chat-activity-card flex w-full items-center gap-2 rounded-[14px] px-3 py-3 text-[12.5px] text-[var(--text-secondary)]">
-          <ListChecks size={14} className="text-violet-400 fx-graphite" />{title}<span className="ui-meta text-[10px] text-[var(--text-muted)]">{done} / {total}</span>
+        <button type="button" onClick={expand} aria-label={t("chat.tasks.expand")} aria-expanded={false} className="chat-activity-card flex w-full items-center gap-2 rounded-[14px] px-3 py-3 text-[12.5px] text-[var(--text-secondary)]">
+          <ListChecks size={14} className="text-violet-400 fx-graphite" />{panelTitle}<span className="ui-meta text-[10px] text-[var(--text-muted)]">{done} / {total}</span>
         </button>
       ) : collapsed ? (
         <button
           type="button"
           onClick={expand}
           className="chat-tasks-rail-btn pointer-events-auto absolute top-1/2 right-0 flex w-9 -translate-y-1/2 flex-col items-stretch overflow-hidden rounded-l-[12px] border border-r-0 border-white/[0.08] bg-[rgba(14,14,16,0.92)] shadow-[-8px_0_28px_rgba(0,0,0,0.45)] backdrop-blur-xl transition-colors hover:border-violet-400/35 hover:bg-[rgba(22,20,28,0.96)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-violet-400/55"
-          title={`Show ${title}`}
-          aria-label={`Show ${title}`}
+          title={t("chat.tasks.show", { title: panelTitle })}
+          aria-label={t("chat.tasks.show", { title: panelTitle })}
           aria-expanded={false}
         >
           {/* Vertical progress strip */}
@@ -256,7 +259,7 @@ export function ChatTasksPanel({
               className="text-[11px] font-semibold uppercase tracking-[0.06em] text-zinc-300"
               style={{ writingMode: "vertical-rl", transform: "rotate(180deg)" }}
             >
-              {title}
+              {panelTitle}
             </span>
             <span
               className="tabular-nums text-[10px] tracking-[0.04em] text-zinc-500"
@@ -283,12 +286,12 @@ export function ChatTasksPanel({
       ) : (
         <aside
           className={`chat-activity-card flex min-h-0 flex-col overflow-hidden rounded-[14px] ${embedded ? "max-h-[280px]" : "pointer-events-auto absolute top-3 right-3 w-[min(288px,calc(100%-1.5rem))] max-h-[min(480px,calc(100%-1.5rem))]"}`}
-          aria-label={title}
+          aria-label={panelTitle}
         >
           <div className="chat-activity-card-header flex items-center gap-2 border-b border-white/[0.05] bg-white/[0.02] px-3 py-2.5">
             <ListChecks size={14} className="shrink-0 text-violet-400 fx-graphite" />
             <span className="text-[12.5px] font-medium tracking-[-0.01em] text-zinc-200">
-              {title}
+              {panelTitle}
             </span>
             <span className="ui-chip sm fx-chip-q inline-flex items-center border border-white/[0.06] bg-white/[0.04] tabular-nums text-zinc-500">
               <span className="font-medium text-zinc-300">{done}</span>
@@ -300,8 +303,8 @@ export function ChatTasksPanel({
               type="button"
               onClick={collapse}
               className="inline-flex h-6 w-6 items-center justify-center rounded-md text-zinc-500 transition-colors hover:bg-white/[0.06] hover:text-zinc-300 fx-hover"
-              title="Collapse"
-              aria-label="Collapse tasks"
+              title={t("chat.tasks.collapse")}
+              aria-label={t("chat.tasks.collapseTasks")}
             >
               <X size={12} />
             </button>
@@ -349,7 +352,7 @@ export function ChatTasksPanel({
                         isActive ? embedded ? "text-[var(--text-secondary)]" : "text-amber-400/65" : "text-zinc-600"
                       }`}
                     >
-                      {statusLabel(todo.status)}
+                      {statusLabel(todo.status, t)}
                     </div>
                   </div>
                 </div>

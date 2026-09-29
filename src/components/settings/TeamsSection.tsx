@@ -31,12 +31,14 @@ import {
 import { GlassButton } from "../ui/GlassButton";
 import { JoinDisclosureDialog } from "../teams/JoinDisclosureDialog";
 import { Avatar, EmptyState, Panel, Pill, RoleBadge } from "../teams/primitives";
+import { useT } from "../../i18n";
 
 /** Poll cadence while the browser half of the device link is outstanding. */
 const CLAIM_POLL_MS = 2000;
 const CLAIM_TIMEOUT_MS = 5 * 60_000;
 
 export function TeamsSection() {
+  const t = useT();
   const [status, setStatus] = useState<TeamsSyncStatus | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -83,7 +85,7 @@ export function TeamsSection() {
           if (pollRef.current) window.clearInterval(pollRef.current);
           pollRef.current = null;
           setBusy(false);
-          setError("Sign-in timed out. Try again.");
+          setError(`${t("settings.teams.signInTimedOut")} ${t("settings.teams.tryAgain")}`);
           return;
         }
         try {
@@ -108,7 +110,7 @@ export function TeamsSection() {
   };
 
   const signOut = async () => {
-    if (!window.confirm("Sign out of agmux Teams? Uploads stop and queued batches are discarded.")) {
+    if (!window.confirm(`${t("settings.teams.signOutConfirm.first")} ${t("settings.teams.signOutConfirm.second")}`)) {
       return;
     }
     setBusy(true);
@@ -144,10 +146,10 @@ export function TeamsSection() {
       if (preview.state !== "active") {
         setError(
           preview.state === "expired"
-            ? "That invite has expired — ask the team owner for a new link."
+            ? t("settings.teams.inviteExpired")
             : preview.state === "revoked"
-              ? "That invite was revoked — ask the team owner for a new link."
-              : "That invite has been used up — ask the team owner for a new link.",
+              ? t("settings.teams.inviteRevoked")
+              : t("settings.teams.inviteUsedUp"),
         );
         return;
       }
@@ -187,11 +189,11 @@ export function TeamsSection() {
     <div className="flex flex-col gap-2.5">
       <div>
         <h2 className="m-0 text-[16px] font-semibold text-[var(--text-primary)]" style={{ letterSpacing: "-0.02em" }}>
-          Teams
+          {t("settings.nav.teams")}
         </h2>
         <p className="mt-1 text-[11.5px] leading-relaxed text-[var(--text-muted)]">
-          Org-level analytics. Your personal usage stays in Settings → Usage and is never affected by
-          this.
+          {t("settings.teams.description.orgAnalytics")}{" "}
+          {t("settings.teams.description.personalUsage")}
         </p>
       </div>
 
@@ -202,10 +204,10 @@ export function TeamsSection() {
       ) : null}
 
       <Panel
-        title="Linked account"
+        title={t("settings.teams.linkedAccount")}
         padded={false}
         right={
-          status?.linked ? <Pill tone="ok">signed in</Pill> : <Pill tone="none">not signed in</Pill>
+          status?.linked ? <Pill tone="ok">{t("settings.teams.signedIn")}</Pill> : <Pill tone="none">{t("settings.teams.notSignedIn")}</Pill>
         }
       >
         {status?.linked && status.account ? (
@@ -218,17 +220,17 @@ export function TeamsSection() {
               </div>
             </div>
             <GlassButton size="sm" variant="ghost" onClick={signOut} disabled={busy}>
-              Sign out
+              {t("settings.teams.signOut")}
             </GlassButton>
           </div>
         ) : (
           <EmptyState
             icon={Users}
-            title="Sign in to agmux Teams"
-            body="Link this Mac to see team analytics and start uploading aggregates. You choose GitHub or Google in the browser."
+            title={t("settings.teams.signInTitle")}
+            body={`${t("settings.teams.signInDescription.first")} ${t("settings.teams.signInDescription.second")}`}
             actions={
               <GlassButton icon={busy ? RefreshCw : Github} variant="accent" onClick={signIn} disabled={busy}>
-                {busy ? "Waiting for browser…" : "Sign in"}
+                {busy ? t("settings.teams.waitingForBrowser") : t("settings.teams.signIn")}
               </GlassButton>
             }
           />
@@ -237,13 +239,13 @@ export function TeamsSection() {
 
       {status?.linked ? (
         <Panel
-          title="Your teams"
+          title={t("settings.teams.yourTeams")}
           padded={false}
           right={
             <div className="flex items-center gap-2">
               <span className="text-[11.5px] text-[var(--text-muted)]">{status.teams.length}</span>
               <GlassButton icon={RefreshCw} size="sm" variant="ghost" onClick={syncRoster} disabled={busy}>
-                Refresh
+                {t("settings.teams.refresh")}
               </GlassButton>
             </div>
           }
@@ -251,55 +253,54 @@ export function TeamsSection() {
           {status.teams.length === 0 ? (
             <EmptyState
               icon={LogIn}
-              title="No teams yet"
-              body="Paste an invite link below to join, or create a team on the web."
+              title={t("settings.teams.noTeams")}
+              body={t("settings.teams.noTeamsDescription")}
               actions={
                 <GlassButton
                   size="sm"
                   onClick={() => void openUrl(`${status.baseUrl.replace(/\/$/, "")}/#/teams`)}
                 >
-                  Open agmux Teams
+                  {t("settings.teams.openTeams")}
                 </GlassButton>
               }
             />
           ) : (
             <>
-              {status.teams.map((t) => (
+              {status.teams.map((team) => (
                 <div
-                  key={t.teamId}
+                  key={team.teamId}
                   className="flex items-center gap-3 border-b border-white/[0.06] px-3.5 py-[11px] last:border-b-0"
                 >
                   <div className="grid h-[18px] w-[18px] place-items-center rounded-[5px] bg-[#60a5fa] font-mono text-[9px] font-bold text-[#0a0a0b]">
-                    {t.name.slice(0, 1).toUpperCase()}
+                    {team.name.slice(0, 1).toUpperCase()}
                   </div>
                   <div className="min-w-0 flex-1">
-                    <div className="text-[12.5px] font-medium text-[var(--text-primary)]">{t.name}</div>
+                    <div className="text-[12.5px] font-medium text-[var(--text-primary)]">{team.name}</div>
                     <div className="mt-0.5 text-[11.5px] text-[var(--text-muted)]">
-                      {t.role === "owner" || t.role === "manager"
-                        ? "full team analytics"
-                        : "your stats only"}
+                      {team.role === "owner" || team.role === "manager"
+                        ? t("settings.teams.fullTeamAnalytics")
+                        : t("settings.teams.yourStatsOnly")}
                     </div>
                   </div>
-                  <RoleBadge role={t.role} />
+                  <RoleBadge role={team.role} />
                   {knowledgeAvailable ? (
-                    <GlassButton size="sm" variant="ghost" onClick={() => openWeb(t, "knowledge")}>
-                      Knowledge
+                    <GlassButton size="sm" variant="ghost" onClick={() => openWeb(team, "knowledge")}>
+                      {t("settings.teams.knowledge")}
                     </GlassButton>
                   ) : null}
-                  <GlassButton iconRight={ArrowRight} size="sm" variant="ghost" onClick={() => openWeb(t)}>
-                    Open
+                  <GlassButton iconRight={ArrowRight} size="sm" variant="ghost" onClick={() => openWeb(team)}>
+                    {t("settings.teams.open")}
                   </GlassButton>
                 </div>
               ))}
               <div className="px-3.5 py-[11px] text-[11.5px] leading-relaxed text-[var(--text-muted)]">
-                Metrics upload covers every team you belong to. Team data is never mixed — each team
-                only sees your totals for the period you were a member.
+                {t("settings.teams.analyticsNote.first")} {t("settings.teams.analyticsNote.second")}
                 {knowledgeAvailable ? (
                   <>
                     {" "}
-                    On a Teams plan (or trial), share decisions from the Memory tab (Share icon) or
-                    open Knowledge on the web. Free teams get analytics only. Binding a project to a
-                    team lets agents read official records when the owner enables MCP.
+                    {t("settings.teams.knowledgeNote.plan")}{" "}
+                    {t("settings.teams.knowledgeNote.freeTeams")}{" "}
+                    {t("settings.teams.knowledgeNote.binding")}
                   </>
                 ) : null}
               </div>
@@ -309,11 +310,11 @@ export function TeamsSection() {
       ) : null}
 
       {status?.linked ? (
-        <Panel title="Join a team">
+        <Panel title={t("settings.teams.joinTeam")}>
           <div className="flex gap-2">
             <input
               className="w-full rounded-lg border border-white/[0.10] bg-black/35 px-2.5 py-2 text-[13px] text-[var(--text-primary)] outline-none placeholder:text-[var(--text-muted)] focus:border-[#60a5fa]/[0.28]"
-              placeholder="Paste invite link — teams.agmux.dev/join/…"
+              placeholder={t("settings.teams.invitePlaceholder", { url: "teams.agmux.dev/join/…" })}
               value={inviteLink}
               onChange={(e) => setInviteLink(e.target.value)}
               onKeyDown={(e) => {
@@ -322,11 +323,11 @@ export function TeamsSection() {
               spellCheck={false}
             />
             <GlassButton size="sm" onClick={previewInvite} disabled={busy || !inviteLink.trim()}>
-              Continue
+              {t("settings.teams.continue")}
             </GlassButton>
           </div>
           <p className="mt-2 text-[11.5px] leading-relaxed text-[var(--text-muted)]">
-            You&apos;ll see exactly what joining shares before anything is uploaded.
+            {t("settings.teams.invitePreviewNotice")}
           </p>
         </Panel>
       ) : null}

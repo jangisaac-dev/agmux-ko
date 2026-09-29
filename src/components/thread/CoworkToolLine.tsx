@@ -5,6 +5,7 @@
  */
 
 import { memo, useMemo, useState, useCallback, type ReactNode } from "react";
+import { t as translate, useT } from "../../i18n";
 import {
   FileEdit,
   FilePlus,
@@ -156,50 +157,19 @@ function mcpLead(
   hasQuerySubject: boolean,
 ): string {
   const parsed = parseMcpName(name);
-  if (!parsed) return pending ? "Using tool" : "Used tool";
+  if (!parsed) return translate(pending ? "tools.coworkToolLine.mcp.usingTool" : "tools.coworkToolLine.mcp.usedTool");
   const { server, tool } = parsed;
   const serverLabel = humanizeServer(server);
   const kind = mcpVerbKind(tool);
 
-  let verbRun: string;
-  let verbDone: string;
-  switch (kind) {
-    case "search":
-      verbRun = "Searching";
-      verbDone = "Searched";
-      break;
-    case "read":
-      verbRun = "Reading";
-      verbDone = "Read";
-      break;
-    case "update":
-      verbRun = "Updating";
-      verbDone = "Updated";
-      break;
-    case "remove":
-      verbRun = "Removing";
-      verbDone = "Removed";
-      break;
-    case "browse":
-      verbRun = "Browsing";
-      verbDone = "Browsed";
-      break;
-    case "share":
-      verbRun = "Sharing";
-      verbDone = "Shared";
-      break;
-    default:
-      verbRun = "Using";
-      verbDone = "Used";
-  }
-
   // Prefer connector name when it reads well ("Searching Gmail")
   // Fall back to tool name when server is empty/opaque.
   const target = serverLabel && serverLabel !== "connector" ? serverLabel : humanizeTool(tool);
-  const base = pending ? `${verbRun} ${target}` : `${verbDone} ${target}`;
-  // "Searched Firecrawl for …" — preposition on the lead (Cowork only; Codex unchanged)
-  if (kind === "search" && hasQuerySubject) return `${base} for`;
-  return base;
+  const state = pending ? "running" : "done";
+  const key = kind === "search" && hasQuerySubject
+    ? `tools.coworkToolLine.mcp.searchFor.${state}`
+    : `tools.coworkToolLine.mcp.${kind}.${state}`;
+  return translate(key, { target });
 }
 
 function mcpSubject(name: string, input: Record<string, unknown>): string | undefined {
@@ -239,26 +209,26 @@ function coworkLead(
   pending: boolean,
   input: Record<string, unknown> = {},
 ): string {
-  if (isBash(name)) return pending ? "Running command" : "Ran command";
-  if (isRead(name)) return pending ? "Reading file" : "Read file";
-  if (isWrite(name)) return pending ? "Writing file" : "Wrote file";
-  if (isEdit(name)) return pending ? "Editing file" : "Edited file";
-  if (name === "Glob" || name === "glob") return pending ? "Finding files" : "Found files";
-  if (name === "Grep" || name === "grep") return pending ? "Searching" : "Searched";
-  if (isSearch(name)) return pending ? "Searching" : "Searched";
-  if (isFetch(name)) return pending ? "Fetching" : "Fetched";
-  if (name === "Skill") return pending ? "Using skill" : "Used skill";
-  if (name === "ToolSearch") return pending ? "Finding tools" : "Found tools";
-  if (name === "TaskCreate") return pending ? "Creating task" : "Created task";
-  if (name === "TaskUpdate") return pending ? "Updating task" : "Updated task";
-  if (name === "TaskList") return pending ? "Listing tasks" : "Listed tasks";
-  if (name === "TaskGet") return pending ? "Reading task" : "Read task";
-  if (name === "TaskStop") return pending ? "Stopping task" : "Stopped task";
+  if (isBash(name)) return translate(pending ? "tools.coworkToolLine.lead.runningCommand" : "tools.coworkToolLine.lead.ranCommand");
+  if (isRead(name)) return translate(pending ? "tools.coworkToolLine.lead.readingFile" : "tools.coworkToolLine.lead.readFile");
+  if (isWrite(name)) return translate(pending ? "tools.coworkToolLine.lead.writingFile" : "tools.coworkToolLine.lead.wroteFile");
+  if (isEdit(name)) return translate(pending ? "tools.coworkToolLine.lead.editingFile" : "tools.coworkToolLine.lead.editedFile");
+  if (name === "Glob" || name === "glob") return translate(pending ? "tools.coworkToolLine.lead.findingFiles" : "tools.coworkToolLine.lead.foundFiles");
+  if (name === "Grep" || name === "grep") return translate(pending ? "tools.coworkToolLine.lead.searching" : "tools.coworkToolLine.lead.searched");
+  if (isSearch(name)) return translate(pending ? "tools.coworkToolLine.lead.searching" : "tools.coworkToolLine.lead.searched");
+  if (isFetch(name)) return translate(pending ? "tools.coworkToolLine.lead.fetching" : "tools.coworkToolLine.lead.fetched");
+  if (name === "Skill") return translate(pending ? "tools.coworkToolLine.lead.usingSkill" : "tools.coworkToolLine.lead.usedSkill");
+  if (name === "ToolSearch") return translate(pending ? "tools.coworkToolLine.lead.findingTools" : "tools.coworkToolLine.lead.foundTools");
+  if (name === "TaskCreate") return translate(pending ? "tools.coworkToolLine.lead.creatingTask" : "tools.coworkToolLine.lead.createdTask");
+  if (name === "TaskUpdate") return translate(pending ? "tools.coworkToolLine.lead.updatingTask" : "tools.coworkToolLine.lead.updatedTask");
+  if (name === "TaskList") return translate(pending ? "tools.coworkToolLine.lead.listingTasks" : "tools.coworkToolLine.lead.listedTasks");
+  if (name === "TaskGet") return translate(pending ? "tools.coworkToolLine.lead.readingTask" : "tools.coworkToolLine.lead.readTask");
+  if (name === "TaskStop") return translate(pending ? "tools.coworkToolLine.lead.stoppingTask" : "tools.coworkToolLine.lead.stoppedTask");
   if (name === "AskUserQuestion" || name === "ask_user_question") {
-    return pending ? "Asking" : "Asked";
+    return translate(pending ? "tools.coworkToolLine.lead.asking" : "tools.coworkToolLine.lead.asked");
   }
   if (name === "TodoWrite" || name === "todo_write") {
-    return pending ? "Updating todos" : "Updated todos";
+    return translate(pending ? "tools.coworkToolLine.lead.updatingTodos" : "tools.coworkToolLine.lead.updatedTodos");
   }
   if (name.startsWith("mcp__")) {
     // "for …" only when there's a real query/search string (not tool-name fallback)
@@ -267,7 +237,7 @@ function coworkLead(
     );
     return mcpLead(name, pending, hasQuery);
   }
-  return pending ? "Running" : "Ran";
+  return translate(pending ? "tools.coworkToolLine.lead.running" : "tools.coworkToolLine.lead.ran");
 }
 
 function coworkSubject(
@@ -288,7 +258,7 @@ function coworkSubject(
       const n = input.paths.length;
       return n === 1 && typeof input.paths[0] === "string"
         ? shortenPath(input.paths[0], workDir)
-        : `${n} files`;
+        : translate("tools.coworkToolLine.files", { count: n });
     }
     const p = filePath(input);
     return p ? shortenPath(p, workDir) : undefined;
@@ -417,11 +387,12 @@ export const CoworkToolLine = memo(function CoworkToolLine({
   pending,
   timestamp,
 }: CoworkToolLineProps) {
+  const t = useT();
   const workDir = useWorkDir();
   const [showDetail, setShowDetail] = useState(false);
 
-  const lead = useMemo(() => coworkLead(name, pending, input), [name, pending, input]);
-  const subject = useMemo(() => coworkSubject(name, input, workDir), [name, input, workDir]);
+  const lead = useMemo(() => coworkLead(name, pending, input), [name, pending, input, t]);
+  const subject = useMemo(() => coworkSubject(name, input, workDir), [name, input, workDir, t]);
   const subjectMono = useMemo(() => coworkSubjectMono(name, input), [name, input]);
   const icon = useMemo(() => coworkIcon(name, pending), [name, pending]);
 
@@ -461,7 +432,7 @@ export const CoworkToolLine = memo(function CoworkToolLine({
         data-testid="cowork-tool-line"
         data-tool={name}
         data-status={status}
-        title="View details"
+        title={t("tools.coworkToolLine.viewDetails")}
       >
         <CodexToolRow
           icon={icon}

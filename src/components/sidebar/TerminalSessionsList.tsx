@@ -3,8 +3,10 @@ import { Bookmark, Play, Plus, TerminalSquare, X } from "lucide-react";
 import { useTerminalStore } from "../../stores/terminalStore";
 import type { TerminalSession } from "../../stores/terminalStore";
 import { stopShell, spawnShell } from "../../lib/commands";
+import { useT } from "../../i18n";
 
 export function TerminalSessionsList() {
+  const t = useT();
   const sessions = useTerminalStore((s) => s.sessions);
   const activeSessionId = useTerminalStore((s) => s.activeSessionId);
   const createSession = useTerminalStore((s) => s.createSession);
@@ -101,12 +103,12 @@ export function TerminalSessionsList() {
     <div className="flex flex-col gap-0.5 p-2">
       <div className="mb-1 flex items-center justify-between px-1">
         <span className="text-[10px] font-semibold uppercase tracking-widest text-zinc-500">
-          Terminals
+          {t("sidebar.terminal.heading")}
         </span>
         <button
           onClick={handleNew}
           className="rounded-md p-1 text-zinc-500 hover:bg-white/5 hover:text-zinc-300 transition-all"
-          title="New Terminal"
+          title={t("sidebar.terminal.new")}
         >
           <Plus size={13} />
         </button>
@@ -116,9 +118,9 @@ export function TerminalSessionsList() {
         <div className="flex flex-col items-center gap-2 py-6 px-4 text-center">
           <TerminalSquare size={20} className="text-zinc-700" />
           <p className="text-xs text-zinc-500">
-            No terminals yet.
+            {t("sidebar.terminal.noneYet")}
             <br />
-            Click + to open one.
+            {t("sidebar.terminal.openHint")}
           </p>
         </div>
       )}
@@ -174,7 +176,7 @@ export function TerminalSessionsList() {
                   "h-1.5 w-1.5 rounded-full",
                   session.status === "running" ? "bg-green-500" : "bg-zinc-600",
                 ].join(" ")}
-                title={session.status}
+                title={t(session.status === "running" ? "sidebar.status.running" : "sidebar.status.exited")}
               />
               <span
                 role="button"
@@ -188,7 +190,7 @@ export function TerminalSessionsList() {
                       ? "text-zinc-500 hover:text-zinc-300"
                       : "text-transparent group-hover:text-zinc-500 hover:!text-zinc-300",
                 ].join(" ")}
-                title={session.saved ? "Unsave terminal" : "Save terminal"}
+                title={t(session.saved ? "sidebar.terminal.unsave" : "sidebar.terminal.save")}
               >
                 <Bookmark size={11} fill={session.saved ? "currentColor" : "none"} />
               </span>
@@ -223,7 +225,7 @@ export function TerminalSessionsList() {
           )}
           <div className="mb-1 px-1">
             <span className="text-[10px] font-semibold uppercase tracking-widest text-zinc-500">
-              Saved
+              {t("sidebar.terminal.saved")}
             </span>
           </div>
           {savedOnlySessions.map((session) => (
@@ -231,7 +233,7 @@ export function TerminalSessionsList() {
               key={session.id}
               onClick={() => handleRestore(session)}
               className="group flex w-full items-center gap-2 rounded-lg px-3 py-1.5 text-left text-[13px] text-zinc-500 transition-all duration-150 hover:bg-white/[0.03] hover:text-zinc-300"
-              title={`Restart terminal at ${session.cwd}`}
+              title={t("sidebar.terminal.restartAt", { path: session.cwd })}
             >
               <TerminalSquare size={13} className="shrink-0 text-zinc-600" />
               <div className="flex min-w-0 flex-1 flex-col">
@@ -247,7 +249,7 @@ export function TerminalSessionsList() {
                   role="button"
                   tabIndex={-1}
                   className="rounded p-0.5 text-zinc-600 transition-colors group-hover:text-green-500"
-                  title="Restart terminal"
+                  title={t("sidebar.terminal.restart")}
                 >
                   <Play size={11} fill="currentColor" />
                 </span>

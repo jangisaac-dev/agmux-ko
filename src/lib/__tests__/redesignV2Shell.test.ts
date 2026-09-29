@@ -41,10 +41,10 @@ describe("shell/home sweep", () => {
 
   it("HomeScreen ProviderUsageSection status text (stale/unavailable/loading) is sans, not mono", () => {
     const s = src("components/layout/HomeScreen.tsx");
-    const staleSpan = around(s, "stale · {formatRelative");
+    const staleSpan = around(s, 't("home.usage.status.stale"');
     expect(staleSpan).not.toMatch(/font-mono/);
     expect(staleSpan).toContain("ui-meta");
-    const unavailableSpan = around(s, 'hasEverFetched ? "unavailable" : "loading…"');
+    const unavailableSpan = around(s, 'hasEverFetched ? t("home.usage.status.unavailable")');
     expect(unavailableSpan).not.toMatch(/font-mono/);
     expect(unavailableSpan).toContain("ui-meta");
   });

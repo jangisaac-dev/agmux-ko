@@ -45,6 +45,7 @@ import {
 import type { Project } from "../../lib/types";
 import { sortMemoryEntries } from "./memoryPanelData";
 import { EmptyState } from "../ui/panel";
+import { localeTag, useT } from "../../i18n";
 
 type KindFilter =
   | "all"
@@ -69,30 +70,30 @@ const KIND_ORDER: Array<Exclude<KindFilter, "all" | "session">> = [
 
 const KIND_META: Record<
   Exclude<KindFilter, "all" | "session" | "important" | "binding">,
-  { label: string; icon: typeof Pin; className: string }
+  { labelKey: string; icon: typeof Pin; className: string }
 > = {
   pin: {
-    label: "Pin",
+    labelKey: "chat.memory.kind.pin",
     icon: Pin,
     className: "mem-kind mem-kind-pin",
   },
   decision: {
-    label: "Decision",
+    labelKey: "chat.memory.kind.decision",
     icon: Scale,
     className: "mem-kind mem-kind-decision",
   },
   fact: {
-    label: "Fact",
+    labelKey: "chat.memory.kind.fact",
     icon: Lightbulb,
     className: "mem-kind mem-kind-fact",
   },
   issue: {
-    label: "Issue",
+    labelKey: "chat.memory.kind.issue",
     icon: AlertCircle,
     className: "mem-kind mem-kind-issue",
   },
   note: {
-    label: "Note",
+    labelKey: "chat.memory.kind.note",
     icon: StickyNote,
     className: "mem-kind mem-kind-note",
   },
@@ -111,16 +112,16 @@ interface ProjectMemoryBucket {
 
 type MemoryView = "durable" | "sessions" | "archived";
 
-function formatRelative(iso: string | null | undefined): string {
+function formatRelative(iso: string | null | undefined, t: ReturnType<typeof useT>): string {
   if (!iso) return "—";
-  const t = Date.parse(iso);
-  if (Number.isNaN(t)) return "—";
-  const diff = Date.now() - t;
-  if (diff < 60_000) return "just now";
-  if (diff < 3_600_000) return `${Math.floor(diff / 60_000)}m ago`;
-  if (diff < 86_400_000) return `${Math.floor(diff / 3_600_000)}h ago`;
-  if (diff < 7 * 86_400_000) return `${Math.floor(diff / 86_400_000)}d ago`;
-  return new Date(t).toLocaleDateString(undefined, {
+  const timestamp = Date.parse(iso);
+  if (Number.isNaN(timestamp)) return "—";
+  const diff = Date.now() - timestamp;
+  if (diff < 60_000) return t("chat.memory.relative.justNow");
+  if (diff < 3_600_000) return t("chat.memory.relative.minute", { count: Math.floor(diff / 60_000) });
+  if (diff < 86_400_000) return t("chat.memory.relative.hour", { count: Math.floor(diff / 3_600_000) });
+  if (diff < 7 * 86_400_000) return t("chat.memory.relative.day", { count: Math.floor(diff / 86_400_000) });
+  return new Date(timestamp).toLocaleDateString(localeTag(), {
     month: "short",
     day: "numeric",
   });
@@ -134,6 +135,12 @@ function normalizeKind(
     return k;
   }
   return "note";
+}
+
+function memoryStatusLabel(status: string, t: ReturnType<typeof useT>): string {
+  if (status === "resolved") return t("chat.memory.status.resolved");
+  if (status === "superseded") return t("chat.memory.status.superseded");
+  return status;
 }
 
 function entryMatchesQuery(entry: SessionMemoryEntry, q: string): boolean {
@@ -174,14 +181,14 @@ function isStaleRevisionError(error: unknown): boolean {
 }
 
 const FINDING_LABELS: Record<string, string> = {
-  duplicate_active_title: "duplicate active titles",
-  supersession_cycle: "supersession cycles",
-  status_lineage_inconsistency: "lineage inconsistencies",
-  secret_candidate: "privacy candidates",
-  projection_omitted: "omitted from local projection",
-  important_over_soft_cap: "important over soft cap",
-  binding_over_soft_cap: "binding over soft cap",
-  cleanable_lifecycle: "ready to archive (superseded/resolved)",
+  duplicate_active_title: "chat.memory.finding.duplicateActiveTitle",
+  supersession_cycle: "chat.memory.finding.supersessionCycle",
+  status_lineage_inconsistency: "chat.memory.finding.statusLineageInconsistency",
+  secret_candidate: "chat.memory.finding.secretCandidate",
+  projection_omitted: "chat.memory.finding.projectionOmitted",
+  important_over_soft_cap: "chat.memory.finding.importantOverSoftCap",
+  binding_over_soft_cap: "chat.memory.finding.bindingOverSoftCap",
+  cleanable_lifecycle: "chat.memory.finding.cleanableLifecycle",
 };
 
 /** Soft caps shown when health payload omits them (older builds). */
@@ -189,6 +196,7 @@ const DEFAULT_IMPORTANT_SOFT_CAP = 12;
 const DEFAULT_BINDING_SOFT_CAP = 8;
 
 export function MemoryMainPanel() {
+  const t = useT();
   const projects = useProjectStore((s) => s.projects);
   const fetchProjects = useProjectStore((s) => s.fetchProjects);
 
@@ -461,7 +469,7 @@ export function MemoryMainPanel() {
       applyCommittedResult(projectId, result, supersededIds);
       setRefreshFailedProjectId(projectId);
       const message = error instanceof Error ? error.message : String(error);
-      setActionError(`Saved, but refresh failed: ${message}`);
+      setActionError(t("chat.memory.savedRefreshFailed", { message }));
     }
   };
 
@@ -474,7 +482,7 @@ export function MemoryMainPanel() {
       setActionError(null);
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
-      setActionError(`Saved, but refresh failed: ${message}`);
+      setActionError(t("chat.memory.savedRefreshFailed", { message }));
     } finally {
       setRefreshing(false);
     }
@@ -486,7 +494,7 @@ export function MemoryMainPanel() {
   ) => {
     if (isStaleRevisionError(error)) {
       if (!authoritativeStateLoaded) await loadAll({ quiet: true });
-      setActionError("Memory changed elsewhere and was reloaded. Review the latest version, then try again.");
+      setActionError(`${t("chat.memory.staleReloaded")} ${t("chat.memory.staleReloadedReview")}`);
       return;
     }
     setActionError(error instanceof Error ? error.message : String(error));
@@ -646,9 +654,9 @@ export function MemoryMainPanel() {
             const refreshMessage =
               refreshError instanceof Error ? refreshError.message : String(refreshError);
             const prefix = isStaleRevisionError(error)
-              ? "Memory changed elsewhere after the edit was saved."
-              : `Edit saved, but supersede failed: ${supersedeMessage}.`;
-            setActionError(`${prefix} Refresh failed: ${refreshMessage}`);
+              ? t("chat.memory.staleEditSaved")
+              : t("chat.memory.editSupersedeFailed", { message: supersedeMessage });
+            setActionError(t("chat.memory.refreshAfterEditFailed", { prefix, message: refreshMessage }));
             return;
           }
           await handleMutationError(error, reloaded);
@@ -673,11 +681,11 @@ export function MemoryMainPanel() {
   };
 
   const sourceLabel = (entry: SessionMemoryEntry) => {
-    if (entry.source === "user") return "You";
+    if (entry.source === "user") return t("chat.speaker.you");
     if (entry.source === "system") return "agmux";
-    if (entry.source.startsWith("agent:")) return entry.source.slice(6) || "agent";
-    if (entry.source === "agent") return "Agent";
-    return entry.source || "Agent";
+    if (entry.source.startsWith("agent:")) return entry.source.slice(6) || t("chat.memory.source.agentLower");
+    if (entry.source === "agent") return t("chat.memory.source.agent");
+    return entry.source || t("chat.memory.source.agent");
   };
 
   const updateLifecycle = async (
@@ -726,16 +734,16 @@ export function MemoryMainPanel() {
 
   const statusLine =
     totals.projects === 0
-      ? "No projects yet"
+      ? t("chat.memory.noProjects")
       : [
           totals.entries > 0
-            ? `${totals.entries} ${totals.entries === 1 ? "memory" : "memories"}`
+            ? t("chat.memory.status.memories", { count: totals.entries })
             : null,
           totals.sessions > 0
-            ? `${totals.sessions} ${totals.sessions === 1 ? "session" : "sessions"}`
+            ? t("chat.memory.status.sessions", { count: totals.sessions })
             : null,
-          totals.entries === 0 && totals.sessions === 0 ? "0 entries" : null,
-          `${totals.withContent} of ${totals.projects} projects`,
+          totals.entries === 0 && totals.sessions === 0 ? t("chat.memory.status.zeroEntries", { count: 0 }) : null,
+          t("chat.memory.status.projectCount", { withContent: totals.withContent, count: totals.projects }),
         ]
           .filter(Boolean)
           .join(" · ");
@@ -755,7 +763,7 @@ export function MemoryMainPanel() {
                 className="ui-title-xl truncate font-semibold tracking-tight text-[var(--text-primary)]"
                 style={{ fontSize: "var(--text-ui)", lineHeight: 1.2 }}
               >
-                Memory
+                {t("chat.memory.title")}
               </h1>
               <p
                 className="mt-0.5 text-[12px] text-[var(--text-muted)] fx-graphite"
@@ -772,10 +780,10 @@ export function MemoryMainPanel() {
               className="mem-refresh"
               title={
                 cleanPreview.total === 0
-                  ? "Nothing to clean"
-                  : `Clean ${cleanPreview.total}: clear important, archive superseded/resolved (keeps binding)`
+                  ? t("chat.memory.nothingToClean")
+                  : t("chat.memory.cleanPreviewTitle", { count: cleanPreview.total })
               }
-              aria-label="Clean memories"
+              aria-label={t("chat.memory.cleanMemories")}
             >
               {cleaning ? <Loader2 size={13} className="animate-spin" /> : <Eraser size={13} />}
             </button>
@@ -784,8 +792,8 @@ export function MemoryMainPanel() {
               onClick={() => void loadAll({ quiet: true })}
               disabled={loading || refreshing || cleaning}
               className="mem-refresh"
-              title="Refresh"
-              aria-label="Refresh memory"
+              title={t("chat.memory.refresh")}
+              aria-label={t("chat.memory.refreshMemory")}
             >
               <RefreshCw size={13} className={refreshing || loading ? "animate-spin" : ""} />
             </button>
@@ -793,36 +801,36 @@ export function MemoryMainPanel() {
         </header>
 
         {!loading && buckets.length > 0 && (
-          <section className="mem-health" aria-label="Memory health">
+          <section className="mem-health" aria-label={t("chat.memory.healthLabel")}>
             <div className="mem-health-counts">
-              <span><strong>{healthTotals.active}</strong> active</span>
+              <span><strong>{healthTotals.active}</strong> {t("chat.memory.active")}</span>
               <span data-warning={softCapWarnings.bindingOver ? "true" : "false"}>
-                <strong>{healthTotals.binding}</strong> binding
-                {softCapWarnings.bindingOver ? ` (cap ${softCapWarnings.bindingCap})` : ""}
+                <strong>{healthTotals.binding}</strong> {t("chat.memory.binding")}
+                {softCapWarnings.bindingOver ? t("chat.memory.cap", { count: softCapWarnings.bindingCap }) : ""}
               </span>
               <span data-warning={softCapWarnings.importantOver ? "true" : "false"}>
-                <strong>{healthTotals.review}</strong> important (non-binding)
-                {softCapWarnings.importantOver ? ` (cap ${softCapWarnings.importantCap})` : ""}
+                <strong>{healthTotals.review}</strong> {t("chat.memory.importantNonBinding")}
+                {softCapWarnings.importantOver ? t("chat.memory.cap", { count: softCapWarnings.importantCap }) : ""}
               </span>
             </div>
             {[...healthTotals.findings.entries()].map(([code, count]) => (
               <span key={code} className="mem-health-finding">
-                <ShieldAlert size={11} /> {count} {FINDING_LABELS[code] ?? code.replace(/_/g, " ")}
+                <ShieldAlert size={11} /> {FINDING_LABELS[code] ? t(FINDING_LABELS[code], { count }) : `${count} ${code.replace(/_/g, " ")}`}
               </span>
             ))}
             {(softCapWarnings.importantOver || softCapWarnings.bindingOver) && (
               <span className="mem-health-finding">
-                <ShieldAlert size={11} /> Keep binding/important sparse
+                <ShieldAlert size={11} /> {t("chat.memory.keepBindingImportantSparse")}
                 {softCapWarnings.importantOver
-                  ? ` · important ${softCapWarnings.important}/${softCapWarnings.importantCap}`
+                  ? t("chat.memory.importantCapCount", { count: softCapWarnings.important, cap: softCapWarnings.importantCap })
                   : ""}
                 {softCapWarnings.bindingOver
-                  ? ` · binding ${healthTotals.binding}/${softCapWarnings.bindingCap}`
+                  ? t("chat.memory.bindingCapCount", { count: healthTotals.binding, cap: softCapWarnings.bindingCap })
                   : ""}
               </span>
             )}
             {buckets.some((bucket) => bucket.healthError) && (
-              <span className="mem-health-finding"><ShieldAlert size={11} /> Health unavailable</span>
+              <span className="mem-health-finding"><ShieldAlert size={11} /> {t("chat.memory.healthUnavailable")}</span>
             )}
             {cleanPreview.total > 0 && (
               <button
@@ -831,7 +839,7 @@ export function MemoryMainPanel() {
                 disabled={cleaning}
                 onClick={() => setCleanConfirmOpen(true)}
               >
-                Clean memories
+                {t("chat.memory.cleanMemories")}
               </button>
             )}
           </section>
@@ -841,20 +849,20 @@ export function MemoryMainPanel() {
           <div
             className="mem-binding-confirm mx-3 mt-2"
             role="alertdialog"
-            aria-label="Confirm clean memories"
+            aria-label={t("chat.memory.confirmCleanMemories")}
           >
             <p>
-              Clean {cleanPreview.total} item{cleanPreview.total === 1 ? "" : "s"}:
+              {t("chat.memory.cleanItem", { count: cleanPreview.total })}:
               {cleanPreview.important > 0
-                ? ` clear ${cleanPreview.important} important flag${cleanPreview.important === 1 ? "" : "s"}`
+                ? t("chat.memory.clearImportantFlag", { count: cleanPreview.important })
                 : ""}
               {cleanPreview.superseded > 0
-                ? `${cleanPreview.important > 0 ? ";" : ""} archive ${cleanPreview.superseded} superseded`
+                ? t("chat.memory.archiveSuperseded", { separator: cleanPreview.important > 0 ? ";" : "", count: cleanPreview.superseded })
                 : ""}
               {cleanPreview.resolved > 0
-                ? `${cleanPreview.important + cleanPreview.superseded > 0 ? ";" : ""} archive ${cleanPreview.resolved} resolved issue${cleanPreview.resolved === 1 ? "" : "s"}`
+                ? t("chat.memory.archiveResolvedIssue", { separator: cleanPreview.important + cleanPreview.superseded > 0 ? ";" : "", count: cleanPreview.resolved })
                 : ""}
-              . Binding constraints stay. Nothing is permanently deleted.
+              . {t("chat.memory.bindingConstraintsStay")} {t("chat.memory.nothingPermanentlyDeleted")}
             </p>
             <div className="flex gap-3">
               <button
@@ -863,7 +871,7 @@ export function MemoryMainPanel() {
                 disabled={cleaning}
                 onClick={() => void runCleanMemories()}
               >
-                {cleaning ? "Cleaning…" : "Clean memories"}
+                {cleaning ? t("chat.memory.cleaning") : t("chat.memory.cleanMemories")}
               </button>
               <button
                 type="button"
@@ -871,14 +879,14 @@ export function MemoryMainPanel() {
                 disabled={cleaning}
                 onClick={() => setCleanConfirmOpen(false)}
               >
-                Cancel
+                {t("chat.journal.cancel")}
               </button>
             </div>
           </div>
         )}
 
         <div className="mem-toolbar shrink-0">
-          <div className="mem-filters" aria-label="Memory view">
+          <div className="mem-filters" aria-label={t("chat.memory.viewLabel")}>
             {(["durable", "sessions", "archived"] as const).map((item) => (
               <button
                 key={item}
@@ -890,7 +898,7 @@ export function MemoryMainPanel() {
                   if (item === "sessions") setKindFilter("all");
                 }}
               >
-                {item === "durable" ? "Durable memory" : item === "sessions" ? "Session history" : "Archived"}
+                {item === "durable" ? t("chat.memory.view.durable") : item === "sessions" ? t("chat.memory.view.sessions") : t("chat.memory.view.archived")}
               </button>
             ))}
           </div>
@@ -905,10 +913,10 @@ export function MemoryMainPanel() {
               onChange={(e) => setQuery(e.target.value)}
               placeholder={
                 view === "durable"
-                  ? "Search durable memory…"
+                  ? t("chat.memory.searchDurable")
                   : view === "sessions"
-                    ? "Search session history…"
-                    : "Search archived memory…"
+                    ? t("chat.memory.searchSessions")
+                    : t("chat.memory.searchArchived")
               }
               className="mem-search"
             />
@@ -920,7 +928,7 @@ export function MemoryMainPanel() {
               className="mem-filter"
               onClick={() => setKindFilter("all")}
             >
-              All
+              {t("chat.memory.filter.all")}
             </button>
             {KIND_ORDER.map((k) => (
               <button
@@ -931,10 +939,10 @@ export function MemoryMainPanel() {
                 onClick={() => setKindFilter(k)}
               >
                 {k === "important"
-                  ? "Important"
+                  ? t("chat.memory.filter.important")
                   : k === "binding"
-                    ? "Binding"
-                    : KIND_META[k as Exclude<KindFilter, "all" | "session" | "important" | "binding">].label}
+                    ? t("chat.memory.filter.binding")
+                    : t(KIND_META[k as Exclude<KindFilter, "all" | "session" | "important" | "binding">].labelKey)}
               </button>
             ))}
           </div>
@@ -950,20 +958,20 @@ export function MemoryMainPanel() {
                 disabled={refreshing}
                 onClick={() => void retryFailedRefresh()}
               >
-                Retry refresh
+                {t("chat.memory.retryRefresh")}
               </button>
             )}
             {projectionWarning && (
               <span className="text-amber-300/90">
                 {projectionWarning}{" "}
-                <button className="mem-more" onClick={() => setProjectionWarning(null)}>Dismiss</button>
+                <button className="mem-more" onClick={() => setProjectionWarning(null)}>{t("chat.memory.dismiss")}</button>
               </span>
             )}
             {lastArchived && (
               <span>
-                Archived “{lastArchived.entry.title}”.{" "}
+                {t("chat.memory.archivedEntry", { title: lastArchived.entry.title })}{" "}
                 <button type="button" className="mem-more" onClick={() => void undoArchive()}>
-                  Undo
+                  {t("chat.memory.undo")}
                 </button>
               </span>
             )}
@@ -974,7 +982,7 @@ export function MemoryMainPanel() {
           {loading && buckets.length === 0 ? (
             <div className="orch-empty">
               <Loader2 size={22} className="mb-3 animate-spin text-[var(--text-muted)]" />
-              <p className="text-sm text-[var(--text-secondary)]">Loading project memory…</p>
+              <p className="text-sm text-[var(--text-secondary)]">{t("chat.memory.loadingProjectMemory")}</p>
             </div>
           ) : filtered.length === 0 ||
             filtered.every(
@@ -986,23 +994,23 @@ export function MemoryMainPanel() {
               icon={Brain}
               headline={
                 q || kindFilter !== "all"
-                  ? view === "sessions" ? "No matching sessions" : "No matching memory"
+                  ? view === "sessions" ? t("chat.memory.noMatchingSessions") : t("chat.memory.noMatchingMemory")
                   : projects.length === 0
-                    ? "No projects yet"
+                    ? t("chat.memory.noProjects")
                     : view === "durable"
-                      ? "No durable memory yet"
+                      ? t("chat.memory.noDurableMemory")
                       : view === "sessions"
-                        ? "No session history yet"
-                        : "No archived memory yet"
+                        ? t("chat.memory.noSessionHistory")
+                        : t("chat.memory.noArchivedMemory")
               }
               body={
                 q || kindFilter !== "all"
-                  ? "Try a different search or kind filter."
+                  ? t("chat.memory.tryDifferentSearch")
                   : view === "durable"
-                    ? "Agents record durable decisions, facts, and issues as they work."
+                    ? t("chat.memory.durableEmptyHelp")
                     : view === "sessions"
-                      ? "Completed agent sessions will appear here with their handoff summaries."
-                      : "Archived, resolved, and superseded memory will appear here."
+                      ? t("chat.memory.sessionsEmptyHelp")
+                      : t("chat.memory.archivedEmptyHelp")
               }
             />
           ) : (
@@ -1044,29 +1052,29 @@ export function MemoryMainPanel() {
                       <div className="mem-entries">
                         {view !== "sessions" && bucket.memoryError && (
                           <p className="px-3 py-2 text-xs text-amber-300/90">
-                            Couldn’t load durable memory: {bucket.memoryError}{" "}
+                            {t("chat.memory.loadDurableFailed", { message: bucket.memoryError })}{" "}
                             <button className="mem-more" onClick={() => void loadAll({ quiet: true })}>
-                              Retry
+                              {t("chat.memory.retry")}
                             </button>
                           </p>
                         )}
                         {view === "sessions" && bucket.sessionError && (
                           <p className="px-3 py-2 text-xs text-amber-300/90">
-                            Couldn’t load session history: {bucket.sessionError}{" "}
+                            {t("chat.memory.loadSessionFailed", { message: bucket.sessionError })}{" "}
                             <button className="mem-more" onClick={() => void loadAll({ quiet: true })}>
-                              Retry
+                              {t("chat.memory.retry")}
                             </button>
                           </p>
                         )}
                         {!bucket.memoryError && !bucket.sessionError && count === 0 && (
                           <p className="px-3 py-3 text-xs text-[var(--text-muted)]">
-                            No entries for this project yet.
+                            {t("chat.memory.noProjectEntries")}
                           </p>
                         )}
 
                         {bucket.sessions.length > 0 && (
                           <>
-                            <p className="mem-section-label">Sessions</p>
+                            <p className="mem-section-label">{t("chat.memory.section.sessions")}</p>
                             {bucket.sessions.map((session) => {
                               const open = expandedIds[`s:${session.id}`] ?? false;
                               const long = (session.summary || "").length > 160;
@@ -1080,7 +1088,7 @@ export function MemoryMainPanel() {
                                   <div className="mem-entry-top">
                                     <span className="mem-kind mem-kind-session">
                                       <MessageSquareText size={11} strokeWidth={2} />
-                                      Session
+                                      {t("chat.memory.session")}
                                     </span>
                                     {session.provider && (
                                       <span className="ui-meta text-[10px] text-[var(--text-muted)]">
@@ -1095,18 +1103,18 @@ export function MemoryMainPanel() {
                                     {session.source && (
                                       <span className="ui-meta text-[10px] text-[var(--text-muted)]">
                                         {session.source === "agent"
-                                          ? "Recorded by agent"
+                                          ? t("chat.memory.recordedByAgent")
                                           : session.source === "auto"
-                                            ? "Auto-summarized"
-                                            : "Extracted from logs"}
+                                            ? t("chat.memory.autoSummarized")
+                                            : t("chat.memory.extractedFromLogs")}
                                       </span>
                                     )}
                                     <span className="ml-auto ui-meta text-[10px] text-[var(--text-muted)]">
-                                      {formatRelative(session.updatedAt || session.createdAt)}
+                                      {formatRelative(session.updatedAt || session.createdAt, t)}
                                     </span>
                                   </div>
                                   <h3 className="mem-entry-title">
-                                    {session.title || "Untitled session"}
+                                    {session.title || t("chat.memory.untitledSession")}
                                   </h3>
                                   <p
                                     className={
@@ -1115,7 +1123,7 @@ export function MemoryMainPanel() {
                                         : "mem-entry-body mem-entry-body-clamp"
                                     }
                                   >
-                                    {session.summary || "_(no summary yet)_"}
+                                    {session.summary || t("chat.memory.noSummaryYet")}
                                   </p>
                                   {long && (
                                     <button
@@ -1123,7 +1131,7 @@ export function MemoryMainPanel() {
                                       className="mem-more"
                                       onClick={() => toggleEntry(`s:${session.id}`)}
                                     >
-                                      {open ? "Show less" : "Show more"}
+                                      {open ? t("chat.memory.showLess") : t("chat.memory.showMore")}
                                     </button>
                                   )}
                                   {session.transcriptPath && (
@@ -1141,7 +1149,7 @@ export function MemoryMainPanel() {
                                           );
                                       }}
                                     >
-                                      Open transcript
+                                      {t("chat.memory.openTranscript")}
                                     </button>
                                   )}
                                   {(session.summary || session.title) && (
@@ -1152,13 +1160,13 @@ export function MemoryMainPanel() {
                                         setShareTarget({
                                           projectId: bucket.project.id,
                                           mode: "digest",
-                                          title: session.title || "Session digest",
+                                          title: session.title || t("chat.memory.sessionDigest"),
                                           content: session.summary || session.title || "",
                                         });
                                       }}
                                     >
                                       <Share2 size={11} className="mr-1 inline" />
-                                      Share to team
+                                      {t("chat.memory.shareToTeam")}
                                     </button>
                                   )}
                                 </article>
@@ -1170,7 +1178,7 @@ export function MemoryMainPanel() {
                         {bucket.entries.length > 0 && (
                           <>
                             {bucket.sessions.length > 0 && (
-                              <p className="mem-section-label">Project memory</p>
+                              <p className="mem-section-label">{t("chat.memory.section.projectMemory")}</p>
                             )}
                             {bucket.entries.map((entry) => {
                               const kind = normalizeKind(entry.kind);
@@ -1193,41 +1201,41 @@ export function MemoryMainPanel() {
                                         className="mem-kind mem-kind-binding"
                                         title={
                                           entry.bindingConfirmedBy
-                                            ? `Binding set by ${entry.bindingConfirmedBy}`
-                                            : "Binding constraint"
+                                            ? t("chat.memory.bindingSetBy", { name: entry.bindingConfirmedBy })
+                                            : t("chat.memory.bindingConstraint")
                                         }
                                       >
-                                        <ShieldCheck size={11} strokeWidth={2} /> Binding
+                                        <ShieldCheck size={11} strokeWidth={2} /> {t("chat.memory.binding")}
                                       </span>
                                     ) : null}
                                     {entry.important && (
                                       <span
                                         className="mem-kind mem-kind-important"
-                                        title="Attention-only (not binding)"
+                                        title={t("chat.memory.attentionOnly")}
                                       >
                                         <Star size={11} strokeWidth={2} />
-                                        Important
+                                        {t("chat.memory.important")}
                                       </span>
                                     )}
                                     <span className={meta.className}>
                                       <Icon size={11} strokeWidth={2} />
-                                      {meta.label}
+                                      {t(meta.labelKey)}
                                     </span>
                                     <span className="ui-meta text-[10px] text-[var(--text-muted)]">
-                                      {formatRelative(entry.updatedAt || entry.createdAt)}
+                                      {formatRelative(entry.updatedAt || entry.createdAt, t)}
                                     </span>
                                     <span
                                       className="ui-meta text-[10px] text-[var(--text-muted)]"
-                                      title={`Source: ${entry.source || "unknown"} · Created ${entry.createdAt || "—"} · Updated ${entry.updatedAt || "—"}`}
+                                      title={t("chat.memory.sourceCreatedUpdated", { source: entry.source || t("chat.memory.unknown"), created: entry.createdAt || "—", updated: entry.updatedAt || "—" })}
                                     >
                                       {sourceLabel(entry)}
                                       {entry.createdAt
-                                        ? ` · ${formatRelative(entry.createdAt)}`
+                                        ? ` · ${formatRelative(entry.createdAt, t)}`
                                         : ""}
                                     </span>
                                     {entry.status && entry.status !== "current" && (
                                       <span className="ui-meta text-[10px] text-[var(--text-muted)]">
-                                        {entry.status}
+                                        {memoryStatusLabel(entry.status, t)}
                                       </span>
                                     )}
                                     {entry.supersedes && entry.supersedes.length > 0 && (
@@ -1235,20 +1243,18 @@ export function MemoryMainPanel() {
                                         className="ui-meta text-[10px] text-[var(--text-muted)]"
                                         title={entry.supersedes.join(", ")}
                                       >
-                                        replaces {entry.supersedes.length}
+                                        {t("chat.memory.replacesCount", { count: entry.supersedes.length })}
                                       </span>
                                     )}
                                     <div className="mem-entry-actions">
                                       <button
                                         type="button"
                                         className="mem-action"
-                                        title={
-                                          entry.important ? "Clear important" : "Mark important"
-                                        }
+                                        title={entry.important ? t("chat.memory.clearImportant") : t("chat.memory.markImportant")}
                                         aria-label={
                                           entry.important
-                                            ? `Clear important on ${entry.title}`
-                                            : `Mark important ${entry.title}`
+                                            ? t("chat.memory.clearImportantOn", { title: entry.title })
+                                            : t("chat.memory.markImportantTitle", { title: entry.title })
                                         }
                                         onClick={() => {
                                           setActionError(null);
@@ -1277,8 +1283,8 @@ export function MemoryMainPanel() {
                                         <button
                                           type="button"
                                           className="mem-action"
-                                          title="Revoke binding"
-                                          aria-label={`Revoke binding ${entry.title}`}
+                                          title={t("chat.memory.revokeBinding")}
+                                          aria-label={t("chat.memory.revokeBindingTitle", { title: entry.title })}
                                           onClick={() => {
                                             void updateBinding(bucket.project.id, entry);
                                           }}
@@ -1293,8 +1299,8 @@ export function MemoryMainPanel() {
                                           <button
                                             type="button"
                                             className="mem-action"
-                                            title="Share to team Knowledge"
-                                            aria-label={`Share ${entry.title} to team`}
+                                            title={t("chat.memory.shareToTeamKnowledge")}
+                                            aria-label={t("chat.memory.shareTitleToTeam", { title: entry.title })}
                                             onClick={() => {
                                               setShareTarget({
                                                 projectId: bucket.project.id,
@@ -1311,8 +1317,8 @@ export function MemoryMainPanel() {
                                       <button
                                         type="button"
                                         className="mem-action"
-                                        title="Edit"
-                                        aria-label={`Edit ${entry.title}`}
+                                        title={t("chat.journal.edit")}
+                                        aria-label={t("chat.memory.editTitle", { title: entry.title })}
                                         onClick={() => {
                                           setEditingId(entry.id);
                                           setEditTitle(entry.title);
@@ -1336,8 +1342,8 @@ export function MemoryMainPanel() {
                                       <button
                                         type="button"
                                         className="mem-action mem-action-danger"
-                                        title={entry.archived ? "Restore" : "Archive"}
-                                        aria-label={`${entry.archived ? "Restore" : "Archive"} ${entry.title}`}
+                                        title={entry.archived ? t("chat.memory.restore") : t("chat.memory.archive")}
+                                        aria-label={t(entry.archived ? "chat.memory.restoreTitle" : "chat.memory.archiveTitle", { title: entry.title })}
                                         disabled={archivingId === entry.id}
                                         onClick={(e) => {
                                           e.stopPropagation();
@@ -1364,13 +1370,13 @@ export function MemoryMainPanel() {
                                         className="mem-search w-full"
                                         value={editTitle}
                                         onChange={(event) => setEditTitle(event.target.value)}
-                                        aria-label="Memory title"
+                                        aria-label={t("chat.memory.titleLabel")}
                                       />
                                       <textarea
                                         className="mem-search min-h-20 w-full resize-y py-2"
                                         value={editContent}
                                         onChange={(event) => setEditContent(event.target.value)}
-                                        aria-label="Memory content"
+                                        aria-label={t("chat.memory.contentLabel")}
                                       />
                                       {(() => {
                                         const candidates = bucket.entries.filter(
@@ -1383,8 +1389,7 @@ export function MemoryMainPanel() {
                                         return (
                                           <div className="rounded-md border border-[var(--border-subtle)] p-2 space-y-1">
                                             <p className="text-[11px] text-[var(--text-muted)]">
-                                              Mark outdated entries this replaces (prevents stale
-                                              facts from contaminating later agents):
+                                              {t("chat.memory.markOutdatedEntries")}
                                             </p>
                                             <div className="max-h-28 overflow-y-auto space-y-1">
                                               {candidates.map((c) => (
@@ -1423,9 +1428,9 @@ export function MemoryMainPanel() {
                                           className="mem-more"
                                           onClick={() => void saveEdit(bucket.project.id, entry.id)}
                                         >
-                                          Save
+                                          {t("chat.journal.save")}
                                           {supersedeTargets.length > 0
-                                            ? ` · replace ${supersedeTargets.length}`
+                                            ? t("chat.memory.replaceCount", { count: supersedeTargets.length })
                                             : ""}
                                         </button>
                                         <button
@@ -1436,7 +1441,7 @@ export function MemoryMainPanel() {
                                             setSupersedeTargets([]);
                                           }}
                                         >
-                                          Cancel
+                                          {t("chat.journal.cancel")}
                                         </button>
                                       </div>
                                     </div>
@@ -1458,7 +1463,7 @@ export function MemoryMainPanel() {
                                       className="mem-more"
                                       onClick={() => toggleEntry(entry.id)}
                                     >
-                                      {open ? "Show less" : "Show more"}
+                                      {open ? t("chat.memory.showLess") : t("chat.memory.showMore")}
                                     </button>
                                   )}
                                     </>
@@ -1476,7 +1481,7 @@ export function MemoryMainPanel() {
                                       }
                                     >
                                       <CheckCircle2 size={11} className="mr-1 inline" />
-                                      {entry.status === "resolved" ? "Reopen" : "Resolve"}
+                                      {entry.status === "resolved" ? t("chat.memory.reopen") : t("chat.memory.resolve")}
                                     </button>
                                   )}
                                 </article>
@@ -1508,7 +1513,7 @@ export function MemoryMainPanel() {
           onClose={() => setShareTarget(null)}
           onShared={({ teamName }) => {
             setActionError(null);
-            setProjectionWarning(`Shared to ${teamName} Team Knowledge.`);
+            setProjectionWarning(t("chat.memory.sharedToTeamKnowledge", { teamName }));
             setShareTarget(null);
           }}
         />

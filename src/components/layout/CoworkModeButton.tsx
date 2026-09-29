@@ -2,6 +2,7 @@ import { useEffect, useRef } from "react";
 import { Briefcase } from "lucide-react";
 import { toggleCoworkAppMode } from "../../lib/coworkMode";
 import { useUiStore } from "../../stores/uiStore";
+import { useT } from "../../i18n";
 
 /**
  * Titlebar briefcase. Activate on pointerdown so a nearby window-drag
@@ -9,6 +10,7 @@ import { useUiStore } from "../../stores/uiStore";
  * click so one press does not toggle twice.
  */
 export function CoworkModeButton({ iconSize = 13 }: { iconSize?: number }) {
+  const t = useT();
   const appMode = useUiStore((s) => s.appMode);
   const handledByPointerRef = useRef(false);
   const clearHandled = useRef<number | null>(null);
@@ -33,7 +35,7 @@ export function CoworkModeButton({ iconSize = 13 }: { iconSize?: number }) {
       type="button"
       className="tbtn"
       data-active={appMode === "cowork" ? "true" : "false"}
-      title="Cowork — Claude Cowork and ChatGPT Work chats"
+      title={t("layout.cowork.title")}
       onPointerDown={(e) => {
         if (e.button !== 0) return;
         e.stopPropagation();
