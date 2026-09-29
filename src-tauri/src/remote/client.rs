@@ -2561,9 +2561,7 @@ fn read_rollout_head(path: &std::path::Path) -> Option<(String, Option<String>)>
                         }
                         let first_line = msg.lines().find(|l| !l.trim().is_empty());
                         if let Some(l) = first_line {
-                            let mut s = l.trim().to_string();
-                            s.truncate(120);
-                            preview = Some(s);
+                            preview = Some(crate::text::byte_prefix(l.trim(), 120).to_string());
                         }
                         break;
                     }
@@ -3730,6 +3728,24 @@ mod tests {
             preview.as_deref(),
             Some("Okay- first make some designs on how that will look")
         );
+    }
+
+    #[test]
+    fn rollout_head_preview_keeps_utf8_boundaries() {
+        // Byte 120 lands inside a 3-byte Hangul char; truncating there panicked.
+        let prompt = format!("a{}", "가".repeat(60));
+        let path = write_rollout(
+            "utf8",
+            &[
+                serde_json::json!({
+                    "type": "session_meta",
+                    "payload": { "id": "utf8", "cwd": "/tmp/example", "source": "cli" }
+                }),
+                user_message(&prompt),
+            ],
+        );
+        let (_, preview) = read_rollout_head(&path).expect("session is listable");
+        assert_eq!(preview.as_deref(), Some(&prompt[..118]));
     }
 
     #[test]

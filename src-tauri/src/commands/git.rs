@@ -206,7 +206,7 @@ pub async fn get_git_diff(path: String) -> Result<GitDiffResult, String> {
 
     // Truncate if too large
     if combined.len() > MAX_DIFF_BYTES {
-        combined.truncate(MAX_DIFF_BYTES);
+        combined.truncate(crate::text::byte_prefix(&combined, MAX_DIFF_BYTES).len());
         combined.push_str("\n\n[diff truncated — exceeds 1 MB]");
     }
 
@@ -267,7 +267,7 @@ pub async fn get_git_branch_diff(path: String) -> Result<GitDiffResult, String> 
     let mut diff_text = String::from_utf8_lossy(&diff_output.stdout).to_string();
 
     if diff_text.len() > MAX_DIFF_BYTES {
-        diff_text.truncate(MAX_DIFF_BYTES);
+        diff_text.truncate(crate::text::byte_prefix(&diff_text, MAX_DIFF_BYTES).len());
         diff_text.push_str("\n\n[diff truncated — exceeds 1 MB]");
     }
 
@@ -373,7 +373,7 @@ pub async fn get_git_committed_diff(path: String) -> Result<GitDiffResult, Strin
 
     let mut diff_text = String::from_utf8_lossy(&diff_output.stdout).to_string();
     if diff_text.len() > MAX_DIFF_BYTES {
-        diff_text.truncate(MAX_DIFF_BYTES);
+        diff_text.truncate(crate::text::byte_prefix(&diff_text, MAX_DIFF_BYTES).len());
         diff_text.push_str("\n\n[diff truncated — exceeds 1 MB]");
     }
     let has_changes = !diff_text.is_empty();
@@ -518,7 +518,7 @@ pub async fn get_git_unstaged_diff(path: String) -> Result<GitDiffResult, String
 
     let mut diff = String::from_utf8_lossy(&output.stdout).to_string();
     if diff.len() > MAX_DIFF_BYTES {
-        diff.truncate(MAX_DIFF_BYTES);
+        diff.truncate(crate::text::byte_prefix(&diff, MAX_DIFF_BYTES).len());
         diff.push_str("\n\n[diff truncated — exceeds 1 MB]");
     }
     let has_changes = !diff.is_empty();
@@ -542,7 +542,7 @@ pub async fn get_git_staged_diff(path: String) -> Result<GitDiffResult, String> 
 
     let mut diff = String::from_utf8_lossy(&output.stdout).to_string();
     if diff.len() > MAX_DIFF_BYTES {
-        diff.truncate(MAX_DIFF_BYTES);
+        diff.truncate(crate::text::byte_prefix(&diff, MAX_DIFF_BYTES).len());
         diff.push_str("\n\n[diff truncated — exceeds 1 MB]");
     }
     let has_changes = !diff.is_empty();
