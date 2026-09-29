@@ -1703,6 +1703,53 @@ describe("ClaudeSdkSessionView — deep coverage (SDK event handlers)", () => {
     );
   });
 
+  it("stops at once when the last view unmounts while an approval is pending", async () => {
+    const handlers = await setupCapture();
+    const cmd = await import("../../../lib/commands");
+    vi.mocked(cmd.sdkStopSession).mockClear();
+    const { unmount } = render(<ClaudeSdkSessionView sessionId="dc35" cwd="/tmp/repo" isNew />);
+    await flush();
+    fireEvent.click(screen.getByTestId("ib-send"));
+    await flush();
+    act(() => fireSdk(handlers, "dc35", {
+      type: "approval.requested",
+      requestId: "req-35",
+      toolName: "Bash",
+      detail: "ls",
+      requestType: "command_execution",
+    }));
+    await flush();
+
+    unmount();
+
+    expect(cmd.sdkStopSession).toHaveBeenCalledWith("dc35");
+    expect(cmd.sdkStopSession).toHaveBeenCalledTimes(1);
+  });
+
+  it("stops a deferred session when it asks for approval with no view mounted", async () => {
+    const handlers = await setupCapture();
+    const cmd = await import("../../../lib/commands");
+    vi.mocked(cmd.sdkStopSession).mockClear();
+    const { unmount } = render(<ClaudeSdkSessionView sessionId="dc36" cwd="/tmp/repo" isNew />);
+    await flush();
+    fireEvent.click(screen.getByTestId("ib-send"));
+    await flush();
+
+    unmount();
+    expect(cmd.sdkStopSession).not.toHaveBeenCalled();
+
+    act(() => fireSdk(handlers, "dc36", {
+      type: "approval.requested",
+      requestId: "req-36",
+      toolName: "Bash",
+      detail: "ls",
+      requestType: "command_execution",
+    }));
+
+    expect(cmd.sdkStopSession).toHaveBeenCalledWith("dc36");
+    expect(cmd.sdkStopSession).toHaveBeenCalledTimes(1);
+  });
+
   it("stops an idle SDK session when its last view unmounts", async () => {
     await setupCapture();
     const cmd = await import("../../../lib/commands");

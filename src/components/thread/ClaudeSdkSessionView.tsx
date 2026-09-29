@@ -512,7 +512,14 @@ function finalizePendingTools(items: ClaudeChatItem[]): ClaudeChatItem[] {
 /** Module-level cache: SDK slash commands per session survive component remounts */
 const sdkSlashCommandsCache = new Map<string, string[]>();
 const mountedClaudeSdkSessionViews = new Map<string, number>();
+// Events after which an unmounted session cannot progress: the turn ended, or
+// it now waits on an approval/question that only a mounted view can answer.
+const DEFERRED_STOP_EVENTS = new Set(["turn.completed", "session.ended", "error", "approval.requested", "userInput.requested"]);
 
+// ponytail: an end event emitted between the view's unlisten and this listen
+// resolving is missed; the idle process then lives until the thread is next
+// opened and closed (a remount reuses it). Track turn state at module level if
+// that window ever matters.
 function stopSdkSessionAfterTurn(sessionId: string) {
   let unlisten: UnlistenFn | null = null;
   let endedBeforeListenResolved = false;
@@ -521,7 +528,7 @@ function stopSdkSessionAfterTurn(sessionId: string) {
   void listen<SdkEvent>(`sdk-event-${sessionId}`, (event) => {
     const type = event.payload.type;
     if (handledEndEvent) return;
-    if (type !== "turn.completed" && type !== "session.ended" && type !== "error") return;
+    if (!DEFERRED_STOP_EVENTS.has(type)) return;
     handledEndEvent = true;
 
     if (unlisten) unlisten();
@@ -601,7 +608,9 @@ export function ClaudeSdkSessionView({ sessionId, cwd, isNew, compact, hideTopBa
   const [runningUsage, setRunningUsage] = useState<{ inputTokens: number; outputTokens: number; cacheCreationTokens: number; cacheReadTokens: number } | null>(null);
   const [isWorking, setIsWorking] = useState(false);
   const isWorkingForUnmountRef = useRef(isWorking);
-  isWorkingForUnmountRef.current = isWorking;
+  // A turn blocked on an approval or question cannot finish without this view
+  // (requests are not replayed on remount), so unmounting then stops it at once.
+  isWorkingForUnmountRef.current = isWorking && approvalQueue.length === 0 && !pendingInput;
   const [contextUsage, setContextUsage] = useState<ContextUsage | null>(null);
   // Cursor SDKUsageMessage reports whole-turn billing totals, not the last
   // model call's context occupancy. Neither cache arithmetic nor a window
