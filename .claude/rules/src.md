@@ -87,7 +87,7 @@ paths:
 - Listen to `sdk-event-{threadId}` for structured SDK events
 - `sdkSessionAdapter.ts` adapts SDK events into renderable chat messages
 - SDK events include: content deltas, tool starts/completions, approval requests, turn completions
-- Unmounting mid-turn defers `sdkStopSession` until `turn.completed`, `session.ended`, or `error`; skip stopping while another view for the session remains mounted. A remounted view reattaches through `sdkResumeSession`.
+- Unmounting mid-turn defers `sdkStopSession` until `turn.completed`, `session.ended`, or `error`; skip stopping while another view for the session remains mounted. A remounted view reattaches through `sdkResumeSession`. Closing a pane tab (`splitViewStore` `isClosedTabSession`) skips these stops and the Claude / Grok terminal unmount kills (Grok chat still offloads); a per-session module-level monitor keeps a closed chat's approvals (answerable from ApprovalToast; the X only dismisses) and questions (toast "Go to") until a view takes the session back. With tabs on, ApprovalToast only hides a selected session that is actually on screen.
 
 ## Codex Events
 - Sidebar Recalculate diff uses `recalculate_session_diff` for the exact selected owner/session. Publish returned absolute totals only if no newer live store update arrived; keep shell ledger totals separate. A saved-only refresh must not replace native history counters or clear capture guards.

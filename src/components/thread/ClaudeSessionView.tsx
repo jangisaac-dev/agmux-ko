@@ -11,6 +11,7 @@ import {
   scheduleClaudeSessionOffload,
   cancelClaudeSessionOffload,
 } from "./terminalOffload";
+import { isClosedTabSession } from "../../stores/splitViewStore";
 import { ThreadTopBar } from "./ThreadTopBar";
 import { GitSidebar } from "./GitSidebar";
 import { EditorPanel } from "../layout/EditorPanel";
@@ -293,6 +294,8 @@ function ClaudeSessionViewPty({ sessionId, cwd, isNew, onToggleDangerouslySkipPe
   useEffect(() => {
     cancelClaudeSessionOffload(sessionId);
     return () => {
+      // Closing the tab only hides the session; keep the PTY running.
+      if (isClosedTabSession(sessionId)) return;
       const procNow = useUiStore.getState().claudeProcessingById[sessionId] ?? false;
       const pending =
         useUiStore.getState().pendingApprovalsBySession[sessionId] != null;

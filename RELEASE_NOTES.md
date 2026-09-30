@@ -29,6 +29,7 @@ See `/release` (`.claude/commands/release.md`) for how this file is consumed and
 - **Tab shortcuts** — With tabs on, Cmd+1 to Cmd+9 jump to that tab, Cmd+W closes the current tab instead of hiding the whole window, Cmd+T opens a new session tab, Cmd+Shift+T reopens the tab you last closed, and Cmd+Shift+[ or ] moves to the previous or next tab.
 
 ### Improved
+- **Closing a tab no longer stops Claude or Grok** — Closing a Claude chat or terminal tab, or a Grok terminal tab (× or Cmd+W), now only hides it while the agent keeps working. You can answer approval requests from the pop-up, jump back to a question it asks, and reopen the still-running session from the sidebar or with Cmd+Shift+T.
 - **Claude thinking summaries** — Claude chats now show a short thinking summary instead of an empty Thinking row.
 
 ### Fixed
