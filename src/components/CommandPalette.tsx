@@ -15,6 +15,7 @@ import { useProjectStore } from "../stores/projectStore";
 import { useThreadStore } from "../stores/threadStore";
 import type { Provider, Thread } from "../lib/types";
 import { navigateToSession } from "../lib/navigateToSession";
+import { useShortcutLabel } from "../lib/shortcuts";
 import { filterProjectsForCowork, getCoworkFolders } from "../lib/coworkFolders";
 import { isClaudeCoworkThread, isCodexWorkSession, resolveCoworkDraftProject } from "../lib/coworkMode";
 import { isGrokCoworkThread } from "../lib/grokCoworkProfile";
@@ -165,6 +166,9 @@ function formatRelativeTime(dateStr: string, t: ReturnType<typeof useT>): string
 
 export function CommandPalette({ open, onClose }: Props) {
   const t = useT();
+  const switchTaskShortcut = useShortcutLabel("toggleTaskMode");
+  const toggleSidebarShortcut = useShortcutLabel("toggleSidebar");
+  const settingsShortcut = useShortcutLabel("openSettings");
   const [query, setQuery] = useState("");
   const [selectedIndex, setSelectedIndex] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -300,7 +304,7 @@ export function CommandPalette({ open, onClose }: Props) {
       group: "navigate",
       type: "action",
       icon: <GitFork size={12} />,
-      shortcut: "⌘⇧T",
+      shortcut: switchTaskShortcut ?? undefined,
       action: () => {
         setAppMode(appMode === "task" ? "agent" : "task");
       },
@@ -312,7 +316,7 @@ export function CommandPalette({ open, onClose }: Props) {
       group: "navigate",
       type: "action",
       icon: <PanelLeft size={12} />,
-      shortcut: "⌘B",
+      shortcut: toggleSidebarShortcut ?? undefined,
       action: toggleSidebar,
     });
 
@@ -322,7 +326,7 @@ export function CommandPalette({ open, onClose }: Props) {
       group: "navigate",
       type: "action",
       icon: <Settings size={12} />,
-      shortcut: "⌘,",
+      shortcut: settingsShortcut ?? undefined,
       action: openSettings,
     });
 
@@ -384,6 +388,9 @@ export function CommandPalette({ open, onClose }: Props) {
     setSidebarTab,
     toggleSidebar,
     openSettings,
+    switchTaskShortcut,
+    toggleSidebarShortcut,
+    settingsShortcut,
     setShowNotificationHistory,
     appMode,
     t,

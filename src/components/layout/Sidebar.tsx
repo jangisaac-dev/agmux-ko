@@ -139,19 +139,6 @@ export function Sidebar({ onReady }: SidebarProps = {}) {
   const sessionNames = useSessionNameStore((s) => s.names);
   const { claudeByProject, codexByProject, coworkProjects } = useDesktopCowork();
 
-  // Note: Cmd+K is now handled globally in App.tsx (opens command palette).
-  // This local handler only responds to Cmd+Shift+F for direct search.
-  useEffect(() => {
-    const handler = (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.key === "F") {
-        e.preventDefault();
-        useUiStore.getState().setSearchDialogOpen(true);
-      }
-    };
-    window.addEventListener("keydown", handler);
-    return () => window.removeEventListener("keydown", handler);
-  }, []);
-
   // Fetch Claude sessions for all projects
   const [claudeSessions, setClaudeSessions] = useState<Record<string, ClaudeSession[]>>({});
   // Mirror of claudeSessions for synchronous reads in event listeners

@@ -21,6 +21,7 @@ import {
   Play,
   Square,
   Bell,
+  Keyboard,
   User,
   Type,
   Sun,
@@ -60,6 +61,7 @@ import { TeamsSection } from "../settings/TeamsSection";
 import { TeamsSyncSection } from "../settings/TeamsSyncSection";
 import { YourDataSection } from "../settings/YourDataSection";
 import { DebugModeSection } from "../settings/DebugModeSection";
+import { ShortcutsSection } from "../settings/ShortcutsSection";
 import { CleanupSection } from "../settings/CleanupSection";
 import { useResolvedColorMode } from "../ThemeProvider";
 import { formatError } from "../../lib/formatError";
@@ -229,6 +231,7 @@ type TabId =
   | "agentAccounts"
   | "appearance"
   | "typography"
+  | "shortcuts"
   | "summaries"
   | "localModels"
   | "issues"
@@ -266,6 +269,7 @@ const NAV_ITEMS: { id: TabId; labelKey: string; icon: React.ReactNode }[] = [
   { id: "agentAccounts", labelKey: "settings.nav.agentAccounts", icon: <Users size={16} /> },
   { id: "appearance", labelKey: "settings.nav.appearance", icon: <Palette size={16} /> },
   { id: "typography", labelKey: "settings.nav.typography", icon: <Type size={16} /> },
+  { id: "shortcuts", labelKey: "settings.nav.shortcuts", icon: <Keyboard size={16} /> },
   { id: "summaries", labelKey: "settings.nav.summaries", icon: <Cpu size={16} /> },
   { id: "localModels", labelKey: "settings.nav.localModels", icon: <Boxes size={16} /> },
   { id: "issues", labelKey: "settings.nav.issues", icon: <CircleDot size={16} /> },
@@ -349,6 +353,7 @@ const SEARCH_INDEX: Record<TabId, string[]> = {
     "ui size", "chat size", "terminal size",
     "font scaling", "text size",
   ],
+  shortcuts: ["shortcut", "shortcuts", "keyboard", "hotkey", "keybinding", "key binding", "rebind"],
   summaries: [
     "summaries", "summary", "summarization", "thread names",
     "models", "model", "local", "local ai", "local llm", "llama", "llama.cpp",
@@ -1020,6 +1025,7 @@ export function SettingsDialog() {
                         updateSettings={updateSettings}
                       />
                     )}
+                    {activeTab === "shortcuts" && <ShortcutsSection />}
                     {activeTab === "summaries" && (
                       <SummariesPage
                         cachedCount={cachedCount}

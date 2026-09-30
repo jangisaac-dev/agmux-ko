@@ -43,6 +43,7 @@ import type { ProviderAccount, AccountTeam } from "../../lib/providerAccounts";
 import type { CodexThread } from "../sidebar/CodexSessionsList";
 import { stripSystemTags } from "../../lib/messageFilters";
 import { loadHiddenSessions } from "../../lib/hiddenSessions";
+import { useShortcutLabel } from "../../lib/shortcuts";
 import {
   buildHomeSessionRows,
   hasHomeActivity,
@@ -196,6 +197,8 @@ export function HomeScreen() {
   const setSearchDialogOpen = useUiStore((s) => s.setSearchDialogOpen);
   const setAppMode = useUiStore((s) => s.setAppMode);
   const taskViewAllowed = useUiStore((s) => s.taskViewAllowed);
+  const newTabShortcut = useShortcutLabel("newTab");
+  const toggleTaskModeShortcut = useShortcutLabel("toggleTaskMode");
 
   const claudeProcessing = useUiStore((s) => s.claudeProcessingById);
   const codexProcessing = useUiStore((s) => s.codexProcessingById);
@@ -802,7 +805,7 @@ export function HomeScreen() {
             <ActionTile
               icon={<MessageSquarePlus size={18} strokeWidth={1.5} />}
               title={t("home.actions.newSession.title")}
-              shortcut="⌘T"
+              shortcut={newTabShortcut ?? undefined}
               desc={
                 recentProjects.length > 0
                   ? t("home.actions.newSession.projectDescription", { project: recentProjects[0].project.name })
@@ -901,7 +904,7 @@ export function HomeScreen() {
                     <ModeRow
                       icon={<GitFork size={14} strokeWidth={1.5} />}
                       label={t("home.modes.task")}
-                      shortcut="⌘⇧T"
+                      shortcut={toggleTaskModeShortcut ?? undefined}
                       onClick={() => setAppMode("task")}
                     />
                   )}

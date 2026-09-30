@@ -24,18 +24,15 @@ import { HookEventListener } from "./components/HookEventListener";
 import { useUiStore } from "./stores/uiStore";
 import { useLocalModelStore } from "./stores/localModelStore";
 import { useSettingsStore } from "./stores/settingsStore";
-import { useProjectStore } from "./stores/projectStore";
 import { useSplitViewStore } from "./stores/splitViewStore";
-import { useTaskViewStore } from "./stores/taskViewStore";
 import { useT } from "./i18n";
 import { useThreadDiffUpdates } from "./hooks/useThreadDiffUpdates";
 import { useKeepAwake } from "./hooks/useKeepAwake";
-import { runQuickOpenAction, isQuickOpenAction } from "./lib/quickOpen";
-import { coworkDraftProvider } from "./lib/coworkMode";
 import { prepareCoworkLists } from "./lib/desktopCowork";
 import { CoworkLoadingOverlay } from "./components/layout/CoworkLoadingOverlay";
 import { countRunningSessions } from "./lib/runningSessions";
-import { isEditableKeyboardTarget } from "./lib/textFieldNav";
+import { dispatchShortcut, bindingFromEvent, isShortcutRecording } from "./lib/shortcuts";
+import { runShortcutAction, visibleFocusedPane } from "./lib/shortcutActions";
 import { installVisibleSessionSync } from "./lib/visibleSessionIds";
 import { syncCreatedClaudeSessionsToTeams } from "./lib/teamsClaudeOwnership";
 
@@ -52,16 +49,6 @@ function dismissSplash() {
   el.style.opacity = "0";
   el.style.transform = "scale(1.04)";
   setTimeout(() => el.remove(), 550);
-}
-
-/** Focused split-view pane, but only while its tab bar is on screen — not
- *  behind task mode, the Usage panel or the Skills/Memory/Issues overlay. */
-function visibleFocusedPane() {
-  const ui = useUiStore.getState();
-  if (!useSettingsStore.getState().settings.multiViewEnabled) return null;
-  if ((ui.appMode === "task" && ui.taskViewAllowed) || ui.usagePanelOpen || ui.sidebarTab !== "agents") return null;
-  const sv = useSplitViewStore.getState();
-  return sv.panes[sv.focusedPaneId] ?? null;
 }
 
 function App() {
@@ -196,8 +183,7 @@ function App() {
     };
   }, []);
 
-  // Native menu Close Tab (Cmd+W) — close the focused pane's active tab, like
-  // its X button. Only this path handles Cmd+W, so one press closes one tab.
+  // Keep the native Close Tab menu item clickable; its shortcut is handled in the web view.
   useEffect(() => {
     let unlisten: (() => void) | undefined;
     let cancelled = false;
@@ -224,21 +210,16 @@ function App() {
   // Global keyboard shortcuts — capture phase to intercept before terminal swallows events
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (!e.metaKey && !e.ctrlKey) return;
-      const key = e.key.toLowerCase();
-
-      // Cmd+Q — quit (webview path; native menu path uses quit-requested above)
-      if (key === "q" && e.metaKey) {
+      if (isShortcutRecording()) return;
+      if (!e.metaKey) return;
+      const binding = bindingFromEvent(e);
+      if (binding === "Meta+KeyQ") {
         e.preventDefault();
         e.stopPropagation();
         setShowQuitDialog(true);
         return;
       }
-
-      // Cmd+Opt+Shift+I — toggle devtools inspector in production.
-      // Gated by hardware UUID on the Rust side; unauthorized machines silently fail.
-      // Uses `e.code` because Option+I produces a dead key glyph for `e.key` on macOS.
-      if (e.metaKey && e.altKey && e.shiftKey && e.code === "KeyI") {
+      if (binding === "Meta+Alt+Shift+KeyI") {
         e.preventDefault();
         e.stopPropagation();
         import("@tauri-apps/api/core").then(({ invoke }) => {
@@ -248,183 +229,11 @@ function App() {
         });
         return;
       }
-
-      // Cmd+1…9 — switch to the Nth tab of the focused pane. PaneTabBar syncs
-      // the sidebar selection when activeTabId changes, as for a click.
-      const digit = /^Digit([1-9])$/.exec(e.code);
-      if (digit && e.metaKey && !e.ctrlKey && !e.altKey && !e.shiftKey) {
-        const pane = visibleFocusedPane();
-        const tab = pane?.tabs[Number(digit[1]) - 1];
-        if (!pane || !tab) return;
-        e.preventDefault();
-        e.stopPropagation();
-        useSplitViewStore.getState().setActiveTab(pane.id, tab.id);
-        return;
-      }
-
-      // Cmd+Shift+[ / ] — previous / next tab of the focused pane, wrapping.
-      if (
-        e.metaKey && e.shiftKey && !e.ctrlKey && !e.altKey &&
-        (e.code === "BracketLeft" || e.code === "BracketRight") &&
-        visibleFocusedPane()
-      ) {
-        e.preventDefault();
-        e.stopPropagation();
-        useSplitViewStore.getState().selectAdjacentTab(e.code === "BracketRight" ? 1 : -1);
-        return;
-      }
-
-      // Cmd+Shift+T — reopen the last closed tab while the tab bar is on
-      // screen, as in browsers. e.code: with a Korean input source e.key is ㅅ.
-      if (e.metaKey && e.shiftKey && e.code === "KeyT" && visibleFocusedPane()) {
-        e.preventDefault();
-        e.stopPropagation();
-        useSplitViewStore.getState().reopenClosedTab();
-        return;
-      }
-
-      // Cmd+Shift+T elsewhere — toggle between agent and task modes (hardware-gated).
-      if (e.shiftKey && e.key === "T") {
-        const ui = useUiStore.getState();
-        if (!ui.taskViewAllowed) return; // silently ignore on unauthorized machines
-        e.preventDefault();
-        e.stopPropagation();
-        ui.setAppMode(ui.appMode === "task" ? "agent" : "task");
-        return;
-      }
-
-      // Task mode shortcuts
-      const currentAppMode = useUiStore.getState().appMode;
-      if (currentAppMode === "task") {
-        // Cmd+N / Cmd+T → new task
-        if (e.metaKey && !e.shiftKey && (e.key === "n" || e.code === "KeyT")) {
-          e.preventDefault();
-          e.stopPropagation();
-          window.dispatchEvent(new CustomEvent("agmux-new-task"));
-          return;
-        }
-        // Cmd+Shift+R → toggle review sidebar
-        if (e.metaKey && e.shiftKey && e.key === "R") {
-          e.preventDefault();
-          e.stopPropagation();
-          useTaskViewStore.getState().toggleReviewSidebar();
-          return;
-        }
-      }
-
-      // Cmd+B — toggle sidebar
-      if (key === "b") {
-        e.preventDefault();
-        e.stopPropagation();
-        useUiStore.getState().toggleSidebar();
-        return;
-      }
-
-      // Cmd+E — toggle editor panel
-      if (key === "e") {
-        e.preventDefault();
-        e.stopPropagation();
-        useUiStore.getState().toggleEditorPanel();
-        return;
-      }
-
-      // Cmd+, — open settings
-      if (key === ",") {
-        e.preventDefault();
-        e.stopPropagation();
-        useSettingsStore.getState().openSettings();
-        return;
-      }
-
-      // Cmd+K — command palette
-      if (key === "k") {
-        e.preventDefault();
-        e.stopPropagation();
-        setShowCommandPalette(true);
-        return;
-      }
-
-      // Cmd+Shift+F — global search
-      if (e.shiftKey && key === "f") {
-        e.preventDefault();
-        e.stopPropagation();
-        useUiStore.getState().setSearchDialogOpen(true);
-        return;
-      }
-
-
-      // Cmd+N / Cmd+T — new thread using default pairing (opens as a new tab
-      // in the focused pane when tabs are on)
-      if ((key === "n" || (e.metaKey && e.code === "KeyT")) && !e.shiftKey) {
-        e.preventDefault();
-        e.stopPropagation();
-        const ui = useUiStore.getState();
-        const projects = useProjectStore.getState().projects;
-        const settings = useSettingsStore.getState().settings;
-        const cwd = ui.selectedClaudeSessionCwd ?? ui.selectedCodexSessionCwd ?? ui.selectedTerminalSessionCwd;
-        const project = cwd
-          ? projects.find((p) => p.repo_path === cwd) ?? projects[0]
-          : projects[0];
-        if (!project) return;
-
-        if (ui.appMode === "cowork") {
-          void import("./lib/coworkMode").then(({ resolveCoworkDraftProject }) => {
-            const folder = resolveCoworkDraftProject();
-            if (!folder) return;
-            ui.selectProject(folder.id);
-            ui.setDraftChat({
-              projectId: folder.id,
-              repoPath: folder.repo_path,
-              provider: coworkDraftProvider(settings.defaultProvider),
-              model: null,
-              agentProfile: "cowork",
-            });
-          });
-          return;
-        }
-        const action = isQuickOpenAction(settings.quickOpenAction)
-          ? settings.quickOpenAction
-          : "chat";
-        runQuickOpenAction(
-          { id: project.id, repo_path: project.repo_path },
-          action,
-          settings.defaultProvider,
-        ).catch((err) => console.error("Cmd+N quick open failed:", err));
-        return;
-      }
-
-      // Cmd+Up/Down — navigate between sessions.
-      // Yield when focus is in a composer / terminal so those surfaces can use
-      // Cmd+Up/Down for start/end of prompt (see textFieldNav / terminalCmdArrow).
-      if (key === "arrowup" || key === "arrowdown") {
-        if (isEditableKeyboardTarget(e.target)) return;
-        // Focus repeats rows from project groups and orders its portaled rows
-        // with CSS, so walk visible rows top-to-bottom and skip repeats.
-        const seen = new Set<string>();
-        const els = Array.from(document.querySelectorAll<HTMLElement>("[data-session-nav]"))
-          .filter((el) => el.getClientRects().length > 0)
-          .map((el) => ({ el, top: el.getBoundingClientRect().top }))
-          .sort((a, b) => a.top - b.top)
-          .map(({ el }) => el)
-          .filter((el) => {
-            const id = el.dataset.sessionNav ?? "";
-            if (seen.has(id)) return false;
-            seen.add(id);
-            return true;
-          });
-        if (els.length === 0) return;
-        e.preventDefault();
-        e.stopPropagation();
-        const ui = useUiStore.getState();
-        const currentId = ui.selectedClaudeSessionId ?? ui.selectedCodexSessionId ?? ui.selectedThreadId;
-        const currentIdx = currentId ? els.findIndex((el) => el.dataset.sessionNav === currentId) : -1;
-        const nextIdx = key === "arrowup"
-          ? (currentIdx <= 0 ? els.length - 1 : currentIdx - 1)
-          : (currentIdx >= els.length - 1 ? 0 : currentIdx + 1);
-        els[nextIdx].click();
-        els[nextIdx].scrollIntoView({ block: "nearest" });
-        return;
-      }
+      dispatchShortcut(
+        e,
+        useSettingsStore.getState().settings.keyboardShortcuts,
+        (id) => runShortcutAction(id, { openCommandPalette: () => setShowCommandPalette(true) }),
+      );
     };
     window.addEventListener("keydown", handleKeyDown, true);
     return () => window.removeEventListener("keydown", handleKeyDown, true);

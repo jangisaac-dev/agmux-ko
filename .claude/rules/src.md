@@ -204,3 +204,10 @@ paths:
 - `StartupGate` loads the main app only after `startup_status` succeeds; recovery and `SupportSection` must work without AppState. Initialize app visibility/notification tracking only after successful startup.
 - Support is explicit user submission to owner.agmux.dev, separate from anonymous analytics. Never auto-upload crash files/transcripts. Preserve the draft on send failure; show success only with a server receipt. Native file picker/drop routing only. The error boundary and startup recovery can render Support directly.
 - First-run setup defaults to the short provider/permissions/project path. Appearance and local models are opt-in customization; installed-provider detection is not authenticated readiness.
+
+## Keyboard shortcuts
+- Registry and dispatch live in `src/lib/shortcuts.ts`; `SHORTCUT_ACTIONS` array order is priority, and an action `run` callback returns `false` to pass the key on.
+- Overrides live in `settings.keyboardShortcuts`. Use `useShortcutLabel` for hints. `setShortcutRecording` pauses the global handler.
+- Bindings need ⌘ and match `e.code` with exact modifiers. The reserved list is in `shortcuts.ts`.
+- Top-bar panel actions dispatch `TOP_BAR_ACTION_EVENT` and are handled by the active `ThreadTopBar` in the focused pane; `SplitPane` marks it with `data-pane-id`.
+- Close Tab remains a menu item without an accelerator; ⌘W is handled in the web view.

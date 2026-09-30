@@ -127,7 +127,7 @@ describe("SettingsDialog", () => {
     render(<SettingsDialog />);
     const labels = [
       "General", "Claude", "Codex", "OpenCode", "Git & Connections", "Accounts",
-      "Appearance", "Typography",
+      "Appearance", "Typography", "Keyboard Shortcuts",
       "Summaries", "Notifications", "Remote Control", "About",
     ];
     for (const label of labels) {
@@ -156,6 +156,13 @@ describe("SettingsDialog", () => {
     expect(
       screen.getByText("Download MLX coding models from HuggingFace."),
     ).toBeTruthy();
+  });
+
+  it("opens the Keyboard Shortcuts page from the settings nav", () => {
+    useSettingsStore.getState().openSettings();
+    render(<SettingsDialog />);
+    fireEvent.click(screen.getByRole("button", { name: "Keyboard Shortcuts" }));
+    expect(screen.getByRole("button", { name: "Change shortcut: New session" })).toBeTruthy();
   });
 
   it("finds Cleanup by storage search and opens the read-only scan page", () => {
@@ -779,7 +786,7 @@ describe("SettingsDialog — Even deeper coverage", () => {
     const clearBtn = document.querySelector("button[title='Clear search']");
     expect(clearBtn).toBeTruthy();
     fireEvent.click(clearBtn!);
-    expect(document.querySelectorAll("nav button").length).toBe(20);
+    expect(document.querySelectorAll("nav button").length).toBe(21);
   });
 
   it("typing then immediately switching tabs", () => {
@@ -1227,7 +1234,7 @@ describe("SettingsDialog — Maximum coverage", () => {
     useSettingsStore.getState().openSettings();
     render(<SettingsDialog />);
     const navButtons = Array.from(document.querySelectorAll("nav button"));
-    expect(navButtons.length).toBe(20);
+    expect(navButtons.length).toBe(21);
   });
 
   it("rendering when isOpen flips quickly between true/false", () => {
@@ -1477,7 +1484,7 @@ describe("SettingsDialog — Final coverage gaps", () => {
       fireEvent.click(clearBtn);
       // After clearing — all nav tabs visible.
       const navButtons = Array.from(document.querySelectorAll("nav button"));
-      expect(navButtons.length).toBe(20);
+      expect(navButtons.length).toBe(21);
     }
   });
 

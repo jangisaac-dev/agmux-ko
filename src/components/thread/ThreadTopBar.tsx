@@ -42,6 +42,7 @@ import { CommitDialog } from "./CommitDialog";
 import { useUiStore } from "../../stores/uiStore";
 import { useSplitViewStore, countPanes } from "../../stores/splitViewStore";
 import { useSettingsStore } from "../../stores/settingsStore";
+import { TOP_BAR_ACTION_EVENT, useShortcutLabel, type TopBarActionId } from "../../lib/shortcuts";
 import { useThreadStore } from "../../stores/threadStore";
 import { useSessionNameStore } from "../../stores/sessionNameStore";
 import { useUsageQuotaStore } from "../../stores/usageQuotaStore";
@@ -74,6 +75,10 @@ import cursorIcon from "../../assets/cursor-app-icon.png";
 import clineIcon from "../../assets/cline-icon.svg";
 import geminiIcon from "../../assets/gemini-icon.svg";
 import hermesIcon from "../../assets/hermes-icon.png";
+
+function withShortcut(title: string, label: string | null): string {
+  return label ? `${title} (${label})` : title;
+}
 
 const PROVIDER_ICON_SRC: Record<Provider, string | null> = {
   ClaudeCode: claudeIcon,
@@ -627,6 +632,10 @@ export function ThreadTopBar({
   const fileTreeVisible = useUiStore((s) => s.fileTreeVisible);
   const toggleEditorPanel = useUiStore((s) => s.toggleEditorPanel);
   const isSplit = useSplitViewStore((s) => countPanes(s.layout) > 1);
+  const terminalShortcutLabel = useShortcutLabel("toggleTerminal");
+  const gitPanelShortcutLabel = useShortcutLabel("toggleGitPanel");
+  const editorShortcutLabel = useShortcutLabel("toggleEditor");
+  const openInAppShortcutLabel = useShortcutLabel("openInApp");
   const sidebarCollapsed = useUiStore((s) => s.sidebarCollapsed);
   const selectedIde = useSettingsStore((s) => s.settings.preferredIde);
   // Claude PTY passes the real Claude session ID rather than the agmux UUID —
@@ -857,6 +866,21 @@ export function ThreadTopBar({
       .finally(() => setTimeout(() => setLaunching(false), 1000));
   }, [workDir, selectedIde]);
 
+  const topBarActionHandlersRef = useRef({
+    onToggleTerminal,
+    onToggleGitSidebar,
+    setTimelineOpen,
+    handleOpenIde,
+    canToggleTerminal: !hideTerm && !!workDir && workDir !== "/",
+  });
+  topBarActionHandlersRef.current = {
+    onToggleTerminal,
+    onToggleGitSidebar,
+    setTimelineOpen,
+    handleOpenIde,
+    canToggleTerminal: !hideTerm && !!workDir && workDir !== "/",
+  };
+
   const selectedIdeOption =
     ideOptions.find((o) => o.id === selectedIde) ?? ideOptions[0] ?? IDE_FALLBACK[0];
   const folderName = gitInfo?.folder_name ?? workDir.split("/").filter(Boolean).pop() ?? "";
@@ -958,6 +982,41 @@ export function ThreadTopBar({
     if (!parent) return;
     parent.style.setProperty("--xanom-topbar-h", `${totalHeight}px`);
   }, [totalHeight]);
+
+  useEffect(() => {
+    if (!active) return;
+    const handleTopBarAction = (event: Event) => {
+      const actionEvent = event as CustomEvent<TopBarActionId>;
+      if (actionEvent.defaultPrevented) return;
+      // Cached views stay mounted behind the visible one (and count as active on the home screen).
+      if (rootRef.current?.closest('[aria-hidden="true"]')) return;
+      const pane = rootRef.current?.closest<HTMLElement>("[data-pane-id]");
+      if (pane && pane.dataset.paneId !== useSplitViewStore.getState().focusedPaneId) return;
+
+      const handlers = topBarActionHandlersRef.current;
+      switch (actionEvent.detail) {
+        case "toggleTerminal":
+          if (!handlers.canToggleTerminal) return;
+          handlers.onToggleTerminal();
+          break;
+        case "toggleGitPanel":
+          handlers.onToggleGitSidebar();
+          break;
+        case "toggleTimeline":
+          handlers.setTimelineOpen((open) => !open);
+          break;
+        case "openInApp":
+          handlers.handleOpenIde();
+          break;
+        default:
+          return;
+      }
+      actionEvent.preventDefault();
+    };
+
+    window.addEventListener(TOP_BAR_ACTION_EVENT, handleTopBarAction);
+    return () => window.removeEventListener(TOP_BAR_ACTION_EVENT, handleTopBarAction);
+  }, [active]);
 
   // Status pill. Flat: the unified soft chip (blue spinner while working,
   // ringed neutral when idle). Glass keeps the original pulsing-dot pill.
@@ -1374,7 +1433,7 @@ export function ThreadTopBar({
                   type="button"
                   onClick={handleOpenIde}
                   disabled={launching || !workDir || workDir === "/"}
-                  title={t("thread.topBar.openIn", { name: selectedIdeOption.name })}
+                  title={withShortcut(t("thread.topBar.openIn", { name: selectedIdeOption.name }), openInAppShortcutLabel)}
                   className="select-none"
                   style={{
                     display: "inline-flex",
@@ -1521,7 +1580,7 @@ export function ThreadTopBar({
           </div>
 
           {!hideTerm && (
-            <IconBtn icon={Terminal} title={t("thread.topBar.toggleTerminal")} onClick={onToggleTerminal} active={terminalOpen} disabled={!workDir || workDir === "/"} />
+            <IconBtn icon={Terminal} title={withShortcut(t("thread.topBar.toggleTerminal"), terminalShortcutLabel)} onClick={onToggleTerminal} active={terminalOpen} disabled={!workDir || workDir === "/"} />
           )}
 
           {showBypassIcon && (
@@ -1548,9 +1607,9 @@ export function ThreadTopBar({
           />
           )}
 
-          <IconBtn icon={FileDiff} title={t("thread.topBar.gitPanel")} onClick={onToggleGitSidebar} active={gitSidebarOpen} />
+          <IconBtn icon={FileDiff} title={withShortcut(t("thread.topBar.gitPanel"), gitPanelShortcutLabel)} onClick={onToggleGitSidebar} active={gitSidebarOpen} />
 
-          <IconBtn icon={PanelRightOpen} title={t("thread.topBar.toggleFileExplorer")} onClick={toggleEditorPanel} active={editorPanelOpen && fileTreeVisible} />
+          <IconBtn icon={PanelRightOpen} title={withShortcut(t("thread.topBar.toggleFileExplorer"), editorShortcutLabel)} onClick={toggleEditorPanel} active={editorPanelOpen && fileTreeVisible} />
         </div>
       </div>
 

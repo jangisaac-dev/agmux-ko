@@ -16,6 +16,7 @@ import { useUiStore } from "../../stores/uiStore";
 import { updateTask } from "../../lib/taskCommands";
 import type { PtyExitEvent } from "../../lib/types";
 import { syncPollingToAppForeground } from "../../lib/appVisibility";
+import { useShortcutLabel } from "../../lib/shortcuts";
 import { SessionPanelsContext } from "../thread/SessionPanelsContext";
 import { useT } from "../../i18n";
 
@@ -25,6 +26,7 @@ const MAX_SIDEBAR = 480;
 
 export function TaskViewLayout({ active = true }: { active?: boolean }) {
   const t = useT();
+  const newSessionShortcut = useShortcutLabel("newSession");
   const selectedTaskId = useTaskViewStore((s) => s.selectedTaskId);
   const reviewSidebarOpen = useTaskViewStore((s) => s.reviewSidebarOpen);
   const selectedTask = useTaskViewStore((s) =>
@@ -223,12 +225,14 @@ export function TaskViewLayout({ active = true }: { active?: boolean }) {
               }}
             >
               {t("task.sidebar.newTask")}
-              <span
-                className="ml-2 opacity-70"
-                style={{ fontFamily: "var(--font-mono)", fontSize: 10 }}
-              >
-                ⌘N
-              </span>
+              {newSessionShortcut && (
+                <span
+                  className="ml-2 opacity-70"
+                  style={{ fontFamily: "var(--font-mono)", fontSize: 10 }}
+                >
+                  {newSessionShortcut}
+                </span>
+              )}
             </button>
           </div>
             )}

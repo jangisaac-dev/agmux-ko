@@ -40,6 +40,7 @@ import { useThreadStore } from "../../../stores/threadStore";
 import { useUiStore } from "../../../stores/uiStore";
 import { useUsageQuotaStore } from "../../../stores/usageQuotaStore";
 import { useSettingsStore } from "../../../stores/settingsStore";
+import { useSplitViewStore } from "../../../stores/splitViewStore";
 import type { Provider } from "../../../lib/types";
 
 /** Seed quota for a single provider in the new generic store shape. Tests
@@ -83,12 +84,106 @@ describe("ThreadTopBar", () => {
           onToggleTerminal={ownToggle} terminalOpen={false} />
       </SessionPanelsContext.Provider>,
     );
-    fireEvent.click(screen.getByTitle("Git panel"));
-    fireEvent.click(screen.getByTitle("Toggle terminal"));
+    fireEvent.click(screen.getByTitle("Git panel (⌘⇧G)"));
+    fireEvent.click(screen.getByTitle("Toggle terminal (⌘J)"));
     expect(onToggleGitSidebar).toHaveBeenCalledOnce();
     expect(onToggleTerminal).toHaveBeenCalledOnce();
     expect(ownToggle).not.toHaveBeenCalled();
   });
+
+  it("handles top-bar panel shortcuts while active", () => {
+    const onToggleGitSidebar = vi.fn();
+    const onToggleTerminal = vi.fn();
+    render(
+      <ThreadTopBar
+        threadId="t-shortcuts"
+        workDir="/tmp/repo"
+        onToggleGitSidebar={onToggleGitSidebar}
+        gitSidebarOpen={false}
+        onToggleTerminal={onToggleTerminal}
+        terminalOpen={false}
+      />,
+    );
+
+    for (const id of ["toggleTerminal", "toggleGitPanel"]) {
+      const event = new CustomEvent("agmux-top-bar-action", { detail: id, cancelable: true });
+      window.dispatchEvent(event);
+      expect(event.defaultPrevented).toBe(true);
+    }
+    expect(onToggleTerminal).toHaveBeenCalledOnce();
+    expect(onToggleGitSidebar).toHaveBeenCalledOnce();
+  });
+
+  it("does not handle top-bar panel shortcuts while inactive", () => {
+    const onToggleGitSidebar = vi.fn();
+    const onToggleTerminal = vi.fn();
+    render(
+      <ThreadTopBar
+        threadId="t-inactive-shortcuts"
+        workDir="/tmp/repo"
+        onToggleGitSidebar={onToggleGitSidebar}
+        gitSidebarOpen={false}
+        onToggleTerminal={onToggleTerminal}
+        terminalOpen={false}
+        active={false}
+      />,
+    );
+
+    const event = new CustomEvent("agmux-top-bar-action", { detail: "toggleTerminal", cancelable: true });
+    window.dispatchEvent(event);
+
+    expect(event.defaultPrevented).toBe(false);
+    expect(onToggleTerminal).not.toHaveBeenCalled();
+    expect(onToggleGitSidebar).not.toHaveBeenCalled();
+  });
+
+  it("only handles top-bar panel shortcuts in the focused split pane", () => {
+    const otherPaneId = `${useSplitViewStore.getState().focusedPaneId}-other`;
+    const onToggleGitSidebar = vi.fn();
+    const onToggleTerminal = vi.fn();
+    render(
+      <div data-pane-id={otherPaneId}>
+        <ThreadTopBar
+          threadId="t-other-pane"
+          workDir="/tmp/repo"
+          onToggleGitSidebar={onToggleGitSidebar}
+          gitSidebarOpen={false}
+          onToggleTerminal={onToggleTerminal}
+          terminalOpen={false}
+        />
+      </div>,
+    );
+
+    const event = new CustomEvent("agmux-top-bar-action", { detail: "toggleGitPanel", cancelable: true });
+    window.dispatchEvent(event);
+
+    expect(event.defaultPrevented).toBe(false);
+    expect(onToggleGitSidebar).not.toHaveBeenCalled();
+    expect(onToggleTerminal).not.toHaveBeenCalled();
+  });
+
+  it("does not handle top-bar panel shortcuts in a hidden cached view", () => {
+    const onToggleTerminal = vi.fn();
+    render(
+      <div aria-hidden="true">
+        <ThreadTopBar
+          threadId="t-hidden-view"
+          workDir="/tmp/repo"
+          onToggleGitSidebar={vi.fn()}
+          gitSidebarOpen={false}
+          onToggleTerminal={onToggleTerminal}
+          terminalOpen={false}
+        />
+      </div>,
+    );
+
+    const event = new CustomEvent("agmux-top-bar-action", { detail: "toggleTerminal", cancelable: true });
+    window.dispatchEvent(event);
+
+    expect(event.defaultPrevented).toBe(false);
+    expect(onToggleTerminal).not.toHaveBeenCalled();
+  });
+
   it("renders without crashing with required props", () => {
     const { container } = render(
       <ThreadTopBar
@@ -1218,7 +1313,7 @@ describe("ThreadTopBar unified (flat) look", () => {
   it("marks an open panel with the neutral pressed fill, not a ring", () => {
     setSurface("flat");
     render(<ThreadTopBar {...base} gitSidebarOpen />);
-    const git = screen.getByTitle("Git panel");
+    const git = screen.getByTitle("Git panel (⌘⇧G)");
     expect(git.getAttribute("style") ?? "").toContain("var(--ui-press)");
   });
 

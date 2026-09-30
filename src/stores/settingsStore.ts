@@ -111,6 +111,8 @@ export interface AppSettings {
   defaultProvider: Provider;
   /** Quick-open action for the compose (pencil) button / ⌘N. */
   quickOpenAction: QuickOpenAction;
+  /** User overrides keyed by action id from src/lib/shortcuts.ts; null turns one off, missing uses its default. */
+  keyboardShortcuts: Record<string, string | null>;
   /** Last model slug used in draft chat (per-provider, persisted). */
   lastUsedModel: string;
   /** Last reasoning effort used in draft chat (persisted across sessions). */
@@ -404,6 +406,7 @@ const DEFAULT_SETTINGS: AppSettings = {
   colorMode: "dark",
   defaultProvider: "Codex",
   quickOpenAction: "chat" as const,
+  keyboardShortcuts: {},
   lastUsedModel: "sonnet",
   lastUsedEffort: "xhigh",
   editorFontSize: 14,
@@ -518,6 +521,15 @@ const KNOWN_PROVIDERS: readonly Provider[] = [
   "Hermes",
 ];
 
+function sanitizeKeyboardShortcuts(raw: unknown): Record<string, string | null> {
+  if (typeof raw !== "object" || raw === null || Array.isArray(raw)) return {};
+  const out: Record<string, string | null> = {};
+  for (const [id, binding] of Object.entries(raw)) {
+    if (typeof binding === "string" || binding === null) out[id] = binding;
+  }
+  return out;
+}
+
 function sanitizeRecentProviders(raw: unknown): Provider[] {
   if (!Array.isArray(raw)) return [];
   const seen = new Set<string>();
@@ -610,6 +622,7 @@ export function loadSettings(): AppSettings {
         llmProvider,
         cursorWorkMode,
         recentProviders,
+        keyboardShortcuts: sanitizeKeyboardShortcuts(parsed.keyboardShortcuts),
         ...(defaultProvider !== undefined ? { defaultProvider } : {}),
         ...(sidebarOpacity !== undefined ? { sidebarOpacity } : {}),
         ...(migratedAccentColor !== undefined ? { accentColor: migratedAccentColor } : {}),
