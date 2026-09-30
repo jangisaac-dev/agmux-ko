@@ -11,6 +11,7 @@ import { NewTaskDialog } from "./NewTaskDialog";
 import { takePendingNewTask } from "../../lib/pendingNewTask";
 import { isThreadMidTurn, isThreadAwaitingInput } from "../../lib/taskAgentActivity";
 import { handleWindowDragStart } from "../../lib/windowDrag";
+import { useShortcutLabel } from "../../lib/shortcuts";
 import {
   STATE_META,
   deriveEffectiveState,
@@ -55,6 +56,8 @@ interface ProjectBucket {
 
 export function TaskSidebar() {
   const t = useT();
+  const newSessionShortcut = useShortcutLabel("newSession");
+  const taskModeShortcut = useShortcutLabel("toggleTaskMode");
   const tasksByProject = useTaskViewStore((s) => s.tasks);
   const gitStateMap = useTaskViewStore((s) => s.gitState);
   const allThreads = useThreadStore((s) => s.threads);
@@ -216,7 +219,7 @@ export function TaskSidebar() {
           type="button"
           onClick={() => useUiStore.getState().setAppMode("agent")}
           className="rounded-md p-1.5 text-zinc-500 hover:bg-white/5 hover:text-zinc-300 transition-all duration-200 pointer-events-auto"
-          title={t("task.sidebar.backToAgentMode")}
+          title={taskModeShortcut ? `${t("task.sidebar.backToAgentMode")} (${taskModeShortcut})` : t("task.sidebar.backToAgentMode")}
         >
           <ArrowLeft size={14} />
         </button>
@@ -272,15 +275,17 @@ export function TaskSidebar() {
         >
           <Plus size={13} />
           {t("task.sidebar.newTask")}
-          <span
-            className="ui-kbd"
-            style={{
-              marginLeft: "auto",
-              opacity: 0.7,
-            }}
-          >
-            ⌘N
-          </span>
+          {newSessionShortcut && (
+            <span
+              className="ui-kbd"
+              style={{
+                marginLeft: "auto",
+                opacity: 0.7,
+              }}
+            >
+              {newSessionShortcut}
+            </span>
+          )}
         </button>
       </div>
 

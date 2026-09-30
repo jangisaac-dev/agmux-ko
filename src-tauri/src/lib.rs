@@ -73,8 +73,8 @@ use window_vibrancy::apply_vibrancy;
 /// going through Tauri ExitRequested (so prevent_exit never runs).
 const MENU_QUIT_ID: &str = "app-quit";
 
-/// Cmd+W closes the active tab (frontend `close-tab-requested`) instead of
-/// the predefined Close Window item, which hid the whole window.
+/// The keyboard shortcut (⌘W by default) is handled by the web view so it can
+/// be changed in Settings → Keyboard Shortcuts.
 const MENU_CLOSE_TAB_ID: &str = "close-tab";
 
 /// Show, unminimize and focus the main window. Used when it was hidden by a
@@ -539,7 +539,6 @@ pub fn run() {
                 .build()?;
 
             let close_tab_item = MenuItemBuilder::with_id(MENU_CLOSE_TAB_ID, "Close Tab")
-                .accelerator("CmdOrCtrl+W")
                 .build(app)?;
 
             let window_menu = SubmenuBuilder::new(app, "Window")

@@ -28,12 +28,14 @@ See `/release` (`.claude/commands/release.md`) for how this file is consumed and
 - **Korean interface** — agmux can show most of its interface in Korean: sidebar, home, chats and terminals, settings, tasks, Teams, usage and the What's New window. It follows your Mac's language, or choose System, English or 한국어 in Settings → General.
 - **Tab shortcuts** — With tabs on, Cmd+1 to Cmd+9 jump to that tab, Cmd+W closes the current tab instead of hiding the whole window, Cmd+T opens a new session tab, Cmd+Shift+T reopens the tab you last closed, and Cmd+Shift+[ or ] moves to the previous or next tab.
 - **Select several sessions at once** — In the sidebar, Cmd-click or Shift-click sessions in a project (or right-click one and choose Select, then tick the others), and archive or delete them together.
+- **Keyboard shortcut settings** — Settings → Keyboard Shortcuts lists the app's shortcuts, including the panels at the top right of a chat (terminal, Git, file explorer, timeline) and opening the folder in your chosen app. Click one and press new keys to change it, turn it off, or reset it.
 
 ### Improved
 - **Closing a tab no longer stops Claude or Grok** — Closing a Claude chat or terminal tab, or a Grok terminal tab (× or Cmd+W), now only hides it while the agent keeps working. You can answer approval requests from the pop-up, jump back to a question it asks, and reopen the still-running session from the sidebar or with Cmd+Shift+T.
 - **Claude thinking summaries** — Claude chats now show a short thinking summary instead of an empty Thinking row.
 
 ### Fixed
+- **Control keys in terminals** — Control+B, Control+E and Control+N now reach the terminal instead of toggling the sidebar or editor or starting a new session.
 - **No more crash on launch with non-English Codex chats** — With phone remote control turned on, the app no longer quits a few seconds after opening (including during first-time setup) when one of your past Codex chats starts with a long message containing Korean, Japanese, Chinese, emoji or accented letters.
 - **No more crash when naming sessions** — The app no longer quits while it names a session whose first message is long and written in Korean or another non-Latin script.
 - **No more crash on large diffs** — Viewing a very large set of changes that contains Korean or other non-Latin text no longer closes the app.

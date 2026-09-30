@@ -161,6 +161,7 @@ export function SplitPane({ paneId }: Props) {
 
   return (
     <div
+      data-pane-id={paneId}
       onClick={handleClick}
       className={[
         "flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden panel-bg transition-shadow",

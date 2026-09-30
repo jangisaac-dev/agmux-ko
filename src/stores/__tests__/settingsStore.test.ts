@@ -66,6 +66,27 @@ describe("settingsStore", () => {
     expect(useSettingsStore.getState().settings.editorFontSize).not.toBe(99);
   });
 
+  it("loads only string and null keyboard shortcut overrides", async () => {
+    const { loadSettings } = await import("../settingsStore");
+    localStorage.setItem("agmux-settings", JSON.stringify({
+      keyboardShortcuts: { newSession: "Meta+KeyJ", commandPalette: null, invalid: 4, other: false },
+    }));
+    expect(loadSettings().keyboardShortcuts).toEqual({ newSession: "Meta+KeyJ", commandPalette: null });
+
+    for (const keyboardShortcuts of [null, ["Meta+KeyJ"], "Meta+KeyJ", 12]) {
+      localStorage.setItem("agmux-settings", JSON.stringify({ keyboardShortcuts }));
+      expect(loadSettings().keyboardShortcuts).toEqual({});
+    }
+  });
+
+  it("persists keyboard shortcut overrides through updateSettings and loadSettings", async () => {
+    useSettingsStore.getState().updateSettings({
+      keyboardShortcuts: { newSession: "Meta+KeyJ", search: null },
+    });
+    const { loadSettings } = await import("../settingsStore");
+    expect(loadSettings().keyboardShortcuts).toEqual({ newSession: "Meta+KeyJ", search: null });
+  });
+
   it("defaults commitMessageModel to auto", () => {
     expect(useSettingsStore.getState().settings.commitMessageModel).toBe("auto");
   });

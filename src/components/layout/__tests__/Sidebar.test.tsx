@@ -792,22 +792,7 @@ describe("Sidebar — Maximum coverage", () => {
     expect(screen.queryByText("Threads")).toBeNull();
   });
 
-  // ── Cmd+Shift+F keyboard shortcut ─────────────────────────────────────
-  it("Cmd+Shift+F opens the search dialog", () => {
-    render(<Sidebar />);
-    expect(useUiStore.getState().searchDialogOpen).toBe(false);
-    fireEvent.keyDown(window, { key: "F", metaKey: true, shiftKey: true });
-    expect(useUiStore.getState().searchDialogOpen).toBe(true);
-    useUiStore.getState().setSearchDialogOpen(false);
-  });
-
-  it("Ctrl+Shift+F opens the search dialog (cross-platform fallback)", () => {
-    render(<Sidebar />);
-    fireEvent.keyDown(window, { key: "F", ctrlKey: true, shiftKey: true });
-    expect(useUiStore.getState().searchDialogOpen).toBe(true);
-    useUiStore.getState().setSearchDialogOpen(false);
-  });
-
+  // ── Keyboard events ───────────────────────────────────────────────────
   it("plain F key (no modifiers) does not open search", () => {
     render(<Sidebar />);
     fireEvent.keyDown(window, { key: "F" });
