@@ -24,6 +24,7 @@ import { useToastStore } from "../stores/toastStore";
 import { useUsageQuotaStore } from "../stores/usageQuotaStore";
 import { useDiffRecalculationStore } from "../stores/diffRecalculationStore";
 import { useFocusRowsStore } from "../stores/focusRowsStore";
+import { useSessionSelectionStore } from "../stores/sessionSelectionStore";
 
 /** Typed partial state for a Zustand store. Keeps TS type-checking field
  *  names against the live store shape — if a store drops a field referenced
@@ -33,6 +34,7 @@ type StatePartial<S extends { getState: () => unknown }> = Partial<ReturnType<S[
 export function resetAllStores(): void {
   useDiffRecalculationStore.setState({ notices: {} });
   useFocusRowsStore.setState({ timestampsByProject: {}, extraShown: 0 });
+  useSessionSelectionStore.setState({ projectId: null, ids: [], anchorId: null, busy: false });
   useThreadStore.setState({ threads: {} } satisfies StatePartial<typeof useThreadStore>);
   useProjectStore.setState({ projects: [], loading: false } satisfies StatePartial<typeof useProjectStore>);
   useUiStore.setState({

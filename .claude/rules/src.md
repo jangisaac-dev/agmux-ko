@@ -25,6 +25,13 @@ paths:
 - Rows from different groups interleave via CSS `order` on the flex container, so DOM order is not visual order: Cmd+Up/Down in `App.tsx` sorts `[data-session-nav]` rows by on-screen position and drops duplicates. Renames are scoped to the copy they started from (`renameInFocus`).
 - New sessions from Focus: the picker calls `requestFocusNewSession`, and the chosen group opens its normal "New in" menu anchored at the Focus + button.
 
+## Sidebar multi-select
+- `sessionSelectionStore` keeps the selected session IDs and range anchor for one project at a time.
+- Plain clicks still open sessions and never change selection; Cmd-click toggles, Shift-click selects a visible range, and the checkbox or context-menu “Select” adds rows.
+- Bulk actions use only visible rows and reuse the single-row per-kind handlers. Kimi/Pi cannot be archived; Claude/Grok hide only after file deletion succeeds, and failures stay selected.
+- Bulk Delete confirms through `ask()` before deleting. While a bulk run is in progress the selection is frozen in every project (`busy` lives in the store; Escape, Cmd/Shift/checkbox toggles, "Select" and "Select all" do nothing), so the failed rows can be restored as the selection afterwards.
+- The bulk menu is limited to selected list rows; Focus copies, strip rows and the collapsed rail keep single-row behavior.
+
 ## File Drag & Drop
 - `tauri.conf.json` sets `dragDropEnabled: true`, so OS file drops do NOT reach the DOM as HTML5 drop events — WKWebView never exposes real filesystem paths to the DOM. Do NOT add `onDrop`/`dataTransfer` handlers for files; they won't fire.
 - All file drops flow through `useNativeFileDrop(ref, onDrop, onDragState?)` (`src/hooks/useNativeFileDrop.ts`): one shared `getCurrentWebview().onDragDropEvent` listener hit-tests each drop position (via `document.elementFromPoint`) against registered target elements. Register a drop zone by attaching its ref and passing an `onDrop(paths)` callback.

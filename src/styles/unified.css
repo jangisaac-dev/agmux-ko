@@ -1311,3 +1311,29 @@ html[data-surface="flat"] .terminal-panel-cwd {
 html[data-surface="flat"] .terminal-tab-dot {
   background: var(--status-amber);
 }
+
+.sb-select-bar {
+  background: var(--ui-sidebar);
+}
+html [data-session-nav][data-selected="true"],
+html[data-mode="light"] [data-session-nav][data-selected="true"],
+html[data-surface="flat"] [data-session-nav][data-selected="true"],
+html[data-surface="flat"]:not([data-mode="light"]) [data-session-nav][data-selected="true"] {
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+}
+.sb-check {
+  width: 14px;
+  height: 14px;
+  display: inline-flex;
+  flex: 0 0 14px;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--text-muted);
+  border-radius: 4px;
+  color: var(--text-secondary);
+}
+.sb-check[data-checked="true"] {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: #18181b;
+}

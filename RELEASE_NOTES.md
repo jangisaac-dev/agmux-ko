@@ -27,6 +27,7 @@ See `/release` (`.claude/commands/release.md`) for how this file is consumed and
 ### New
 - **Korean interface** — agmux can show most of its interface in Korean: sidebar, home, chats and terminals, settings, tasks, Teams, usage and the What's New window. It follows your Mac's language, or choose System, English or 한국어 in Settings → General.
 - **Tab shortcuts** — With tabs on, Cmd+1 to Cmd+9 jump to that tab, Cmd+W closes the current tab instead of hiding the whole window, Cmd+T opens a new session tab, Cmd+Shift+T reopens the tab you last closed, and Cmd+Shift+[ or ] moves to the previous or next tab.
+- **Select several sessions at once** — In the sidebar, Cmd-click or Shift-click sessions in a project (or right-click one and choose Select, then tick the others), and archive or delete them together.
 
 ### Improved
 - **Closing a tab no longer stops Claude or Grok** — Closing a Claude chat or terminal tab, or a Grok terminal tab (× or Cmd+W), now only hides it while the agent keeps working. You can answer approval requests from the pop-up, jump back to a question it asks, and reopen the still-running session from the sidebar or with Cmd+Shift+T.
