@@ -2,7 +2,9 @@ import { beforeEach, describe, expect, it } from "vitest";
 import {
   countPanes,
   findPaneInLayout,
+  isClosedTabSession,
   removePaneFromLayout,
+  resetClosedTabSessionsForTests,
   useSplitViewStore,
   type LayoutNode,
   type TabItem,
@@ -271,6 +273,38 @@ describe("splitViewStore — reopen closed tabs (Cmd+Shift+T)", () => {
     const before = useSplitViewStore.getState().panes;
     useSplitViewStore.getState().reopenClosedTab();
     expect(useSplitViewStore.getState().panes).toBe(before);
+  });
+});
+
+describe("splitViewStore — closed tabs keep their session", () => {
+  beforeEach(() => {
+    reset();
+    useSplitViewStore.setState({ closedTabs: [] });
+    resetClosedTabSessionsForTests();
+  });
+
+  it("remembers a closed session until it is opened again", () => {
+    const store = useSplitViewStore.getState();
+    store.openInFocusedPane(makeTab({ threadId: "a", label: "A" }));
+    store.openInFocusedPane(makeTab({ type: "claude", threadId: undefined, claudeSessionId: "c", label: "C" }));
+    const s = useSplitViewStore.getState();
+    const pane = s.panes[s.focusedPaneId]!;
+    for (const tab of pane.tabs) useSplitViewStore.getState().closeTab(pane.id, tab.id);
+    expect(isClosedTabSession("a")).toBe(true);
+    expect(isClosedTabSession("c")).toBe(true);
+
+    useSplitViewStore.getState().reopenClosedTab();
+    expect(isClosedTabSession("c")).toBe(false);
+    useSplitViewStore.getState().openInFocusedPane(makeTab({ threadId: "a", label: "A" }));
+    expect(isClosedTabSession("a")).toBe(false);
+  });
+
+  it("does not mark a closed draft", () => {
+    useSplitViewStore.getState().openInFocusedPane(makeTab({ type: "draft", threadId: undefined, label: "New" }));
+    const s = useSplitViewStore.getState();
+    const pane = s.panes[s.focusedPaneId]!;
+    useSplitViewStore.getState().closeTab(pane.id, pane.tabs[0]!.id);
+    expect(isClosedTabSession("draft")).toBe(false);
   });
 });
 

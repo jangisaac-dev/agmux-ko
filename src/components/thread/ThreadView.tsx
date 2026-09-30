@@ -12,6 +12,7 @@ import {
   Square,
 } from "lucide-react";
 import { useUiStore } from "../../stores/uiStore";
+import { isClosedTabSession } from "../../stores/splitViewStore";
 import { useThreadStore } from "../../stores/threadStore";
 import { useProjectStore } from "../../stores/projectStore";
 import { useSettingsStore } from "../../stores/settingsStore";
@@ -385,6 +386,9 @@ export function ThreadView({ thread, compact = false }: Props) {
           clearTimeout(unloadTimerRef.current);
           unloadTimerRef.current = null;
         }
+        // Closing the tab only hides the session; keep the PTY running (its
+        // prompts come back from the ring buffer on reopen).
+        if (isClosedTabSession(thread.id)) return;
         // Unmount = not visible. Keep process alive only if still working /
         // waiting on the user; otherwise ensure the module timer is armed.
         const processing =

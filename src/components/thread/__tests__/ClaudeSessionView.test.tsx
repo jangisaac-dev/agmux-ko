@@ -85,7 +85,8 @@ vi.mock("../TerminalPanel", () => ({
 import { ClaudeSessionView } from "../ClaudeSessionView";
 import { useThreadStore } from "../../../stores/threadStore";
 import { useUiStore } from "../../../stores/uiStore";
-import { useSplitViewStore } from "../../../stores/splitViewStore";
+import { resetClosedTabSessionsForTests, useSplitViewStore } from "../../../stores/splitViewStore";
+import { pendingClaudeOffloadCountForTests, resetClaudeSessionOffloadForTests } from "../terminalOffload";
 import { useSettingsStore } from "../../../stores/settingsStore";
 import { useTaskViewStore } from "../../../stores/taskViewStore";
 import { SessionPresentationContext } from "../../../hooks/useIsSessionActive";
@@ -95,6 +96,7 @@ import {
   getClaudePtySessionUsage,
   getClaudeSessionDiffStats,
   listClaudeSessions,
+  stopClaudeSession,
 } from "../../../lib/commands";
 
 afterEach(() => cleanup());
@@ -1065,5 +1067,42 @@ describe("ClaudeSessionView — usage poll cadence", () => {
     act(() => { window.dispatchEvent(new Event("focus")); });
     expect(vi.mocked(getClaudePtySessionUsage).mock.calls.length).toBe(usageCalls + 1);
     expect(vi.mocked(getClaudeSessionDiffStats).mock.calls.length).toBe(diffCalls + 1);
+  });
+});
+
+describe("ClaudeSessionView — closing its tab keeps the PTY running", () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+    resetClosedTabSessionsForTests();
+    resetClaudeSessionOffloadForTests();
+    vi.mocked(stopClaudeSession).mockClear();
+    seedPtyThread();
+  });
+  afterEach(() => vi.useRealTimers());
+
+  it("does not kill an idle session whose tab was closed", () => {
+    useSplitViewStore.setState({
+      panes: {
+        "pane-1": {
+          id: "pane-1",
+          tabs: [{ id: "tab-1", type: "claude", claudeSessionId: "thread-1", claudeSessionCwd: "/tmp/repo", label: "C" }],
+          activeTabId: "tab-1",
+        },
+      },
+    } as never);
+    const { unmount } = render(<ClaudeSessionView {...baseProps} />);
+    useSplitViewStore.getState().closeTab("pane-1", "tab-1");
+    unmount();
+    expect(pendingClaudeOffloadCountForTests()).toBe(0);
+    vi.advanceTimersByTime(2 * 60 * 1000);
+    expect(stopClaudeSession).not.toHaveBeenCalled();
+  });
+
+  it("still kills an idle session two minutes after a plain unmount", () => {
+    const { unmount } = render(<ClaudeSessionView {...baseProps} />);
+    unmount();
+    expect(pendingClaudeOffloadCountForTests()).toBe(1);
+    vi.advanceTimersByTime(2 * 60 * 1000);
+    expect(stopClaudeSession).toHaveBeenCalledWith("thread-1");
   });
 });

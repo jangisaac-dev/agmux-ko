@@ -1,9 +1,11 @@
 /** @vitest-environment jsdom */
 import { describe, it, expect, afterEach, beforeEach, vi } from "vitest";
-import { render, screen, cleanup } from "@testing-library/react";
+import { render, screen, cleanup, act } from "@testing-library/react";
 import { invoke } from "@tauri-apps/api/core";
 import { ApprovalToast } from "../ApprovalToast";
 import { useUiStore } from "../../stores/uiStore";
+import { useSettingsStore } from "../../stores/settingsStore";
+import { useSplitViewStore } from "../../stores/splitViewStore";
 
 vi.mock("@tauri-apps/api/core", () => ({
   invoke: vi.fn().mockResolvedValue(undefined),
@@ -48,6 +50,29 @@ describe("ApprovalToast", () => {
     });
     const { container } = render(<ApprovalToast />);
     expect(container.firstChild).toBeNull();
+  });
+
+  it("with tabs on, shows a selected session's approval only once its tab is closed", () => {
+    const approval = {
+      toolName: "Bash",
+      summary: "ls",
+      interactionMode: "sdk" as const,
+      requestId: "r1",
+      agentType: "claude" as const,
+      cwd: "/tmp",
+    };
+    useSettingsStore.setState({ settings: { ...useSettingsStore.getState().settings, multiViewEnabled: true } });
+    useSplitViewStore.setState({
+      panes: { p1: { id: "p1", tabs: [{ id: "t1", type: "claude", claudeSessionId: "s1", label: "S1" }], activeTabId: "t1" } },
+    });
+    useUiStore.setState({ selectedClaudeSessionId: "s1", pendingApprovalsBySession: { s1: approval } });
+    const { container, rerender } = render(<ApprovalToast />);
+    expect(container.firstChild).toBeNull();
+
+    act(() => useSplitViewStore.setState({ panes: { p1: { id: "p1", tabs: [], activeTabId: null } } }));
+    rerender(<ApprovalToast />);
+    expect(container.firstChild).not.toBeNull();
+    useSettingsStore.setState({ settings: { ...useSettingsStore.getState().settings, multiViewEnabled: false } });
   });
 
   it("hides the toast when the approval is for the active thread-routed session (Grok/MLX)", () => {

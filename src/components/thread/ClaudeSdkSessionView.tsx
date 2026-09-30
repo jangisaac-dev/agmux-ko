@@ -5,7 +5,7 @@
  * emitted by the Rust SDK bridge (commands/claude_sdk.rs).
  */
 
-import { useState, useEffect, useRef, useCallback, useMemo, useSyncExternalStore, type ReactNode } from "react";
+import { useState, useEffect, useRef, useCallback, useMemo, useSyncExternalStore, type Dispatch, type ReactNode, type SetStateAction } from "react";
 import { listen, type UnlistenFn } from "@tauri-apps/api/event";
 import { Virtuoso, type VirtuosoHandle } from "react-virtuoso";
 import { AnimatePresence } from "framer-motion";
@@ -19,6 +19,7 @@ import { ApprovalBanner } from "./ApprovalBanner";
 import { AskUserQuestionDialog } from "./AskUserQuestionDialog";
 import { useApprovalQueue } from "../../hooks/useApprovalQueue";
 import { useSessionLifecycle } from "../../hooks/useSessionLifecycle";
+import { isClosedTabSession } from "../../stores/splitViewStore";
 import { MarkdownContent } from "./MarkdownContent";
 import { PROMPT_ACTION_BTN, UserMessageText } from "./UserMessageText";
 import { TaskNotificationBadge } from "./TaskNotificationBadge";
@@ -76,7 +77,8 @@ import { sendNotification } from "../../lib/notifications";
 import { markTurnStart } from "../../lib/agentToast";
 import { localeTag, t as translate, useT } from "../../i18n";
 import { cleanMessageContent } from "../../lib/messageFilters";
-import { useUiStore } from "../../stores/uiStore";
+import { useUiStore, type PendingApprovalToast } from "../../stores/uiStore";
+import { onApprovalResolved } from "../../lib/approvalBroadcast";
 import { useThreadStore } from "../../stores/threadStore";
 import { useSessionNameStore } from "../../stores/sessionNameStore";
 import { useSettingsStore } from "../../stores/settingsStore";
@@ -518,6 +520,211 @@ function finalizePendingTools(items: ClaudeChatItem[]): ClaudeChatItem[] {
 /** Module-level cache: SDK slash commands per session survive component remounts */
 const sdkSlashCommandsCache = new Map<string, string[]>();
 const mountedClaudeSdkSessionViews = new Map<string, number>();
+interface ClaudeSdkSessionMonitor {
+  approvalQueue: PendingApproval[];
+  pendingInput: PendingUserInput | null;
+  cwd: string;
+  owner: "view" | "monitor";
+  publishedKey: string | null;
+  published: PendingApprovalToast | null;
+  turnActive: boolean;
+  unlisten: UnlistenFn | null;
+  unlistenResolved: (() => void) | null;
+  disposed: boolean;
+}
+
+const claudeSdkSessionMonitors = new Map<string, ClaudeSdkSessionMonitor>();
+const TURN_ACTIVITY_EVENTS = new Set(["content.delta", "tool.started", "tool.completed", "approval.requested", "userInput.requested"]);
+const TURN_END_EVENTS = new Set(["turn.completed", "error", "session.ended"]);
+
+// Publishes the head approval (answerable from ApprovalToast) or, with none
+// held, the pending question without a requestId so the toast offers "Go to".
+function publishMonitorApproval(sessionId: string, monitor: ClaudeSdkSessionMonitor) {
+  if (
+    monitor.disposed ||
+    monitor.owner !== "monitor" ||
+    (mountedClaudeSdkSessionViews.get(sessionId) ?? 0) > 0
+  ) return;
+
+  const approval = monitor.approvalQueue[0];
+  const question = approval ? null : monitor.pendingInput;
+  const key = approval ? `approval:${approval.requestId}` : question ? `question:${question.requestId}` : null;
+  if (monitor.publishedKey === key) return;
+
+  const state = useUiStore.getState();
+  const ownsEntry = monitor.published !== null && state.pendingApprovalsBySession[sessionId] === monitor.published;
+  monitor.publishedKey = key;
+  monitor.published = approval
+    ? {
+        agentType: approvalAgentTypeForProvider(undefined),
+        toolName: approval.toolName,
+        summary: approval.detail,
+        cwd: monitor.cwd,
+        requestId: approval.requestId,
+        interactionMode: "sdk",
+      }
+    : question
+      ? {
+          agentType: approvalAgentTypeForProvider(undefined),
+          toolName: "AskUserQuestion",
+          summary: question.questions[0]?.question ?? "",
+          cwd: monitor.cwd,
+          interactionMode: "sdk",
+        }
+      : null;
+  if (monitor.published) state.setPendingApproval(sessionId, monitor.published);
+  else if (ownsEntry) state.setPendingApproval(sessionId, null);
+}
+
+function removeMonitorApproval(sessionId: string, monitor: ClaudeSdkSessionMonitor, requestId: string | number) {
+  if (monitor.disposed || monitor.owner !== "monitor") return;
+  const next = monitor.approvalQueue.filter((approval) => approval.requestId !== requestId);
+  if (next.length === monitor.approvalQueue.length) return;
+  monitor.approvalQueue = next;
+  useUiStore.getState().setClaudeProcessing(sessionId, true);
+  publishMonitorApproval(sessionId, monitor);
+}
+
+function createClaudeSdkSessionMonitor(sessionId: string, cwd: string): ClaudeSdkSessionMonitor {
+  const monitor: ClaudeSdkSessionMonitor = {
+    approvalQueue: [],
+    pendingInput: null,
+    cwd,
+    owner: "monitor",
+    publishedKey: null,
+    published: null,
+    turnActive: false,
+    unlisten: null,
+    unlistenResolved: null,
+    disposed: false,
+  };
+  claudeSdkSessionMonitors.set(sessionId, monitor);
+  // Only a real answer broadcasts; the toast's X just clears the slot, and a
+  // dismissed approval must still show when the chat is reopened.
+  monitor.unlistenResolved = onApprovalResolved(
+    (detail) => detail.sessionId === sessionId,
+    (detail) => removeMonitorApproval(sessionId, monitor, detail.requestId),
+  );
+  void listen<SdkEvent>(`sdk-event-${sessionId}`, (event) => {
+    if (monitor.disposed || claudeSdkSessionMonitors.get(sessionId) !== monitor) return;
+    const sdkEvent = event.payload;
+    // Tracked whoever owns the session: a view remounted mid-turn starts with
+    // isWorking false, so this is what tells a second close the turn is live.
+    if (TURN_ACTIVITY_EVENTS.has(sdkEvent.type)) monitor.turnActive = true;
+    else if (TURN_END_EVENTS.has(sdkEvent.type)) monitor.turnActive = false;
+    if (monitor.owner !== "monitor") return;
+    switch (sdkEvent.type) {
+      case "approval.requested":
+        if (!monitor.approvalQueue.some((approval) => approval.requestId === sdkEvent.requestId)) {
+          monitor.approvalQueue = [
+            ...monitor.approvalQueue,
+            {
+              requestId: sdkEvent.requestId,
+              toolName: sdkEvent.toolName,
+              detail: sdkEvent.detail,
+              requestType: sdkEvent.requestType,
+              createdAt: Date.now(),
+            },
+          ];
+          useUiStore.getState().setClaudeProcessing(sessionId, true);
+          publishMonitorApproval(sessionId, monitor);
+        }
+        break;
+      case "userInput.requested":
+        if (monitor.pendingInput?.requestId !== sdkEvent.requestId) {
+          monitor.pendingInput = {
+            requestId: sdkEvent.requestId,
+            questions: normalizeAskQuestions(sdkEvent.questions),
+          };
+          useUiStore.getState().setClaudeProcessing(sessionId, true);
+          publishMonitorApproval(sessionId, monitor);
+        }
+        break;
+      case "tool.completed":
+        removeMonitorApproval(sessionId, monitor, sdkEvent.toolUseId);
+        if (monitor.pendingInput?.requestId === sdkEvent.toolUseId) {
+          monitor.pendingInput = null;
+          useUiStore.getState().setClaudeProcessing(sessionId, true);
+          publishMonitorApproval(sessionId, monitor);
+        }
+        break;
+      case "turn.completed":
+      case "error":
+      case "session.ended":
+        monitor.approvalQueue = [];
+        monitor.pendingInput = null;
+        if (monitor.owner === "monitor") {
+          publishMonitorApproval(sessionId, monitor);
+          useUiStore.getState().setClaudeProcessing(sessionId, false);
+        }
+        if (sdkEvent.type === "session.ended") disposeClaudeSdkSessionMonitor(sessionId, monitor);
+        break;
+    }
+  }).then((unlisten) => {
+    if (monitor.disposed || claudeSdkSessionMonitors.get(sessionId) !== monitor) unlisten();
+    else monitor.unlisten = unlisten;
+  }).catch(() => {});
+  return monitor;
+}
+
+function getOrCreateClaudeSdkSessionMonitor(sessionId: string, cwd: string) {
+  const monitor = claudeSdkSessionMonitors.get(sessionId);
+  if (monitor) {
+    monitor.cwd = cwd;
+    return monitor;
+  }
+  return createClaudeSdkSessionMonitor(sessionId, cwd);
+}
+
+function disposeClaudeSdkSessionMonitor(sessionId: string, monitor: ClaudeSdkSessionMonitor) {
+  monitor.disposed = true;
+  monitor.unlisten?.();
+  monitor.unlistenResolved?.();
+  if (claudeSdkSessionMonitors.get(sessionId) === monitor) claudeSdkSessionMonitors.delete(sessionId);
+}
+
+function mergeMonitorApprovals(...queues: PendingApproval[][]) {
+  const merged: PendingApproval[] = [];
+  const indexes = new Map<string, number>();
+  for (const approval of queues.flat()) {
+    const existing = indexes.get(approval.requestId);
+    if (existing === undefined) {
+      indexes.set(approval.requestId, merged.length);
+      merged.push(approval);
+    } else {
+      merged[existing] = approval;
+    }
+  }
+  return merged;
+}
+
+function takeOverClaudeSdkSessionMonitor(
+  sessionId: string,
+  setApprovalQueue: Dispatch<SetStateAction<PendingApproval[]>>,
+  setPendingInput: Dispatch<SetStateAction<PendingUserInput | null>>,
+) {
+  const monitor = claudeSdkSessionMonitors.get(sessionId);
+  if (!monitor || monitor.owner !== "monitor") return;
+  monitor.owner = "view";
+  monitor.publishedKey = null;
+  monitor.published = null;
+  const approvals = monitor.approvalQueue;
+  const pendingInput = monitor.pendingInput;
+  monitor.approvalQueue = [];
+  monitor.pendingInput = null;
+  if (approvals.length) setApprovalQueue((current) => mergeMonitorApprovals(approvals, current));
+  if (pendingInput) setPendingInput((current) => current ?? pendingInput);
+}
+
+export function resetClaudeSdkMonitorsForTests() {
+  for (const [sessionId, monitor] of [...claudeSdkSessionMonitors]) {
+    disposeClaudeSdkSessionMonitor(sessionId, monitor);
+    useUiStore.getState().setPendingApproval(sessionId, null);
+    useUiStore.getState().setClaudeProcessing(sessionId, false);
+  }
+  mountedClaudeSdkSessionViews.clear();
+}
+
 // Events after which an unmounted session cannot progress: the turn ended, or
 // it now waits on an approval/question that only a mounted view can answer.
 const DEFERRED_STOP_EVENTS = new Set(["turn.completed", "session.ended", "error", "approval.requested", "userInput.requested"]);
@@ -541,6 +748,7 @@ function stopSdkSessionAfterTurn(sessionId: string) {
     else endedBeforeListenResolved = true;
 
     if ((mountedClaudeSdkSessionViews.get(sessionId) ?? 0) > 0) return;
+    if (claudeSdkSessionMonitors.get(sessionId)?.owner === "monitor") return;
     useUiStore.getState().setClaudeProcessing(sessionId, false);
     sdkStopSession(sessionId).catch(() => {});
   }).then((stopListening) => {
@@ -610,7 +818,11 @@ export function ClaudeSdkSessionView({ sessionId, cwd, isNew, compact, hideTopBa
   });
   const approvalQueue = approvals.queue;
   const setApprovalQueue = approvals.setQueue;
+  const approvalQueueRef = useRef(approvalQueue);
+  approvalQueueRef.current = approvalQueue;
   const [pendingInput, setPendingInput] = useState<PendingUserInput | null>(null);
+  const pendingInputRef = useRef(pendingInput);
+  pendingInputRef.current = pendingInput;
   const [_lastUsage, setLastUsage] = useState<SdkTurnCompleted["usage"] | null>(null);
   const [runningUsage, setRunningUsage] = useState<{ inputTokens: number; outputTokens: number; cacheCreationTokens: number; cacheReadTokens: number } | null>(null);
   const [isWorking, setIsWorking] = useState(false);
@@ -1066,7 +1278,15 @@ export function ClaudeSdkSessionView({ sessionId, cwd, isNew, compact, hideTopBa
       }
       // If idle, the state machine's pending awaiting_stop timer will never
       // fire after unmount, so clear its sidebar processing indicator here.
-      if (!isWorkingForUnmountRef.current && useUiStore.getState().claudeProcessingById[sessionId]) {
+      if (
+        !isWorkingForUnmountRef.current &&
+        !(!externallyManaged && isClosedTabSession(sessionId) && (
+          approvalQueueRef.current.length > 0 ||
+          pendingInputRef.current ||
+          claudeSdkSessionMonitors.get(sessionId)?.turnActive
+        )) &&
+        useUiStore.getState().claudeProcessingById[sessionId]
+      ) {
         useUiStore.getState().setClaudeProcessing(sessionId, false);
       }
     };
@@ -1076,6 +1296,7 @@ export function ClaudeSdkSessionView({ sessionId, cwd, isNew, compact, hideTopBa
   // a turn, wait for its terminal event so a remount can resume the live process.
   useEffect(() => {
     if (externallyManaged) return;
+    const monitor = getOrCreateClaudeSdkSessionMonitor(sessionId, cwd);
     mountedClaudeSdkSessionViews.set(
       sessionId,
       (mountedClaudeSdkSessionViews.get(sessionId) ?? 0) + 1,
@@ -1088,6 +1309,22 @@ export function ClaudeSdkSessionView({ sessionId, cwd, isNew, compact, hideTopBa
       }
       mountedClaudeSdkSessionViews.delete(sessionId);
 
+      if (isClosedTabSession(sessionId)) {
+        if (!monitor.disposed && claudeSdkSessionMonitors.get(sessionId) === monitor) {
+          monitor.owner = "monitor";
+          monitor.publishedKey = null;
+          monitor.published = null;
+          monitor.approvalQueue = mergeMonitorApprovals(monitor.approvalQueue, approvalQueueRef.current);
+          monitor.pendingInput = pendingInputRef.current ?? monitor.pendingInput;
+          if (monitor.approvalQueue.length || monitor.pendingInput || monitor.turnActive) {
+            useUiStore.getState().setClaudeProcessing(sessionId, true);
+          }
+          queueMicrotask(() => publishMonitorApproval(sessionId, monitor));
+        }
+        return;
+      }
+
+      disposeClaudeSdkSessionMonitor(sessionId, monitor);
       if (isWorkingForUnmountRef.current) {
         stopSdkSessionAfterTurn(sessionId);
       } else {
@@ -1097,6 +1334,13 @@ export function ClaudeSdkSessionView({ sessionId, cwd, isNew, compact, hideTopBa
       }
     };
   }, [sessionId, externallyManaged]);
+
+  useEffect(() => {
+    if (!externallyManaged) {
+      const monitor = claudeSdkSessionMonitors.get(sessionId);
+      if (monitor) monitor.cwd = cwd;
+    }
+  }, [sessionId, cwd, externallyManaged]);
 
   // Set up event listener FIRST, then start session (prevents race condition
   // where early events are lost before the listener is attached).
@@ -1125,6 +1369,10 @@ export function ClaudeSdkSessionView({ sessionId, cwd, isNew, compact, hideTopBa
 
         handleSdkEvent(sdkEvent);
       });
+
+      if (!externallyManaged && !cancelled) {
+        takeOverClaudeSdkSessionMonitor(sessionId, setApprovalQueue, setPendingInput);
+      }
 
       // 2. Load chat history. The Claude Code JSONL transcript on disk is
       // the authoritative source — it's written directly by Claude Code and

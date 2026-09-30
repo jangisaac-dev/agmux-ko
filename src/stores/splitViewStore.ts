@@ -168,6 +168,18 @@ function findParentSplit(
 const EMPTY_TABS: TabItem[] = [];
 const MAX_CLOSED_TABS = 20;
 
+// Sessions whose tab was closed and not reopened since. Closing a tab only
+// hides its session, so Claude views skip their stop-on-unmount for these.
+const closedTabSessionIds = new Set<string>();
+
+export function isClosedTabSession(sessionId: string): boolean {
+  return closedTabSessionIds.has(sessionId);
+}
+
+export function resetClosedTabSessionsForTests(): void {
+  closedTabSessionIds.clear();
+}
+
 interface SplitViewState {
   layout: LayoutNode;
   panes: Record<PaneId, PaneNode>;
@@ -200,7 +212,9 @@ export const useSplitViewStore = create<SplitViewState>()(
   closedTabs: [],
 
   // -------------------------------------------------------------------------
-  openInFocusedPane: (tab) =>
+  openInFocusedPane: (tab) => {
+    const reopenedId = tabEntityId(tab);
+    if (reopenedId) closedTabSessionIds.delete(reopenedId);
     set((s) => {
       const pane = s.panes[s.focusedPaneId];
       if (!pane) return s;
@@ -228,10 +242,16 @@ export const useSplitViewStore = create<SplitViewState>()(
           },
         },
       };
-    }),
+    });
+  },
 
   // -------------------------------------------------------------------------
-  splitPane: (paneId, direction, tab) =>
+  splitPane: (paneId, direction, tab) => {
+    const reopenedId = tabEntityId(tab);
+    const { layout } = get();
+    if (reopenedId && countPanes(layout) < MAX_PANES && findPaneInLayout(layout, paneId)) {
+      closedTabSessionIds.delete(reopenedId);
+    }
     set((s) => {
       if (countPanes(s.layout) >= MAX_PANES) return s;
       if (!findPaneInLayout(s.layout, paneId)) return s;
@@ -293,7 +313,8 @@ export const useSplitViewStore = create<SplitViewState>()(
         },
         focusedPaneId: newPaneId,
       };
-    }),
+    });
+  },
 
   // -------------------------------------------------------------------------
   closeTab: (paneId, tabId) => {
@@ -301,6 +322,8 @@ export const useSplitViewStore = create<SplitViewState>()(
     const closed = get().panes[paneId]?.tabs.find((t) => t.id === tabId);
     if (closed && closed.type !== "draft") {
       set((s) => ({ closedTabs: [...s.closedTabs, closed].slice(-MAX_CLOSED_TABS) }));
+      const closedId = tabEntityId(closed);
+      if (closedId) closedTabSessionIds.add(closedId);
     }
     set((s) => {
       const pane = s.panes[paneId];

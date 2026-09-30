@@ -4,6 +4,9 @@ import { useUiStore } from "../stores/uiStore";
 import { useSessionNameStore } from "../stores/sessionNameStore";
 import { useTaskViewStore } from "../stores/taskViewStore";
 import { useThreadStore } from "../stores/threadStore";
+import { useSettingsStore } from "../stores/settingsStore";
+import { useSplitViewStore } from "../stores/splitViewStore";
+import { collectVisibleSessionIds } from "../lib/visibleSessionIds";
 import { AgentAvatar } from "./taskview/AgentAvatar";
 import { useResolvedColorMode } from "./ThemeProvider";
 import { sdkRespondApproval, codexRespondToRequest, grokSdkRespondApproval } from "../lib/commands";
@@ -192,7 +195,17 @@ export function ApprovalToast() {
   const activeAgentTabId = useTaskViewStore((s) => s.activeAgentTabId);
   const getTaskById = useTaskViewStore((s) => s.getTaskById);
   const allThreads = useThreadStore((s) => s.threads);
+  const multiView = useSettingsStore((s) => s.settings.multiViewEnabled);
+  const panes = useSplitViewStore((s) => s.panes);
   const isLight = useResolvedColorMode();
+
+  // With tabs on, a selected session whose tab was closed keeps running off
+  // screen with no in-chat banner, so its approvals still need the toast.
+  const visibleIds = useMemo(
+    () => (appMode !== "task" && multiView ? new Set(collectVisibleSessionIds()) : null),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [appMode, multiView, panes],
+  );
   const RISK = isLight ? RISK_LIGHT : RISK_DARK;
 
   const activeTaskAgentId = useMemo(() => {
@@ -238,9 +251,10 @@ export function ApprovalToast() {
 
   const otherEntries = entries.filter(
     (e) =>
-      e.canonicalId !== selectedClaude &&
-      e.canonicalId !== selectedCodex &&
-      e.canonicalId !== selectedThread &&
+      ((e.canonicalId !== selectedClaude &&
+        e.canonicalId !== selectedCodex &&
+        e.canonicalId !== selectedThread) ||
+        (visibleIds !== null && !visibleIds.has(e.canonicalId))) &&
       e.canonicalId !== activeTaskAgentId,
   );
   if (otherEntries.length === 0) return null;

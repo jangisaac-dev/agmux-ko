@@ -76,6 +76,8 @@ import type { Thread } from "../../../lib/types";
 import { useThreadStore } from "../../../stores/threadStore";
 import { useProjectStore } from "../../../stores/projectStore";
 import { useUiStore } from "../../../stores/uiStore";
+import { resetClosedTabSessionsForTests, useSplitViewStore } from "../../../stores/splitViewStore";
+import { resetGrokSessionOffloadForTests } from "../grokSessionOffload";
 import { SessionPresentationContext } from "../../../hooks/useIsSessionActive";
 import {
   getGrokPtySessionUsage,
@@ -563,6 +565,42 @@ describe("ThreadView", () => {
     });
 
     expect(screen.getByTestId("terminal-view")).toBeTruthy();
+  });
+
+  it("keeps a Grok terminal running after its tab is closed", async () => {
+    vi.useFakeTimers();
+    resetClosedTabSessionsForTests();
+    resetGrokSessionOffloadForTests();
+    vi.mocked(stopThread).mockClear();
+    useUiStore.setState({
+      sidebarTab: "agents",
+      selectedThreadId: "t1",
+      claudeProcessingById: {},
+      pendingApprovalsBySession: {},
+    } as never);
+    useSplitViewStore.setState({
+      panes: { p1: { id: "p1", tabs: [{ id: "tab-1", type: "thread", threadId: "t1", label: "G" }], activeTabId: "tab-1" } },
+      focusedPaneId: "p1",
+      layout: { type: "pane", paneId: "p1" },
+    } as never);
+    const view = render(
+      <ThreadView
+        thread={makeThread({
+          provider: "Grok" as never,
+          interaction_mode: "pty" as never,
+          status: "Running" as never,
+          work_dir: "/tmp/repo" as never,
+        })}
+      />,
+    );
+
+    useSplitViewStore.getState().closeTab("p1", "tab-1");
+    view.unmount();
+    await act(async () => {
+      vi.advanceTimersByTime(2 * 60 * 1000);
+      await Promise.resolve();
+    });
+    expect(stopThread).not.toHaveBeenCalled();
   });
 
   it("renders for a Codex provider thread", () => {

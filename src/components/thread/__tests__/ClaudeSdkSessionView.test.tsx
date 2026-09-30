@@ -218,15 +218,19 @@ vi.mock("../../../lib/commands", async (importOriginal) => {
   };
 });
 
-import { ClaudeSdkSessionView } from "../ClaudeSdkSessionView";
+import { ClaudeSdkSessionView, resetClaudeSdkMonitorsForTests } from "../ClaudeSdkSessionView";
 import { _resetAppVisibilityForTests } from "../../../lib/appVisibility";
 import { SessionPresentationContext } from "../../../hooks/useIsSessionActive";
 import { useThreadStore } from "../../../stores/threadStore";
 import { useUiStore } from "../../../stores/uiStore";
+import { broadcastApprovalResolved } from "../../../lib/approvalBroadcast";
+import { resetClosedTabSessionsForTests, useSplitViewStore } from "../../../stores/splitViewStore";
 
 afterEach(() => cleanup());
 
 beforeEach(async () => {
+  resetClosedTabSessionsForTests();
+  resetClaudeSdkMonitorsForTests();
   threadTopBarSpy.mockClear();
   claudeInputBarSpy.mockClear();
   approvalBannerSpy.mockClear();
@@ -1190,8 +1194,52 @@ describe("ClaudeSdkSessionView — deep coverage (SDK event handlers)", () => {
     for (const handler of [...(handlers[channel] ?? [])]) handler({ payload });
   }
 
+  function openSessionTab(sessionId: string) {
+    useSplitViewStore.getState().openInFocusedPane({
+      id: "",
+      type: "thread",
+      threadId: sessionId,
+      label: sessionId,
+    });
+    const { focusedPaneId, panes } = useSplitViewStore.getState();
+    const pane = panes[focusedPaneId]!;
+    const tab = pane.tabs.find((item) => item.threadId === sessionId)!;
+    return { paneId: focusedPaneId, tabId: tab.id };
+  }
+
+  it("keeps an idle closed tab alive through a later turn.completed", async () => {
+    const handlers = await setupCapture();
+    const cmd = await import("../../../lib/commands");
+    vi.mocked(cmd.sdkStopSession).mockClear();
+    const sessionId = "dc39";
+    const { paneId, tabId } = openSessionTab(sessionId);
+    const view = render(<ClaudeSdkSessionView sessionId={sessionId} cwd="/tmp/repo" isNew />);
+    await flush();
+
+    useSplitViewStore.getState().closeTab(paneId, tabId);
+    view.unmount();
+    await flush();
+    expect(cmd.sdkStopSession).not.toHaveBeenCalled();
+
+    act(() => fireSdk(handlers, sessionId, {
+      type: "turn.completed",
+      usage: {
+        inputTokens: 0,
+        outputTokens: 0,
+        cacheCreationTokens: 0,
+        cacheReadTokens: 0,
+        totalCostUsd: 0,
+        numTurns: 1,
+      },
+    }));
+    await flush();
+    expect(cmd.sdkStopSession).not.toHaveBeenCalled();
+  });
+
   beforeEach(() => {
     captureListeners();
+    useSplitViewStore.getState().reset();
+    resetClosedTabSessionsForTests();
   });
 
   it("captures the sdk-event listener channel on mount", async () => {
@@ -1724,6 +1772,350 @@ describe("ClaudeSdkSessionView — deep coverage (SDK event handlers)", () => {
 
     expect(cmd.sdkStopSession).toHaveBeenCalledWith("dc35");
     expect(cmd.sdkStopSession).toHaveBeenCalledTimes(1);
+  });
+
+  it("keeps a closed tab's pending approval alive and restores it on remount", async () => {
+    const handlers = await setupCapture();
+    const cmd = await import("../../../lib/commands");
+    vi.mocked(cmd.sdkStopSession).mockClear();
+    const sessionId = "dc37";
+    const { paneId, tabId } = openSessionTab(sessionId);
+    const firstView = render(<ClaudeSdkSessionView sessionId={sessionId} cwd="/tmp/repo" isNew />);
+    await flush();
+    fireEvent.click(screen.getByTestId("ib-send"));
+    await flush();
+    act(() => fireSdk(handlers, sessionId, {
+      type: "approval.requested",
+      requestId: "req-37",
+      toolName: "Bash",
+      detail: "ls",
+      requestType: "command_execution",
+    }));
+    await flush();
+
+    useSplitViewStore.getState().closeTab(paneId, tabId);
+    firstView.unmount();
+    await flush();
+
+    expect(cmd.sdkStopSession).not.toHaveBeenCalled();
+    expect(handlers[`sdk-event-${sessionId}`]).toHaveLength(1);
+    expect(useUiStore.getState().pendingApprovalsBySession[sessionId]?.requestId).toBe("req-37");
+    expect(useUiStore.getState().claudeProcessingById[sessionId]).toBe(true);
+
+    const publishApproval = vi.spyOn(useUiStore.getState(), "setPendingApproval");
+    openSessionTab(sessionId);
+    render(<ClaudeSdkSessionView sessionId={sessionId} cwd="/tmp/repo" isNew />);
+    await waitFor(() => expect(screen.getAllByTestId("approval-banner")).toHaveLength(1));
+    expect(useUiStore.getState().claudeProcessingById[sessionId]).toBe(true);
+    expect(handlers[`sdk-event-${sessionId}`]).toHaveLength(2);
+    expect(useUiStore.getState().pendingApprovalsBySession[sessionId]?.requestId).toBe("req-37");
+
+    await flush();
+    publishApproval.mockClear();
+    const bannerCalls = approvalBannerSpy.mock.calls.length;
+    act(() => fireSdk(handlers, sessionId, {
+      type: "approval.requested",
+      requestId: "req-37-later",
+      toolName: "Bash",
+      detail: "pwd",
+      requestType: "command_execution",
+    }));
+    await flush();
+    const publications = publishApproval.mock.calls.map(([, approval]) => approval?.requestId ?? null);
+    publishApproval.mockRestore();
+    expect(approvalBannerSpy.mock.calls.slice(bannerCalls).some(([props]) => props.pendingCount === 2)).toBe(true);
+    // The view owns the session again: the monitor publishes nothing.
+    expect(publications).toEqual([]);
+  });
+
+  it("publishes a new closed-tab approval after the toast clears the previous one", async () => {
+    const handlers = await setupCapture();
+    const cmd = await import("../../../lib/commands");
+    vi.mocked(cmd.sdkStopSession).mockClear();
+    const sessionId = "dc40";
+    const { paneId, tabId } = openSessionTab(sessionId);
+    const view = render(<ClaudeSdkSessionView sessionId={sessionId} cwd="/tmp/repo" isNew />);
+    await flush();
+    fireEvent.click(screen.getByTestId("ib-send"));
+    await flush();
+    act(() => fireSdk(handlers, sessionId, {
+      type: "approval.requested",
+      requestId: "req-40a",
+      toolName: "Bash",
+      detail: "ls",
+      requestType: "command_execution",
+    }));
+    await flush();
+
+    useSplitViewStore.getState().closeTab(paneId, tabId);
+    view.unmount();
+    await flush();
+    expect(useUiStore.getState().pendingApprovalsBySession[sessionId]?.requestId).toBe("req-40a");
+    expect(useUiStore.getState().claudeProcessingById[sessionId]).toBe(true);
+
+    act(() => fireSdk(handlers, sessionId, {
+      type: "approval.requested",
+      requestId: "req-40b",
+      toolName: "Bash",
+      detail: "pwd",
+      requestType: "command_execution",
+    }));
+    await flush();
+    expect(useUiStore.getState().pendingApprovalsBySession[sessionId]?.requestId).toBe("req-40a");
+
+    // ApprovalToast answering: clear the slot and broadcast the resolved id.
+    await act(async () => {
+      useUiStore.getState().setPendingApproval(sessionId, null);
+      broadcastApprovalResolved(sessionId, "req-40a");
+      await flush();
+    });
+    expect(useUiStore.getState().pendingApprovalsBySession[sessionId]?.requestId).toBe("req-40b");
+    expect(useUiStore.getState().claudeProcessingById[sessionId]).toBe(true);
+
+    act(() => fireSdk(handlers, sessionId, {
+      type: "turn.completed",
+      usage: {
+        inputTokens: 0,
+        outputTokens: 0,
+        cacheCreationTokens: 0,
+        cacheReadTokens: 0,
+        totalCostUsd: 0,
+        numTurns: 1,
+      },
+    }));
+    await flush();
+    expect(useUiStore.getState().pendingApprovalsBySession[sessionId]).toBeUndefined();
+    expect(useUiStore.getState().claudeProcessingById[sessionId]).toBe(false);
+    expect(useUiStore.getState().sessionFinishedAt[sessionId]).toBeDefined();
+    expect(cmd.sdkStopSession).not.toHaveBeenCalled();
+  });
+
+  it("keeps a turn shown as working when a reopened tab is closed again mid-turn", async () => {
+    const handlers = await setupCapture();
+    const sessionId = "dc46";
+    const first = openSessionTab(sessionId);
+    const firstView = render(<ClaudeSdkSessionView sessionId={sessionId} cwd="/tmp/repo" isNew />);
+    await flush();
+    fireEvent.click(screen.getByTestId("ib-send"));
+    await flush();
+    act(() => fireSdk(handlers, sessionId, { type: "content.delta", contentType: "text", text: "working" }));
+    await flush();
+    useSplitViewStore.getState().closeTab(first.paneId, first.tabId);
+    firstView.unmount();
+    await flush();
+
+    // The reopened view does not know a turn is running.
+    const second = openSessionTab(sessionId);
+    const secondView = render(<ClaudeSdkSessionView sessionId={sessionId} cwd="/tmp/repo" isNew />);
+    await flush();
+    useSplitViewStore.getState().closeTab(second.paneId, second.tabId);
+    secondView.unmount();
+    await flush();
+    expect(useUiStore.getState().claudeProcessingById[sessionId]).toBe(true);
+    // No false "finished" blip (it would fire the completion toast).
+    expect(useUiStore.getState().sessionFinishedAt[sessionId]).toBeUndefined();
+
+    act(() => fireSdk(handlers, sessionId, {
+      type: "turn.completed",
+      usage: { inputTokens: 0, outputTokens: 0, cacheCreationTokens: 0, cacheReadTokens: 0, totalCostUsd: 0, numTurns: 1 },
+    }));
+    await flush();
+    expect(useUiStore.getState().claudeProcessingById[sessionId]).toBe(false);
+  });
+
+  it("does not stop after a plain unmount, remount, then close before turn completion", async () => {
+    const handlers = await setupCapture();
+    const cmd = await import("../../../lib/commands");
+    vi.mocked(cmd.sdkStopSession).mockClear();
+    const sessionId = "dc41";
+    const { paneId, tabId } = openSessionTab(sessionId);
+    const firstView = render(<ClaudeSdkSessionView sessionId={sessionId} cwd="/tmp/repo" isNew />);
+    await flush();
+    fireEvent.click(screen.getByTestId("ib-send"));
+    await waitFor(() => expect(useUiStore.getState().claudeProcessingById[sessionId]).toBe(true));
+    firstView.unmount();
+
+    const secondView = render(<ClaudeSdkSessionView sessionId={sessionId} cwd="/tmp/repo" isNew />);
+    await flush();
+    useSplitViewStore.getState().closeTab(paneId, tabId);
+    secondView.unmount();
+    await flush();
+    act(() => fireSdk(handlers, sessionId, {
+      type: "turn.completed",
+      usage: {
+        inputTokens: 0,
+        outputTokens: 0,
+        cacheCreationTokens: 0,
+        cacheReadTokens: 0,
+        totalCostUsd: 0,
+        numTurns: 1,
+      },
+    }));
+    await flush();
+
+    expect(cmd.sdkStopSession).not.toHaveBeenCalled();
+  });
+
+  it("takes over an approval delivered before the remounted view listener resolves", async () => {
+    const handlers = await setupCapture();
+    const eventModule = await import("@tauri-apps/api/event");
+    const sessionId = "dc42";
+    const { paneId, tabId } = openSessionTab(sessionId);
+    const firstView = render(<ClaudeSdkSessionView sessionId={sessionId} cwd="/tmp/repo" isNew />);
+    await flush();
+    useSplitViewStore.getState().closeTab(paneId, tabId);
+    firstView.unmount();
+    await flush();
+
+    let resolveListen: (() => void) | null = null;
+    let listenStarted: (() => void) | null = null;
+    const viewListenStarted = new Promise<void>((resolve) => { listenStarted = resolve; });
+    vi.mocked(eventModule.listen).mockImplementation(((channel: string, cb: Listener) => {
+      const listeners = (handlers[channel] ??= []);
+      listeners.push(cb);
+      return new Promise((resolve) => {
+        resolveListen = () => resolve(() => {
+          const index = listeners.indexOf(cb);
+          if (index >= 0) listeners.splice(index, 1);
+        });
+        listenStarted?.();
+      });
+    }) as never);
+
+    openSessionTab(sessionId);
+    const reopened = render(<ClaudeSdkSessionView sessionId={sessionId} cwd="/tmp/repo" isNew />);
+    await viewListenStarted;
+    act(() => fireSdk(handlers, sessionId, {
+      type: "approval.requested",
+      requestId: "req-42",
+      toolName: "Bash",
+      detail: "ls",
+      requestType: "command_execution",
+    }));
+    await act(async () => {
+      resolveListen?.();
+      await flush();
+    });
+    await waitFor(() => expect(reopened.getAllByTestId("approval-banner")).toHaveLength(1));
+    expect(useUiStore.getState().pendingApprovalsBySession[sessionId]?.requestId).toBe("req-42");
+  });
+
+  it("keeps the monitor in charge when the tab closes before the view's listener resolves", async () => {
+    const handlers = await setupCapture();
+    const eventModule = await import("@tauri-apps/api/event");
+    const resolvers: (() => void)[] = [];
+    vi.mocked(eventModule.listen).mockImplementation(((channel: string, cb: Listener) => {
+      (handlers[channel] ??= []).push(cb);
+      return new Promise((resolve) => resolvers.push(() => resolve(() => {})));
+    }) as never);
+    const sessionId = "dc44";
+    const { paneId, tabId } = openSessionTab(sessionId);
+    const view = render(<ClaudeSdkSessionView sessionId={sessionId} cwd="/tmp/repo" isNew />);
+    useSplitViewStore.getState().closeTab(paneId, tabId);
+    view.unmount();
+    await act(async () => {
+      for (const resolve of resolvers) resolve();
+      await flush();
+    });
+
+    act(() => fireSdk(handlers, sessionId, {
+      type: "approval.requested",
+      requestId: "req-44",
+      toolName: "Bash",
+      detail: "ls",
+      requestType: "command_execution",
+    }));
+    expect(useUiStore.getState().pendingApprovalsBySession[sessionId]?.requestId).toBe("req-44");
+  });
+
+  it("disposes the monitor when a closed session ends", async () => {
+    const handlers = await setupCapture();
+    const sessionId = "dc43";
+    const { paneId, tabId } = openSessionTab(sessionId);
+    const view = render(<ClaudeSdkSessionView sessionId={sessionId} cwd="/tmp/repo" isNew />);
+    await flush();
+    fireEvent.click(screen.getByTestId("ib-send"));
+    await flush();
+    useSplitViewStore.getState().closeTab(paneId, tabId);
+    view.unmount();
+    await flush();
+
+    act(() => fireSdk(handlers, sessionId, { type: "session.ended", reason: "complete" }));
+    await flush();
+    act(() => fireSdk(handlers, sessionId, {
+      type: "approval.requested",
+      requestId: "req-43",
+      toolName: "Bash",
+      detail: "ls",
+      requestType: "command_execution",
+    }));
+
+    expect(useUiStore.getState().pendingApprovalsBySession[sessionId]).toBeUndefined();
+    expect(useUiStore.getState().claudeProcessingById[sessionId]).toBe(false);
+  });
+
+  it("keeps an approval dismissed from the toast for when the tab is reopened", async () => {
+    const handlers = await setupCapture();
+    const sessionId = "dc45";
+    const { paneId, tabId } = openSessionTab(sessionId);
+    const view = render(<ClaudeSdkSessionView sessionId={sessionId} cwd="/tmp/repo" isNew />);
+    await flush();
+    fireEvent.click(screen.getByTestId("ib-send"));
+    await flush();
+    act(() => fireSdk(handlers, sessionId, {
+      type: "approval.requested",
+      requestId: "req-45",
+      toolName: "Bash",
+      detail: "ls",
+      requestType: "command_execution",
+    }));
+    await flush();
+    useSplitViewStore.getState().closeTab(paneId, tabId);
+    view.unmount();
+    await flush();
+
+    // The toast's X clears the slot without answering (no broadcast).
+    act(() => useUiStore.getState().setPendingApproval(sessionId, null));
+    openSessionTab(sessionId);
+    render(<ClaudeSdkSessionView sessionId={sessionId} cwd="/tmp/repo" isNew />);
+    await waitFor(() => expect(screen.getAllByTestId("approval-banner")).toHaveLength(1));
+  });
+
+  it("keeps a closed tab's pending question and restores it on remount", async () => {
+    const handlers = await setupCapture();
+    const cmd = await import("../../../lib/commands");
+    vi.mocked(cmd.sdkStopSession).mockClear();
+    const sessionId = "dc38";
+    const { paneId, tabId } = openSessionTab(sessionId);
+    const firstView = render(<ClaudeSdkSessionView sessionId={sessionId} cwd="/tmp/repo" isNew />);
+    await flush();
+    fireEvent.click(screen.getByTestId("ib-send"));
+    await flush();
+    act(() => fireSdk(handlers, sessionId, {
+      type: "userInput.requested",
+      requestId: "question-38",
+      questions: [{ question: "Which branch?", options: ["A", "B"] }],
+    }));
+    await flush();
+
+    useSplitViewStore.getState().closeTab(paneId, tabId);
+    firstView.unmount();
+    await flush();
+
+    expect(cmd.sdkStopSession).not.toHaveBeenCalled();
+    expect(useUiStore.getState().claudeProcessingById[sessionId]).toBe(true);
+    expect(handlers[`sdk-event-${sessionId}`]).toHaveLength(1);
+    // No requestId: the toast offers "Go to" instead of Allow/Deny.
+    const entry = useUiStore.getState().pendingApprovalsBySession[sessionId];
+    expect(entry?.toolName).toBe("AskUserQuestion");
+    expect(entry?.summary).toBe("Which branch?");
+    expect(entry?.requestId).toBeUndefined();
+
+    openSessionTab(sessionId);
+    render(<ClaudeSdkSessionView sessionId={sessionId} cwd="/tmp/repo" isNew />);
+    await waitFor(() => expect(screen.getAllByTestId("ask-user-question-dialog")).toHaveLength(1));
+    expect(useUiStore.getState().claudeProcessingById[sessionId]).toBe(true);
+    expect(handlers[`sdk-event-${sessionId}`]).toHaveLength(2);
   });
 
   it("stops a deferred session when it asks for approval with no view mounted", async () => {
