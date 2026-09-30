@@ -120,11 +120,13 @@ vi.mock("../../../lib/mlx", async (importOriginal) => {
 });
 
 import { invoke } from "@tauri-apps/api/core";
+import { ask } from "@tauri-apps/plugin-dialog";
 import { ProjectGroup } from "../ProjectGroup";
 import { useThreadStore } from "../../../stores/threadStore";
 import { useUiStore } from "../../../stores/uiStore";
 import { useProjectStore } from "../../../stores/projectStore";
 import { useSessionNameStore } from "../../../stores/sessionNameStore";
+import { useSessionSelectionStore } from "../../../stores/sessionSelectionStore";
 import { useTerminalStore } from "../../../stores/terminalStore";
 import { useSettingsStore } from "../../../stores/settingsStore";
 import { resetAllStores } from "../../../test-helpers/resetStores";
@@ -2801,6 +2803,380 @@ describe("ProjectGroup — Final coverage gaps", () => {
         requestFocusNewSession({ projectId: "p1", anchor });
       });
       expect(screen.getByText("New in")).toBeTruthy();
+    });
+  });
+
+  describe("multi-select", () => {
+    const rows = () => {
+      const now = Date.now();
+      return [
+        makeThread({ id: "multi-a", name: "Multi A", last_active: new Date(now).toISOString() }),
+        makeThread({ id: "multi-b", name: "Multi B", last_active: new Date(now - 1_000).toISOString() }),
+        makeThread({ id: "multi-c", name: "Multi C", last_active: new Date(now - 2_000).toISOString() }),
+      ];
+    };
+    const claudeSession = (id = "discovered-claude", preview = "Discovered Claude"): ClaudeSession => ({
+      id,
+      preview,
+      updated_at: new Date(Date.now() - 1_000).toISOString(),
+      cwd: "/tmp/repo",
+      model: null,
+      lines_added: 0,
+      lines_removed: 0,
+      files_changed: 0,
+    });
+    const row = (name: string) => {
+      const label = screen.getAllByText(name).find((node) => node.closest(".pg-body")) ?? screen.getByText(name);
+      return label.closest("button") as HTMLElement;
+    };
+    const select = (name: string) => fireEvent.click(row(name), { metaKey: true });
+
+    it("Cmd-click selects a row without opening it or starting a thread", () => {
+      useThreadStore.setState({ threads: { p1: rows() } });
+      const startThread = vi.spyOn(useThreadStore.getState(), "startThread");
+      const selectThread = vi.spyOn(useUiStore.getState(), "selectThread");
+      const selectClaudeSession = vi.spyOn(useUiStore.getState(), "selectClaudeSession");
+      render(<ProjectGroup {...baseProps} />);
+
+      select("Multi A");
+
+      expect(row("Multi A").getAttribute("data-selected")).toBe("true");
+      expect(useUiStore.getState().selectedClaudeSessionId).toBeNull();
+      expect(selectThread).not.toHaveBeenCalled();
+      expect(selectClaudeSession).not.toHaveBeenCalled();
+      expect(startThread).not.toHaveBeenCalled();
+      fireEvent.doubleClick(row("Multi A"), { metaKey: true });
+      expect(startThread).not.toHaveBeenCalled();
+    });
+
+    it("does not open a row when a checkbox click is followed by a double-click sequence", () => {
+      useThreadStore.setState({ threads: { p1: [rows()[0]] } });
+      const startThread = vi.spyOn(useThreadStore.getState(), "startThread");
+      const selectThread = vi.spyOn(useUiStore.getState(), "selectThread");
+      const selectClaudeSession = vi.spyOn(useUiStore.getState(), "selectClaudeSession");
+      render(<ProjectGroup {...baseProps} />);
+
+      select("Multi A");
+      const checkbox = row("Multi A").querySelector('[role="checkbox"]');
+      expect(checkbox).toBeTruthy();
+      fireEvent.click(checkbox!, { detail: 1 });
+      fireEvent.click(row("Multi A"), { detail: 2 });
+      fireEvent.doubleClick(row("Multi A"), { detail: 2 });
+
+      expect(selectThread).not.toHaveBeenCalled();
+      expect(selectClaudeSession).not.toHaveBeenCalled();
+      expect(startThread).not.toHaveBeenCalled();
+    });
+
+    it("Shift-click unions the visible anchor range", () => {
+      useThreadStore.setState({ threads: { p1: rows() } });
+      render(<ProjectGroup {...baseProps} />);
+
+      select("Multi A");
+      fireEvent.click(row("Multi C"), { shiftKey: true });
+
+      expect(screen.queryByText("3 selected")).toBeTruthy();
+      expect(row("Multi A").getAttribute("data-selected")).toBe("true");
+      expect(row("Multi B").getAttribute("data-selected")).toBe("true");
+      expect(row("Multi C").getAttribute("data-selected")).toBe("true");
+    });
+
+    it("plain click opens a row while preserving the selection", () => {
+      useThreadStore.setState({ threads: { p1: rows() } });
+      render(<ProjectGroup {...baseProps} />);
+
+      select("Multi A");
+      fireEvent.click(row("Multi B"));
+
+      expect(useUiStore.getState().selectedClaudeSessionId).toBe("multi-b");
+      expect(screen.queryByText("1 selected")).toBeTruthy();
+      expect(row("Multi A").getAttribute("data-selected")).toBe("true");
+    });
+
+    it("checkbox click toggles a row without opening it", () => {
+      useThreadStore.setState({ threads: { p1: rows() } });
+      render(<ProjectGroup {...baseProps} />);
+
+      select("Multi A");
+      const checkbox = row("Multi B").querySelector('[role="checkbox"]');
+      expect(checkbox).toBeTruthy();
+      fireEvent.click(checkbox!);
+
+      expect(useUiStore.getState().selectedClaudeSessionId).toBeNull();
+      expect(screen.queryByText("2 selected")).toBeTruthy();
+    });
+
+    it("archives DB threads, hides discovered Claude rows, and clears the selection", async () => {
+      const threads = [rows()[0]];
+      useThreadStore.setState({ threads: { p1: threads } });
+      vi.mocked(commands.listThreads).mockResolvedValueOnce(threads);
+      const archiveThread = vi.spyOn(useThreadStore.getState(), "archiveThread");
+      const session = claudeSession();
+      render(<ProjectGroup {...baseProps} claudeSessions={[session]} />);
+
+      select("Multi A");
+      select("Discovered Claude");
+      const archiveButton = screen.queryByRole("button", { name: "Archive" });
+      expect(archiveButton).toBeTruthy();
+      fireEvent.click(archiveButton!);
+
+      await waitFor(() => expect(screen.queryByText("2 selected")).toBeNull());
+      expect(archiveThread).toHaveBeenCalledWith("p1", "multi-a");
+      expect(screen.queryByText("Discovered Claude")).toBeNull();
+      expect(ask).not.toHaveBeenCalled();
+      expect(useSessionSelectionStore.getState().ids).toEqual([]);
+      expect(useSessionSelectionStore.getState().projectId).toBeNull();
+    });
+
+    it("does nothing when native delete confirmation is declined", async () => {
+      const threads = rows();
+      useThreadStore.setState({ threads: { p1: threads } });
+      vi.mocked(commands.listThreads).mockResolvedValueOnce(threads);
+      const removeThread = vi.spyOn(useThreadStore.getState(), "removeThread");
+      vi.mocked(ask).mockResolvedValueOnce(false);
+      render(<ProjectGroup {...baseProps} />);
+
+      select("Multi A");
+      select("Multi B");
+      const deleteButton = screen.queryByText("Delete")?.closest("button");
+      expect(deleteButton).toBeTruthy();
+      fireEvent.click(deleteButton!);
+
+      await waitFor(() => expect(ask).toHaveBeenCalledWith(
+        "Delete 2 sessions? This can't be undone.",
+        { title: "Delete sessions", kind: "warning" },
+      ));
+      expect(removeThread).not.toHaveBeenCalled();
+      expect(screen.queryByText("2 selected")).toBeTruthy();
+    });
+
+    it("deletes DB and discovered Claude sessions after native confirmation", async () => {
+      const threads = rows();
+      useThreadStore.setState({ threads: { p1: threads } });
+      vi.mocked(commands.listThreads).mockResolvedValueOnce(threads);
+      const removeThread = vi.spyOn(useThreadStore.getState(), "removeThread");
+      vi.mocked(ask).mockResolvedValueOnce(true);
+      render(<ProjectGroup {...baseProps} claudeSessions={[claudeSession()]} />);
+
+      select("Multi A");
+      select("Discovered Claude");
+      const deleteButton = screen.queryByText("Delete")?.closest("button");
+      expect(deleteButton).toBeTruthy();
+      fireEvent.click(deleteButton!);
+
+      await waitFor(() => expect(removeThread).toHaveBeenCalledWith("p1", "multi-a"));
+      expect(commands.deleteClaudeSession).toHaveBeenCalledWith("discovered-claude", "/tmp/repo");
+      expect(screen.queryByText("Discovered Claude")).toBeNull();
+      expect(screen.queryByText("1 selected")).toBeNull();
+    });
+
+    it("logs a confirmation error without changing the selected rows", async () => {
+      const threads = rows();
+      useThreadStore.setState({ threads: { p1: threads } });
+      vi.mocked(commands.listThreads).mockResolvedValueOnce(threads);
+      const removeThread = vi.spyOn(useThreadStore.getState(), "removeThread");
+      vi.mocked(ask).mockRejectedValueOnce(new Error("dialog failed"));
+      const consoleError = vi.spyOn(console, "error").mockImplementation(() => {});
+      render(<ProjectGroup {...baseProps} />);
+
+      select("Multi A");
+      const deleteButton = screen.queryByText("Delete")?.closest("button");
+      expect(deleteButton).toBeTruthy();
+      fireEvent.click(deleteButton!);
+
+      await waitFor(() => expect(consoleError).toHaveBeenCalled());
+      expect(removeThread).not.toHaveBeenCalled();
+      expect(screen.queryByText("1 selected")).toBeTruthy();
+      consoleError.mockRestore();
+    });
+
+    it("keeps a failed Claude delete visible and selected", async () => {
+      vi.mocked(ask).mockResolvedValueOnce(true);
+      vi.mocked(commands.deleteClaudeSession).mockRejectedValueOnce(new Error("delete failed"));
+      const consoleError = vi.spyOn(console, "error").mockImplementation(() => {});
+      render(<ProjectGroup {...baseProps} claudeSessions={[claudeSession()]} />);
+      select("Discovered Claude");
+      const deleteButton = screen.queryByText("Delete")?.closest("button");
+      expect(deleteButton).toBeTruthy();
+      fireEvent.click(deleteButton!);
+
+      await waitFor(() => expect(screen.queryByText("1 session couldn't be changed")).toBeTruthy());
+      expect(consoleError).toHaveBeenCalledWith("Failed to delete session discovered-claude:", expect.any(Error));
+      expect(screen.queryByText("Discovered Claude")).toBeTruthy();
+      expect(screen.queryByText("1 selected")).toBeTruthy();
+      consoleError.mockRestore();
+    });
+
+    it("keeps selection unchanged while a bulk delete is pending", async () => {
+      useThreadStore.setState({ threads: { p1: rows() } });
+      vi.mocked(commands.listThreads).mockResolvedValueOnce(rows());
+      vi.mocked(ask).mockResolvedValueOnce(true);
+      let rejectDelete!: (error: Error) => void;
+      const pendingDelete = new Promise<void>((_resolve, reject) => {
+        rejectDelete = reject;
+      });
+      const removeThread = vi.spyOn(useThreadStore.getState(), "removeThread").mockImplementationOnce(() => pendingDelete);
+      const consoleError = vi.spyOn(console, "error").mockImplementation(() => {});
+      render(<ProjectGroup {...baseProps} />);
+
+      select("Multi A");
+      fireEvent.click(screen.getByText("Delete").closest("button")!);
+      await waitFor(() => expect(removeThread).toHaveBeenCalledWith("p1", "multi-a"));
+
+      const selectedIds = [...useSessionSelectionStore.getState().ids];
+      fireEvent.keyDown(document, { key: "Escape" });
+      fireEvent.click(row("Multi B"), { metaKey: true });
+      expect(useSessionSelectionStore.getState().ids).toEqual(selectedIds);
+      expect(useSessionSelectionStore.getState().projectId).toBe("p1");
+
+      await act(async () => {
+        rejectDelete(new Error("delete failed"));
+      });
+      await waitFor(() => expect(screen.queryByText("1 session couldn't be changed")).toBeTruthy());
+      expect(row("Multi A").getAttribute("data-selected")).toBe("true");
+      expect(screen.queryByText("1 selected")).toBeTruthy();
+      consoleError.mockRestore();
+    });
+
+    it("keeps another project's selection frozen while a bulk delete is pending", async () => {
+      const project2 = { ...project, id: "p2", name: "OtherProj", repo_path: "/tmp/repo2" };
+      const other = makeThread({ id: "other-a", project_id: "p2", name: "Other A", work_dir: "/tmp/repo2" });
+      useProjectStore.setState({ projects: [project, project2], loading: false });
+      useThreadStore.setState({ threads: { p1: rows(), p2: [other] } });
+      vi.mocked(commands.listThreads).mockImplementation(async (pid: string) => (pid === "p2" ? [other] : rows()));
+      vi.mocked(ask).mockResolvedValueOnce(true);
+      let rejectDelete!: (error: Error) => void;
+      const pendingDelete = new Promise<void>((_resolve, reject) => {
+        rejectDelete = reject;
+      });
+      const removeThread = vi.spyOn(useThreadStore.getState(), "removeThread").mockImplementationOnce(() => pendingDelete);
+      const consoleError = vi.spyOn(console, "error").mockImplementation(() => {});
+      try {
+        render(
+          <>
+            <ProjectGroup {...baseProps} />
+            <ProjectGroup {...baseProps} project={project2} />
+          </>,
+        );
+
+        select("Multi A");
+        fireEvent.click(screen.getByText("Delete").closest("button")!);
+        await waitFor(() => expect(removeThread).toHaveBeenCalledWith("p1", "multi-a"));
+
+        fireEvent.click(row("Other A"), { metaKey: true });
+        expect(useSessionSelectionStore.getState().projectId).toBe("p1");
+        expect(useSessionSelectionStore.getState().ids).toEqual(["multi-a"]);
+
+        await act(async () => {
+          rejectDelete(new Error("delete failed"));
+        });
+        await waitFor(() => expect(screen.queryByText("1 session couldn't be changed")).toBeTruthy());
+        expect(row("Multi A").getAttribute("data-selected")).toBe("true");
+      } finally {
+        vi.mocked(commands.listThreads).mockResolvedValue([]);
+        consoleError.mockRestore();
+      }
+    });
+
+    it("preserves a newly selected session while a bulk archive is pending", async () => {
+      const threads = [rows()[0]];
+      useThreadStore.setState({ threads: { p1: threads } });
+      vi.mocked(commands.listThreads).mockResolvedValueOnce(threads);
+      useUiStore.getState().selectClaudeSession("discovered-claude");
+      let resolveArchive!: () => void;
+      const pendingArchive = new Promise<void>((resolve) => {
+        resolveArchive = resolve;
+      });
+      const archiveThread = vi.spyOn(useThreadStore.getState(), "archiveThread").mockImplementationOnce(() => pendingArchive);
+      render(<ProjectGroup {...baseProps} claudeSessions={[claudeSession()]} />);
+
+      select("Multi A");
+      select("Discovered Claude");
+      fireEvent.click(screen.getByRole("button", { name: "Archive" }));
+      await waitFor(() => expect(archiveThread).toHaveBeenCalledWith("p1", "multi-a"));
+
+      act(() => useUiStore.getState().selectClaudeSession("session-c"));
+      expect(useUiStore.getState().selectedClaudeSessionId).toBe("session-c");
+      await act(async () => {
+        resolveArchive();
+      });
+
+      await waitFor(() => expect(screen.queryByText("2 selected")).toBeNull());
+      expect(useUiStore.getState().selectedClaudeSessionId).toBe("session-c");
+    });
+
+    it("Escape clears selection except when focus is in an editable field", () => {
+      useThreadStore.setState({ threads: { p1: rows() } });
+      render(<ProjectGroup {...baseProps} />);
+
+      select("Multi A");
+      const input = document.createElement("input");
+      document.body.appendChild(input);
+      fireEvent.keyDown(input, { key: "Escape" });
+      expect(screen.queryByText("1 selected")).toBeTruthy();
+
+      fireEvent.keyDown(document, { key: "Escape" });
+      expect(screen.queryByText("1 selected")).toBeNull();
+      input.remove();
+    });
+
+    it("opens a bulk menu for a selected row and the single-row menu for an unselected row", () => {
+      useThreadStore.setState({ threads: { p1: rows() } });
+      render(<ProjectGroup {...baseProps} />);
+
+      select("Multi A");
+      fireEvent.contextMenu(row("Multi A"));
+      expect(screen.getAllByText("1 selected")).toHaveLength(2);
+      expect(screen.queryByText("Rename")).toBeNull();
+      expect(screen.queryByText("Select")).toBeNull();
+
+      fireEvent.contextMenu(row("Multi B"));
+      expect(screen.getAllByText("1 selected")).toHaveLength(1);
+      expect(screen.getByText("Rename")).toBeTruthy();
+      const selectAction = screen.queryByText("Select");
+      expect(selectAction).toBeTruthy();
+    });
+
+    it("opens a bulk menu from More options on a selected row", () => {
+      useThreadStore.setState({ threads: { p1: rows() } });
+      render(<ProjectGroup {...baseProps} />);
+
+      select("Multi A");
+      fireEvent.click(row("Multi A").querySelector('[aria-label="More options"]')!);
+
+      expect(screen.getAllByText("1 selected")).toHaveLength(2);
+      expect(screen.queryByText("Rename")).toBeNull();
+    });
+
+    it("adds a single context-menu row to the selection", () => {
+      useThreadStore.setState({ threads: { p1: rows() } });
+      render(<ProjectGroup {...baseProps} />);
+
+      fireEvent.contextMenu(row("Multi A"));
+      const selectAction = screen.queryByText("Select");
+      expect(selectAction).toBeTruthy();
+      fireEvent.click(selectAction!);
+
+      expect(screen.queryByText("1 selected")).toBeTruthy();
+      expect(row("Multi A").getAttribute("data-selected")).toBe("true");
+    });
+
+    it("keeps strip and Focus row context menus in single-row mode", () => {
+      useThreadStore.setState({ threads: { p1: rows() } });
+      const focusPortal = document.createElement("div");
+      document.body.appendChild(focusPortal);
+      const { rerender } = render(<ProjectGroup {...baseProps} focusPortal={focusPortal} focusSince={0} />);
+
+      select("Multi A");
+      expect(screen.queryByText("1 selected")).toBeTruthy();
+      const focusRow = focusPortal.querySelector('[data-session-nav="multi-a"]') as HTMLElement;
+      fireEvent.contextMenu(focusRow);
+      expect(screen.getByText("Rename")).toBeTruthy();
+
+      rerender(<ProjectGroup {...baseProps} variant="strip" />);
+      fireEvent.contextMenu(row("Multi A"));
+      expect(screen.getByText("Rename")).toBeTruthy();
+      focusPortal.remove();
     });
   });
 });

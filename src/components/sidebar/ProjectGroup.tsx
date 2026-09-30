@@ -5,8 +5,9 @@ import { useState, useEffect, useLayoutEffect, useRef, useCallback, useMemo } fr
 import { createPortal } from "react-dom";
 import { onFocusNewSession } from "../../lib/focusView";
 import { useFocusRowsStore } from "../../stores/focusRowsStore";
+import { useSessionSelectionStore } from "../../stores/sessionSelectionStore";
 import { useShallow } from "zustand/react/shallow";
-import { ChevronRight, ChevronDown, Plus, Loader2, Archive, Trash2, GripVertical, X, XCircle, MoreHorizontal, Pencil, SquarePen, GitBranch, FolderGit2, FolderInput, FolderOpen, MessageSquarePlus, Pin, PinOff, Activity, Check, ArrowRightLeft, RefreshCw, Unplug } from "lucide-react";
+import { ChevronRight, ChevronDown, Plus, Loader2, Archive, Trash2, GripVertical, X, XCircle, MoreHorizontal, Pencil, SquarePen, GitBranch, FolderGit2, FolderInput, FolderOpen, MessageSquarePlus, Pin, PinOff, Activity, Check, ListChecks, ArrowRightLeft, RefreshCw, Unplug } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { defaultThreadName, getClaudeModelDisplayName, prettifyOpenCodeSlug, prettifyCodexModelName, prettifyGrokModel, prettifyKimiModel, prettifyCursorModel, prettifyPiModel, prettifyClineModel, prettifyGeminiModel } from "../../lib/types";
 import { formatLocalModelLabel, isLocalModelSlug, mlxGatewayStatus, mlxCapability, mlxListModels, localModelSlug, resolveLocalModelId, mlxEjectModel } from "../../lib/mlx";
@@ -31,6 +32,7 @@ import { setCodexSessionMode, getCodexSessionMode } from "../../lib/codexSession
 import { coworkDraftProvider, isCodexWorkSession, isCoworkSidebarItem } from "../../lib/coworkMode";
 import { runQuickOpenAction, isQuickOpenAction } from "../../lib/quickOpen";
 import { AgentAvatar } from "../taskview/AgentAvatar";
+import { isEditableKeyboardTarget } from "../../lib/textFieldNav";
 
 interface MenuActionRowProps {
   icon: React.ReactNode;
@@ -43,21 +45,119 @@ interface MenuActionRowProps {
 /** Row wrapper: a <button> when idle, a <div> while renaming.
  *  Nested <input> inside <button> is invalid HTML; WKWebView typeahead /
  *  Space-activation then fires the row click and switches to that session. */
+interface SidebarRowSelection {
+  active: boolean;
+  checked: boolean;
+  label: string;
+  onToggle: (modifiers: { metaKey: boolean; shiftKey: boolean }) => void;
+  onBulkMenu: (e: React.MouseEvent<HTMLButtonElement>) => void;
+}
+
 function SidebarRow({
   renaming,
   children,
   onClick,
   onDoubleClick,
+  onMouseDown,
+  onContextMenu,
+  selection,
   ...props
 }: {
   renaming: boolean;
   children: React.ReactNode;
+  selection?: SidebarRowSelection;
 } & React.ButtonHTMLAttributes<HTMLButtonElement>) {
+  const checkboxClickRef = useRef(false);
+  const handleClick: React.MouseEventHandler<HTMLButtonElement> = (e) => {
+    if (checkboxClickRef.current && e.detail > 1) {
+      e.preventDefault();
+      e.stopPropagation();
+      return;
+    }
+    if (e.detail <= 1) checkboxClickRef.current = false;
+    if (selection && (e.metaKey || e.shiftKey)) {
+      e.preventDefault();
+      e.stopPropagation();
+      selection.onToggle(e);
+      return;
+    }
+    onClick?.(e);
+  };
+  const handleDoubleClick: React.MouseEventHandler<HTMLButtonElement> = (e) => {
+    if (checkboxClickRef.current) {
+      e.preventDefault();
+      e.stopPropagation();
+      checkboxClickRef.current = false;
+      return;
+    }
+    if (selection && (e.metaKey || e.shiftKey)) {
+      e.preventDefault();
+      e.stopPropagation();
+      return;
+    }
+    onDoubleClick?.(e);
+  };
+  const handleMouseDown: React.MouseEventHandler<HTMLButtonElement> = (e) => {
+    if (selection && (e.metaKey || e.shiftKey)) e.preventDefault();
+    onMouseDown?.(e);
+  };
+  const handleContextMenu: React.MouseEventHandler<HTMLButtonElement> = (e) => {
+    if (selection?.checked) {
+      e.preventDefault();
+      e.stopPropagation();
+      selection.onBulkMenu(e);
+      return;
+    }
+    onContextMenu?.(e);
+  };
   if (renaming) {
-    return <div {...(props as React.HTMLAttributes<HTMLDivElement>)}>{children}</div>;
+    return (
+      <div
+        {...(props as React.HTMLAttributes<HTMLDivElement>)}
+        onMouseDown={onMouseDown as unknown as React.MouseEventHandler<HTMLDivElement>}
+        onContextMenu={onContextMenu as unknown as React.MouseEventHandler<HTMLDivElement>}
+      >
+        {children}
+      </div>
+    );
   }
   return (
-    <button type="button" onClick={onClick} onDoubleClick={onDoubleClick} {...props}>
+    <button
+      type="button"
+      onClick={handleClick}
+      onDoubleClick={handleDoubleClick}
+      onMouseDown={handleMouseDown}
+      onContextMenu={handleContextMenu}
+      data-selected={selection?.checked ? "true" : undefined}
+      {...props}
+    >
+      {selection?.active && (
+        <span
+          role="checkbox"
+          aria-checked={selection.checked}
+          aria-label={selection.label}
+          data-checked={selection.checked ? "true" : undefined}
+          tabIndex={0}
+          className="sb-check"
+          onMouseDown={(e) => e.preventDefault()}
+          onDoubleClick={(e) => e.stopPropagation()}
+          onClick={(e) => {
+            checkboxClickRef.current = true;
+            e.preventDefault();
+            e.stopPropagation();
+            selection.onToggle(e);
+          }}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" || e.key === " ") {
+              e.preventDefault();
+              e.stopPropagation();
+              selection.onToggle(e);
+            }
+          }}
+        >
+          {selection.checked && <Check size={10} />}
+        </span>
+      )}
       {children}
     </button>
   );
@@ -151,6 +251,7 @@ import {
 } from "../ui/ComposerDropdown";
 
 const EMPTY_THREADS: Thread[] = [];
+const EMPTY_SELECTED_IDS: readonly string[] = [];
 const EMPTY_DESKTOP_CLAUDE: ClaudeDesktopCoworkSession[] = [];
 const EMPTY_DESKTOP_CODEX: CodexWorkDesktopSession[] = [];
 const EMPTY_PROJECT_OVERRIDES: Record<string, number> = {};
@@ -241,6 +342,10 @@ type UnifiedItem =
   | { kind: "grok"; data: GrokSession; timestamp: number }
   | { kind: "desktop-claude"; data: ClaudeDesktopCoworkSession; timestamp: number }
 ;
+
+function canArchiveItem(item: UnifiedItem): boolean {
+  return item.kind !== "kimi" && item.kind !== "pi";
+}
 
 function toTimestamp(value: string | number | undefined | null): number {
   if (value == null) return 0;
@@ -353,6 +458,10 @@ export function ProviderIcon({
 
 export function ProjectGroup({ project, codexThreads, claudeSessions, kimiSessions, piSessions, grokSessions, onSessionCreated, onDragHandlePointerDown, collapsed, variant = "list", desktopClaudeCowork = EMPTY_DESKTOP_CLAUDE, desktopCodexWork = EMPTY_DESKTOP_CODEX, focusPortal = null, focusSince = null, focusCutoff = null }: Props) {
   const t = useT();
+  const selectedIds = useSessionSelectionStore((s) => s.projectId === project.id ? s.ids : EMPTY_SELECTED_IDS);
+  const selectedAnchorId = useSessionSelectionStore((s) => s.projectId === project.id ? s.anchorId : null);
+  const setSelection = useSessionSelectionStore((s) => s.setSelection);
+  const clearSelection = useSessionSelectionStore((s) => s.clear);
   const expanded = useUiStore((s) => s.projectExpandedById[project.id] ?? true);
   const setProjectExpanded = useUiStore((s) => s.setProjectExpanded);
   const setExpanded = (next: boolean) => setProjectExpanded(project.id, next);
@@ -365,6 +474,7 @@ export function ProjectGroup({ project, codexThreads, claudeSessions, kimiSessio
     y: number;
     kind: "thread" | "codex" | "claude" | "kimi" | "pi" | "grok" | "desktop-claude";
     id: string;
+    bulk?: boolean;
   } | null>(null);
   const [newMenu, setNewMenu] = useState(false);
   const [isGitRepo, setIsGitRepo] = useState(false);
@@ -383,6 +493,11 @@ export function ProjectGroup({ project, codexThreads, claudeSessions, kimiSessio
   // Focus rows duplicate list rows, so a rename edits only the copy it started from.
   const [renameInFocus, setRenameInFocus] = useState(false);
   const menuFromFocusRef = useRef(false);
+  // Shared across projects: a run in one group must also freeze selection changes in the others.
+  const selectionBusy = useSessionSelectionStore((s) => s.busy);
+  const setSelectionBusy = useSessionSelectionStore((s) => s.setBusy);
+  const isSelectionBusy = () => useSessionSelectionStore.getState().busy;
+  const [selectionFailure, setSelectionFailure] = useState<{ ids: readonly string[]; count: number } | null>(null);
   const [renamingProject, setRenamingProject] = useState(false);
   const [renameValue, setRenameValue] = useState("");
   const hiddenSessionIdsRef = useRef<Set<string>>(loadHiddenSessions(project.id));
@@ -888,6 +1003,19 @@ export function ProjectGroup({ project, codexThreads, claudeSessions, kimiSessio
     });
   }, [unified, showOnlyRunning, selectedThreadId, selectedCodexSessionId, selectedClaudeSessionId, pendingApprovalsBySession, claudeProcessingById, codexProcessingById, unreadSessionIds]);
 
+  const visible = displayItems.slice(0, visibleCount);
+  const remaining = displayItems.length - visibleCount;
+  const selectionScopeEnabled = variant === "list" && !collapsed;
+  const visibleListItems = selectionScopeEnabled && expanded ? visible : [];
+  const visibleIds = visibleListItems.map((item) => item.data.id);
+  const visibleIdSet = new Set(visibleIds);
+  const selectedIdSet = new Set(selectedIds);
+  const selectedVisibleItems = visibleListItems.filter((item) => selectedIdSet.has(item.data.id));
+  const selectedVisibleIds = new Set(selectedVisibleItems.map((item) => item.data.id));
+  const selectionActive = selectedVisibleItems.length > 0;
+  const archivableSelectedItems = selectedVisibleItems.filter(canArchiveItem);
+  const selectionFailureCount = selectionFailure?.ids === selectedIds ? selectionFailure.count : 0;
+
   // Focus: rows active since `focusSince`, plus any still working or waiting
   // on approval. Cowork desktop rows never qualify.
   const focusItems = useMemo(() => {
@@ -1199,10 +1327,10 @@ export function ProjectGroup({ project, codexThreads, claudeSessions, kimiSessio
     if (createdClaudeSessionIdsRef.current.delete(id)) {
       removeCreatedClaudeSession(project.id, id);
     }
-    if (selectedCodexSessionId === id) {
+    if (useUiStore.getState().selectedCodexSessionId === id) {
       selectCodexSession(null);
     }
-    if (selectedClaudeSessionId === id) {
+    if (useUiStore.getState().selectedClaudeSessionId === id) {
       selectClaudeSession(null);
     }
     setHiddenVersion((n) => n + 1);
@@ -1218,7 +1346,7 @@ export function ProjectGroup({ project, codexThreads, claudeSessions, kimiSessio
    *   3. Hides the sidebar item immediately via the same in-memory ref the
    *      Hide action uses
    */
-  const handleDeleteKimiSession = useCallback(async (session: KimiSession) => {
+  const handleDeleteKimiSession = useCallback(async (session: KimiSession): Promise<boolean> => {
     setItemContextMenu(null);
     hiddenSessionIdsRef.current.add(session.id);
     addHiddenSession(project.id, session.id);
@@ -1234,7 +1362,7 @@ export function ProjectGroup({ project, codexThreads, claudeSessions, kimiSessio
       hiddenSessionIdsRef.current.delete(session.id);
       removeHiddenSession(project.id, session.id);
       setHiddenVersion((n) => n + 1);
-      return;
+      return false;
     }
 
     // If a agmux thread claimed this session, remove it too. removeThread
@@ -1247,9 +1375,10 @@ export function ProjectGroup({ project, codexThreads, claudeSessions, kimiSessio
     } catch (err) {
       console.error("Failed to delete associated agmux Kimi thread:", err);
     }
+    return true;
   }, [project.id, project.repo_path, removeThread]);
 
-  const handleDeletePiSession = useCallback(async (session: PiSession) => {
+  const handleDeletePiSession = useCallback(async (session: PiSession): Promise<boolean> => {
     setItemContextMenu(null);
     hiddenSessionIdsRef.current.add(session.id);
     addHiddenSession(project.id, session.id);
@@ -1261,7 +1390,7 @@ export function ProjectGroup({ project, codexThreads, claudeSessions, kimiSessio
       hiddenSessionIdsRef.current.delete(session.id);
       removeHiddenSession(project.id, session.id);
       setHiddenVersion((n) => n + 1);
-      return;
+      return false;
     }
     try {
       const claimedThreadId = await findPiThreadBySessionId(session.id);
@@ -1271,7 +1400,93 @@ export function ProjectGroup({ project, codexThreads, claudeSessions, kimiSessio
     } catch (err) {
       console.error("Failed to delete associated agmux Pi thread:", err);
     }
+    return true;
   }, [project.id, project.repo_path, removeThread]);
+
+  const runBulkAction = async (action: "archive" | "delete") => {
+    if (isSelectionBusy()) return;
+    setSelectionBusy(true);
+    try {
+      const selection = useSessionSelectionStore.getState();
+      if (selection.projectId !== project.id) return;
+      const idsRef = selection.ids;
+      const items = visibleListItems.filter((item) => idsRef.includes(item.data.id));
+      if (items.length === 0) return;
+
+      if (action === "delete") {
+        let confirmed: boolean;
+        try {
+          const { ask } = await import("@tauri-apps/plugin-dialog");
+          confirmed = await ask(t("sidebar.select.deleteConfirm", { count: items.length }), {
+            title: t("sidebar.select.deleteTitle"),
+            kind: "warning",
+          });
+        } catch (err) {
+          console.error(err);
+          return;
+        }
+        if (!confirmed) return;
+      }
+
+      const failedIds = new Set<string>();
+      for (const item of items) {
+        const id = item.data.id;
+        try {
+          if (action === "archive") {
+            if (!canArchiveItem(item)) continue;
+            if (item.kind === "thread") await archiveThread(project.id, id);
+            else handleHideSession(id);
+            continue;
+          }
+
+          switch (item.kind) {
+            case "thread":
+              await removeThread(project.id, id);
+              break;
+            case "codex":
+              handleHideSession(id);
+              break;
+            case "desktop-claude": {
+              handleHideSession(id);
+              const desktop = desktopClaudeCowork.find((session) => session.id === id);
+              if (desktop?.cliSessionId) handleHideSession(desktop.cliSessionId);
+              break;
+            }
+            case "claude":
+              await deleteClaudeSession(id, project.repo_path);
+              handleHideSession(id);
+              break;
+            case "grok":
+              await deleteGrokSession(id, project.repo_path);
+              handleHideSession(id);
+              break;
+            case "kimi":
+              if (!(await handleDeleteKimiSession(item.data))) failedIds.add(id);
+              break;
+            case "pi":
+              if (!(await handleDeletePiSession(item.data))) failedIds.add(id);
+              break;
+          }
+        } catch (err) {
+          console.error(`Failed to ${action} session ${id}:`, err);
+          failedIds.add(id);
+        }
+      }
+
+      const latest = useSessionSelectionStore.getState();
+      if (latest.projectId === project.id && latest.ids === idsRef) {
+        const retainedIds = items
+          .filter((item) => failedIds.has(item.data.id) || (action === "archive" && !canArchiveItem(item)))
+          .map((item) => item.data.id);
+        const anchorId = latest.anchorId && retainedIds.includes(latest.anchorId) ? latest.anchorId : null;
+        setSelection(project.id, retainedIds, anchorId);
+        const nextIds = useSessionSelectionStore.getState().ids;
+        setSelectionFailure(failedIds.size ? { ids: nextIds, count: failedIds.size } : null);
+      }
+    } finally {
+      setSelectionBusy(false);
+    }
+  };
 
   const handleTogglePin = (id: string) => {
     setItemContextMenu(null);
@@ -1288,7 +1503,9 @@ export function ProjectGroup({ project, codexThreads, claudeSessions, kimiSessio
   const openMenuForItem = (e: React.MouseEvent, kind: "thread" | "codex" | "claude" | "kimi" | "pi" | "grok" | "desktop-claude", id: string) => {
     e.preventDefault();
     e.stopPropagation();
-    setItemContextMenu({ x: e.clientX, y: e.clientY, kind, id });
+    const bulk = variant === "list" && !collapsed && !menuFromFocusRef.current
+      && selectionActive && selectedVisibleIds.has(id);
+    setItemContextMenu({ x: e.clientX, y: e.clientY, kind, id, bulk: bulk || undefined });
   };
 
   // Local-model CLI / chat rows get an extra "Eject model" action so users can
@@ -1331,6 +1548,41 @@ export function ProjectGroup({ project, codexThreads, claudeSessions, kimiSessio
       style={{ left: itemContextMenu.x, top: itemContextMenu.y, width: 216 }}
     >
       <DropdownPopover>
+        {itemContextMenu.bulk ? (
+          <fieldset disabled={selectionBusy} className="min-w-0 border-0 p-0">
+            <DropdownHeader title={t("sidebar.select.count", { count: selectedVisibleItems.length })} />
+            {archivableSelectedItems.length > 0 && (
+              <DropdownRow
+                onClick={() => {
+                  void runBulkAction("archive");
+                  setItemContextMenu(null);
+                }}
+                icon={<Archive size={14} className="text-amber-400" />}
+                title={t("sidebar.archive.action")}
+              />
+            )}
+            <DropdownDivider />
+            <DropdownRow
+              danger
+              onClick={() => {
+                void runBulkAction("delete");
+                setItemContextMenu(null);
+              }}
+              icon={<Trash2 size={14} />}
+              title={t("common.delete")}
+            />
+            <DropdownDivider />
+            <DropdownRow
+              onClick={() => {
+                clearSelection();
+                setItemContextMenu(null);
+              }}
+              icon={<X size={14} className="text-zinc-400" />}
+              title={t("sidebar.select.clear")}
+            />
+          </fieldset>
+        ) : (
+          <>
         <DropdownHeader title={t("sidebar.session.heading")} />
         <DropdownRow
           onClick={() => handleTogglePin(itemContextMenu.id)}
@@ -1355,6 +1607,23 @@ export function ProjectGroup({ project, codexThreads, claudeSessions, kimiSessio
           icon={<Pencil size={14} className="text-zinc-400" />}
           title={t("sidebar.action.rename")}
         />
+        {variant === "list" && !collapsed && !menuFromFocusRef.current && (
+          <DropdownRow
+            onClick={() => {
+              if (isSelectionBusy()) return;
+              const visibleItems = visibleListItems;
+              const visibleIds = new Set(visibleItems.map((item) => item.data.id));
+              const state = useSessionSelectionStore.getState();
+              const selected = new Set(state.projectId === project.id ? state.ids.filter((id) => visibleIds.has(id)) : []);
+              selected.add(itemContextMenu.id);
+              const ids = visibleItems.filter((item) => selected.has(item.data.id)).map((item) => item.data.id);
+              setSelection(project.id, ids, itemContextMenu.id);
+              setItemContextMenu(null);
+            }}
+            icon={<ListChecks size={14} className="text-zinc-400" />}
+            title={t("sidebar.select.action")}
+          />
+        )}
         <DropdownRow
           onClick={() => {
             resummarize(itemContextMenu.id);
@@ -1492,6 +1761,8 @@ export function ProjectGroup({ project, codexThreads, claudeSessions, kimiSessio
               icon={<Trash2 size={14} />}
               title={t("common.delete")}
             />
+          </>
+        )}
           </>
         )}
       </DropdownPopover>
@@ -2121,8 +2392,54 @@ export function ProjectGroup({ project, codexThreads, claudeSessions, kimiSessio
     ).catch((err) => console.error("Quick open failed:", err));
   }, [quickOpenAction, project.id, project.repo_path, defaultProvider, handleNewChat]);
 
-  const visible = displayItems.slice(0, visibleCount);
-  const remaining = displayItems.length - visibleCount;
+  const toggleRowSelection = (id: string, modifiers: { metaKey: boolean; shiftKey: boolean }) => {
+    if (isSelectionBusy()) return;
+    const state = useSessionSelectionStore.getState();
+    const currentIds = state.projectId === project.id ? state.ids.filter((itemId) => visibleIdSet.has(itemId)) : [];
+    const anchorId = state.projectId === project.id ? state.anchorId : null;
+    const anchorIndex = anchorId ? visibleIds.indexOf(anchorId) : -1;
+    const targetIndex = visibleIds.indexOf(id);
+    if (modifiers.shiftKey && anchorIndex >= 0 && targetIndex >= 0) {
+      const range = new Set(visibleIds.slice(Math.min(anchorIndex, targetIndex), Math.max(anchorIndex, targetIndex) + 1));
+      const combined = new Set([...currentIds, ...range]);
+      setSelection(project.id, visibleIds.filter((itemId) => combined.has(itemId)), anchorId);
+      return;
+    }
+    const next = new Set(currentIds);
+    if (next.has(id)) next.delete(id);
+    else next.add(id);
+    setSelection(project.id, visibleIds.filter((itemId) => next.has(itemId)), id);
+  };
+
+  const rowSelection = (item: UnifiedItem, inFocus: boolean): SidebarRowSelection | undefined => {
+    if (!selectionScopeEnabled || inFocus) return undefined;
+    const id = item.data.id;
+    return {
+      active: selectionActive,
+      checked: selectionActive && selectedVisibleIds.has(id),
+      label: t("sidebar.select.action"),
+      onToggle: (modifiers) => toggleRowSelection(id, modifiers),
+      onBulkMenu: (e) => openMenuForItem(e, item.kind, id),
+    };
+  };
+
+  const handleSelectAllVisible = () => {
+    if (isSelectionBusy()) return;
+    setSelection(project.id, visibleIds, selectedAnchorId);
+  };
+
+  useEffect(() => {
+    if (!selectionActive) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (isSelectionBusy() || e.key !== "Escape" || isEditableKeyboardTarget(e.target)) return;
+      e.preventDefault();
+      clearSelection();
+      setSelectionFailure(null);
+      setItemContextMenu(null);
+    };
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
+  }, [selectionActive, clearSelection]);
 
   // ── Collapsed icon-only rendering ──────────────────────────────────
   if (collapsed) {
@@ -2639,6 +2956,7 @@ export function ProjectGroup({ project, codexThreads, claudeSessions, kimiSessio
         <SidebarRow
           key={`thread-${thread.id}`}
           renaming={isRenamingRow(thread.id)}
+          selection={rowSelection(item, inFocus)}
           data-session-nav={thread.id}
           data-session-kind="thread"
           onClick={() => {
@@ -2678,7 +2996,7 @@ export function ProjectGroup({ project, codexThreads, claudeSessions, kimiSessio
           onContextMenu={(e) => {
             e.preventDefault();
             e.stopPropagation();
-            setItemContextMenu({ x: e.clientX, y: e.clientY, kind: "thread", id: thread.id });
+            openMenuForItem(e, "thread", thread.id);
           }}
           data-active={isSelected ? "true" : "false"}
           className={`sb-row group/item ${isSelected ? "on" : ""}`}
@@ -2801,6 +3119,7 @@ export function ProjectGroup({ project, codexThreads, claudeSessions, kimiSessio
         <SidebarRow
           key={`codex-${c.id}`}
           renaming={isRenamingRow(c.id)}
+          selection={rowSelection(item, inFocus)}
           data-session-nav={c.id}
           data-session-kind="codex"
           data-session-cwd={c.cwd}
@@ -2808,7 +3127,7 @@ export function ProjectGroup({ project, codexThreads, claudeSessions, kimiSessio
           onContextMenu={(e) => {
             e.preventDefault();
             e.stopPropagation();
-            setItemContextMenu({ x: e.clientX, y: e.clientY, kind: "codex", id: c.id });
+            openMenuForItem(e, "codex", c.id);
           }}
           data-active={isSelected ? "true" : "false"}
           className={`sb-row group/item ${isSelected ? "on" : ""}`}
@@ -2871,6 +3190,7 @@ export function ProjectGroup({ project, codexThreads, claudeSessions, kimiSessio
         <SidebarRow
           key={`pi-${d.id}`}
           renaming={isRenamingRow(d.id)}
+          selection={rowSelection(item, inFocus)}
           data-session-nav={d.id}
           data-session-kind="pi"
           data-session-cwd={d.cwd}
@@ -2878,7 +3198,7 @@ export function ProjectGroup({ project, codexThreads, claudeSessions, kimiSessio
           onContextMenu={(e) => {
             e.preventDefault();
             e.stopPropagation();
-            setItemContextMenu({ x: e.clientX, y: e.clientY, kind: "pi", id: d.id });
+            openMenuForItem(e, "pi", d.id);
           }}
           className="group/item flex w-full items-center gap-2.5 rounded-[7px] px-2.5 py-2 text-left text-[13px] text-zinc-400 transition-colors duration-150 hover:bg-white/[0.03] hover:text-zinc-300"
         >
@@ -2928,6 +3248,7 @@ export function ProjectGroup({ project, codexThreads, claudeSessions, kimiSessio
         <SidebarRow
           key={`kimi-${d.id}`}
           renaming={isRenamingRow(d.id)}
+          selection={rowSelection(item, inFocus)}
           data-session-nav={d.id}
           data-session-kind="kimi"
           data-session-cwd={d.cwd}
@@ -2935,7 +3256,7 @@ export function ProjectGroup({ project, codexThreads, claudeSessions, kimiSessio
           onContextMenu={(e) => {
             e.preventDefault();
             e.stopPropagation();
-            setItemContextMenu({ x: e.clientX, y: e.clientY, kind: "kimi", id: d.id });
+            openMenuForItem(e, "kimi", d.id);
           }}
           className="group/item flex w-full items-center gap-2.5 rounded-[7px] px-2.5 py-2 text-left text-[13px] text-zinc-400 transition-colors duration-150 hover:bg-white/[0.03] hover:text-zinc-300"
         >
@@ -2990,6 +3311,7 @@ export function ProjectGroup({ project, codexThreads, claudeSessions, kimiSessio
         <SidebarRow
           key={`grok-${g.id}`}
           renaming={isRenamingRow(g.id)}
+          selection={rowSelection(item, inFocus)}
           data-session-nav={g.id}
           data-session-kind="grok"
           data-session-cwd={g.cwd}
@@ -2997,7 +3319,7 @@ export function ProjectGroup({ project, codexThreads, claudeSessions, kimiSessio
           onContextMenu={(e) => {
             e.preventDefault();
             e.stopPropagation();
-            setItemContextMenu({ x: e.clientX, y: e.clientY, kind: "grok", id: g.id });
+            openMenuForItem(e, "grok", g.id);
           }}
           className="sb-row group/item"
         >
@@ -3056,13 +3378,14 @@ export function ProjectGroup({ project, codexThreads, claudeSessions, kimiSessio
         <SidebarRow
           key={`desktop-claude-${s.id}`}
           renaming={isRenamingRow(s.id)}
+          selection={rowSelection(item, inFocus)}
           data-session-nav={s.id}
           data-session-kind="desktop-claude"
           onClick={() => openDesktopClaude(s)}
           onContextMenu={(e) => {
             e.preventDefault();
             e.stopPropagation();
-            setItemContextMenu({ x: e.clientX, y: e.clientY, kind: "desktop-claude", id: s.id });
+            openMenuForItem(e, "desktop-claude", s.id);
           }}
           data-active={isSelected ? "true" : "false"}
           className={`sb-row group/item ${isSelected ? "on" : ""}`}
@@ -3102,6 +3425,7 @@ export function ProjectGroup({ project, codexThreads, claudeSessions, kimiSessio
       <SidebarRow
         key={`claude-${s.id}`}
         renaming={isRenamingRow(s.id)}
+        selection={rowSelection(item, inFocus)}
         data-session-nav={s.id}
         data-session-kind="claude"
         data-session-cwd={s.cwd}
@@ -3109,7 +3433,7 @@ export function ProjectGroup({ project, codexThreads, claudeSessions, kimiSessio
         onContextMenu={(e) => {
           e.preventDefault();
           e.stopPropagation();
-          setItemContextMenu({ x: e.clientX, y: e.clientY, kind: "claude", id: s.id });
+          openMenuForItem(e, "claude", s.id);
         }}
         data-active={isSelected ? "true" : "false"}
         className={`sb-row group/item ${isSelected ? "on" : ""}`}
@@ -3399,6 +3723,60 @@ export function ProjectGroup({ project, codexThreads, claudeSessions, kimiSessio
           </motion.div>
         )}
       </AnimatePresence>
+
+      {selectionActive && (
+        <div className="sb-select-bar sticky top-0 z-10 flex flex-wrap items-center gap-1.5 px-2 py-1.5" role="toolbar">
+          <button
+            type="button"
+            aria-label={t("sidebar.select.clear")}
+            title={t("sidebar.select.clear")}
+            disabled={selectionBusy}
+            onClick={() => {
+              clearSelection();
+              setSelectionFailure(null);
+            }}
+            className="shrink-0 rounded p-1 text-zinc-400 hover:bg-white/10 hover:text-zinc-200 disabled:opacity-40"
+          >
+            <X size={13} />
+          </button>
+          <span className="min-w-0 flex-1 truncate text-[11px] font-medium">
+            {t("sidebar.select.count", { count: selectedVisibleItems.length })}
+          </span>
+          {selectedVisibleItems.length < visibleListItems.length && (
+            <button
+              type="button"
+              disabled={selectionBusy}
+              onClick={handleSelectAllVisible}
+              className="shrink-0 rounded px-1.5 py-1 text-[10px] text-zinc-300 hover:bg-white/10 disabled:opacity-40"
+            >
+              {t("sidebar.select.all")}
+            </button>
+          )}
+          <button
+            type="button"
+            disabled={selectionBusy || archivableSelectedItems.length === 0}
+            onClick={() => { void runBulkAction("archive"); }}
+            className="shrink-0 inline-flex items-center gap-1 rounded px-1.5 py-1 text-[10px] text-[color:var(--accent)] hover:bg-white/10 disabled:opacity-40"
+          >
+            <Archive size={12} />
+            {t("sidebar.archive.action")}
+          </button>
+          <button
+            type="button"
+            disabled={selectionBusy}
+            onClick={() => { void runBulkAction("delete"); }}
+            className="shrink-0 inline-flex items-center gap-1 rounded px-1.5 py-1 text-[10px] text-red-400 hover:bg-red-500/10 disabled:opacity-40"
+          >
+            <Trash2 size={12} />
+            {t("common.delete")}
+          </button>
+          {selectionFailureCount > 0 && (
+            <span className="basis-full text-[10px] text-red-400">
+              {t("sidebar.select.failed", { count: selectionFailureCount })}
+            </span>
+          )}
+        </div>
+      )}
 
       <AnimatePresence initial={false}>
         {expanded && (
